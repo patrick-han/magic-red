@@ -5,15 +5,15 @@ This project requires:
 
 Setup:
 ```sh
-source ~/path/to/VulkanSDK/version/setup-env.sh # Setup env variables needed by cmake to find Vulkan
 mkdir build
 cd build
 cmake ..
 make
 ```
 
-The above `source` is of course not valid on Windows, so you may need to do this instead:
+WIP
 ```sh
+source ~/path/to/VulkanSDK/version/setup-env.sh # Setup env variables needed by cmake to find Vulkan
 export VULKAN_SDK=path/to/VulkanSDK/version/ # Git Bash
 $Env:VULKAN_SDK = 'path/to/VulkanSDK/version/' # Powershell
 ```
