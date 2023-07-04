@@ -75,6 +75,9 @@ private:
 
     // Swapchain
     vk::UniqueSwapchainKHR swapChain;
+    vk::Format swapChainFormat;
+    std::vector<vk::Image> swapChainImages;
+    std::vector<vk::UniqueImageView> swapChainImageViews;
 
     void initWindow() {
         glfwInit();
@@ -245,7 +248,7 @@ private:
         vk::SurfaceCapabilitiesKHR capabilities = physicalDevice.getSurfaceCapabilitiesKHR(*surface);
         std::vector<vk::SurfaceFormatKHR> formats = physicalDevice.getSurfaceFormatsKHR(*surface);
 
-        vk::Format format = vk::Format::eB8G8R8A8Unorm;
+        swapChainFormat = vk::Format::eB8G8R8A8Unorm;
         vk::Extent2D extent  = { WINDOW_WIDTH, WINDOW_HEIGHT };
         uint32_t imageCount = 2;
 
@@ -253,7 +256,7 @@ private:
             {}, 
             surface.get(), 
             imageCount, 
-            format,
+            swapChainFormat,
             vk::ColorSpaceKHR::eSrgbNonlinear, 
             extent, 
             1, 
@@ -271,6 +274,23 @@ private:
         swapChain = device->createSwapchainKHRUnique(swapChainCreateInfo);
     }
 
+    void getSwapchainImages() {
+        swapChainImages = device->getSwapchainImagesKHR(swapChain.get());
+        swapChainImageViews.reserve(swapChainImages.size());
+
+        for (vk::Image image : swapChainImages) {
+            vk::ImageViewCreateInfo imageViewCreateInfo = {
+                vk::ImageViewCreateFlags(), 
+                image,
+                vk::ImageViewType::e2D, 
+                swapChainFormat,
+                vk::ComponentMapping{ vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA },
+                vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } // No mips for swapchain imageviews
+            };
+            swapChainImageViews.push_back(device->createImageViewUnique(imageViewCreateInfo));
+        }
+    }
+
     void initVulkan() {
         createInstance();
         createDebugMessenger();
@@ -279,6 +299,7 @@ private:
         findQueueFamilyIndices();
         createDevice();
         createSwapchain();
+        getSwapchainImages();
 
         // uint32_t extensionCount = 0;
         // vk::Result a = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
