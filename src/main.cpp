@@ -63,6 +63,7 @@ private:
     std::vector<uint32_t> FamilyIndices;
 
     // Swapchain
+    uint32_t swapChainImageCount;
     vk::Extent2D windowExtent;
     vk::UniqueSwapchainKHR swapChain;
     vk::Format swapChainFormat;
@@ -83,6 +84,9 @@ private:
     // Graphics Pipeline
     vk::UniquePipelineLayout pipelineLayout;
     vk::UniquePipeline graphicsPipeline;
+
+    // Framebuffers
+    std::vector<vk::UniqueFramebuffer> framebuffers;
 
     void initWindow() {
         glfwInit();
@@ -256,12 +260,12 @@ private:
 
         swapChainFormat = vk::Format::eB8G8R8A8Unorm;
         windowExtent = vk::Extent2D{ WINDOW_WIDTH, WINDOW_HEIGHT };
-        uint32_t imageCount = 2;
+        swapChainImageCount = 2;
 
         vk::SwapchainCreateInfoKHR swapChainCreateInfo = {
             {}, 
             surface.get(), 
-            imageCount, 
+            swapChainImageCount, 
             swapChainFormat,
             vk::ColorSpaceKHR::eSrgbNonlinear, 
             windowExtent, 
@@ -377,10 +381,11 @@ private:
         vk::SubpassDependency subpassDependency = { // TODO: Understand
             VK_SUBPASS_EXTERNAL, 
             0,
-            vk::PipelineStageFlagBits::eColorAttachmentOutput, 
+            vk::PipelineStageFlagBits::eColorAttachmentOutput, // This should wait for swapchain to finish reading from the image
             vk::PipelineStageFlagBits::eColorAttachmentOutput,
             {}, 
-            vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite 
+            vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite, // Reads and writes should wait on this to finish too
+            {}
         };
 
         renderPass = device->createRenderPassUnique(
@@ -419,6 +424,20 @@ private:
         graphicsPipeline = device->createGraphicsPipelineUnique({}, pipelineCreateInfo).value;
     }
 
+    void createFramebuffer() {
+        framebuffers = std::vector<vk::UniqueFramebuffer>(swapChainImageCount);
+        for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+            framebuffers[i] = device->createFramebufferUnique(vk::FramebufferCreateInfo{
+            {},
+            *renderPass,
+            1,
+            &(*swapChainImageViews[i]),
+            windowExtent.width,
+            windowExtent.height,
+            1 });
+        }
+    }
+
     void initVulkan() {
         createInstance();
         createDebugMessenger();
@@ -432,6 +451,7 @@ private:
         createSynchronizationSturctures();
         createRenderPass();
         createGraphicsPipeline();
+        createFramebuffer();
 
         // uint32_t extensionCount = 0;
         // vk::Result a = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
