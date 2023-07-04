@@ -61,6 +61,8 @@ private:
     size_t presentQueueFamilyIndex;
     std::set<uint32_t> uniqueQueueFamilyIndices;
     std::vector<uint32_t> FamilyIndices;
+    vk::Queue graphicsQueue;
+    vk::Queue presentQueue;
 
     // Swapchain
     uint32_t swapChainImageCount;
@@ -87,6 +89,10 @@ private:
 
     // Framebuffers
     std::vector<vk::UniqueFramebuffer> framebuffers;
+
+    // Command Pools and Buffers
+    vk::UniqueCommandPool commandPoolUnique;
+    std::vector<vk::UniqueCommandBuffer> commandBuffers;
 
     void initWindow() {
         glfwInit();
@@ -209,7 +215,6 @@ private:
             uniqueQueueFamilyIndices.begin(),
             uniqueQueueFamilyIndices.end()
         };
-
     }
 
     void createDevice() {
@@ -241,7 +246,6 @@ private:
             deviceExtensions.data()
         };
         device = physicalDevice.createDeviceUnique(deviceCreateInfo);
-
     }
 
     void createSwapchain() {
@@ -438,6 +442,40 @@ private:
         }
     }
 
+    void createCommandPool() {
+        commandPoolUnique = device->createCommandPoolUnique({ {}, static_cast<uint32_t>(graphicsQueueFamilyIndex) });
+    }
+
+    void recordCommandBuffer() {
+        commandBuffers = device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(
+            commandPoolUnique.get(),
+            vk::CommandBufferLevel::ePrimary,
+            static_cast<uint32_t>(framebuffers.size()))); // 1 Command buffer per framebuffer
+
+        // TODO: Move this somewhere else maybe
+        graphicsQueue = device->getQueue(static_cast<uint32_t>(graphicsQueueFamilyIndex), 0);
+        presentQueue = device->getQueue(static_cast<uint32_t>(presentQueueFamilyIndex), 0);
+
+        for (size_t i = 0; i < commandBuffers.size(); i++) {
+            vk::CommandBufferBeginInfo beginInfo = {};
+            commandBuffers[i]->begin(beginInfo);
+            vk::ClearValue clearValues = {};
+            vk::RenderPassBeginInfo renderPassBeginInfo = {
+                renderPass.get(), 
+                framebuffers[i].get(),
+                vk::Rect2D{ { 0, 0 }, windowExtent }, 
+                1, 
+                &clearValues 
+            };
+
+            commandBuffers[i]->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+            commandBuffers[i]->bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline);
+            commandBuffers[i]->draw(3, 1, 0, 0);
+            commandBuffers[i]->endRenderPass();
+            commandBuffers[i]->end();
+        }
+    }
+
     void initVulkan() {
         createInstance();
         createDebugMessenger();
@@ -452,21 +490,27 @@ private:
         createRenderPass();
         createGraphicsPipeline();
         createFramebuffer();
-
-        // uint32_t extensionCount = 0;
-        // vk::Result a = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-
-        // std::cout << extensionCount << " extensions supported\n";
-        // std::cout << ROOT_DIR << std::endl;
+        createCommandPool();
+        recordCommandBuffer();
 
     }
 
     void mainLoop() {
-        
-
-
         while(!glfwWindowShouldClose(window)) {
             glfwPollEvents();
+
+            vk::ResultValue<uint32_t> imageIndex = device->acquireNextImageKHR(swapChain.get(), std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore.get(), {});
+
+            vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+
+            vk::SubmitInfo submitInfo = { 1, &imageAvailableSemaphore.get(), &waitStageMask, 1, &commandBuffers[imageIndex.value].get(), 1, &renderFinishedSemaphore.get() };
+
+            graphicsQueue.submit(submitInfo, {});
+
+            vk::PresentInfoKHR presentInfo = { 1, &renderFinishedSemaphore.get(), 1, &swapChain.get(), &imageIndex.value };
+            vk::Result result = presentQueue.presentKHR(presentInfo);
+
+            device->waitIdle();
         }
     }
 
