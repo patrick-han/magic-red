@@ -29,6 +29,12 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
     const bool enableValidationLayers = true;
 #endif
 
+#ifdef __APPLE__
+    const bool appleBuild = true;
+#else
+    const bool appleBuild = false;
+#endif
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
@@ -57,6 +63,7 @@ private:
 
     // Surface
     vk::UniqueSurfaceKHR surface;
+    vk::PhysicalDevice physicalDevice;
 
     void initWindow() {
         glfwInit();
@@ -77,11 +84,11 @@ private:
 
         // MoltenVK requires
         vk::InstanceCreateFlagBits instanceCreateFlagBits;
-        #ifdef __APPLE__
+        if (appleBuild) {
             std::cout << "Running on an Apple device, adding appropriate extension and instance creation flag bits" << std::endl;
             glfwExtensionsVector.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
             instanceCreateFlagBits = vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
-        #endif
+        }
 
         // Enable validation layers and creation of debug messenger if building debug
         if (enableValidationLayers) {
@@ -128,10 +135,32 @@ private:
         surface = vk::UniqueSurfaceKHR(surfaceTmp, *instance);
     }
 
+    void initPhysicalDevices() {
+        std::vector<vk::PhysicalDevice> physicalDevices = instance->enumeratePhysicalDevices();
+        for (vk::PhysicalDevice& d : physicalDevices) {
+            MRLOG("Physical device enumerated: " << d.getProperties().deviceName);
+        }
+
+        std::vector<vk::PhysicalDevice>::iterator findIfIterator;
+        if (appleBuild) {
+            findIfIterator = std::find_if(physicalDevices.begin(), physicalDevices.end(), 
+                [](const vk::PhysicalDevice& physicalDevice) -> char* {
+                    return strstr(physicalDevice.getProperties().deviceName, "Apple"); // Returns null pointer if not found
+                }
+            );
+            physicalDevice = physicalDevices[std::distance(physicalDevices.begin(), findIfIterator)];
+            vk::PhysicalDeviceProperties physDeviceProperties = physicalDevice.getProperties();
+            MRLOG("Chosen deviceName: " << physDeviceProperties.deviceName);
+        } else {
+            physicalDevice = physicalDevices[0]; // TODO: By Default, just select the first physical device
+        }
+    }
+
     void initVulkan() {
         createInstance();
         createDebugMessenger();
         createSurface();
+        initPhysicalDevices();
 
         // uint32_t extensionCount = 0;
         // vk::Result a = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
