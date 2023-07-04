@@ -63,6 +63,7 @@ private:
     std::vector<uint32_t> FamilyIndices;
 
     // Swapchain
+    vk::Extent2D windowExtent;
     vk::UniqueSwapchainKHR swapChain;
     vk::Format swapChainFormat;
     std::vector<vk::Image> swapChainImages;
@@ -71,6 +72,17 @@ private:
     // Shaders
     vk::UniqueShaderModule vertexShaderModule;
     vk::UniqueShaderModule fragmentShaderModule;
+
+    // Synchronization
+    vk::UniqueSemaphore imageAvailableSemaphore;
+    vk::UniqueSemaphore renderFinishedSemaphore;
+
+    // Renderpass
+    vk::UniqueRenderPass renderPass;
+
+    // Graphics Pipeline
+    vk::UniquePipelineLayout pipelineLayout;
+    vk::UniquePipeline graphicsPipeline;
 
     void initWindow() {
         glfwInit();
@@ -243,7 +255,7 @@ private:
         std::vector<vk::SurfaceFormatKHR> formats = physicalDevice.getSurfaceFormatsKHR(*surface);
 
         swapChainFormat = vk::Format::eB8G8R8A8Unorm;
-        vk::Extent2D extent  = { WINDOW_WIDTH, WINDOW_HEIGHT };
+        windowExtent = vk::Extent2D{ WINDOW_WIDTH, WINDOW_HEIGHT };
         uint32_t imageCount = 2;
 
         vk::SwapchainCreateInfoKHR swapChainCreateInfo = {
@@ -252,7 +264,7 @@ private:
             imageCount, 
             swapChainFormat,
             vk::ColorSpaceKHR::eSrgbNonlinear, 
-            extent, 
+            windowExtent, 
             1, 
             vk::ImageUsageFlagBits::eColorAttachment,
             sharingModeUtil.sharingMode, 
@@ -349,6 +361,64 @@ private:
         fragmentShaderModule = device->createShaderModuleUnique(fragShaderCreateInfo);
     }
 
+    void createSynchronizationSturctures() {
+        vk::SemaphoreCreateInfo semaphoreCreateInfo = {};
+        imageAvailableSemaphore = device->createSemaphoreUnique(semaphoreCreateInfo);
+        renderFinishedSemaphore = device->createSemaphoreUnique(semaphoreCreateInfo);
+    }
+
+    void createRenderPass() {
+        vk::AttachmentDescription colorAttachment = { {}, swapChainFormat, vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore, {}, {}, {}, vk::ImageLayout::ePresentSrcKHR };
+
+        vk::AttachmentReference colourAttachmentRef = { 0, vk::ImageLayout::eColorAttachmentOptimal };
+
+        vk::SubpassDescription subpass = { {}, vk::PipelineBindPoint::eGraphics, /*inAttachmentCount*/ 0, nullptr, 1, &colourAttachmentRef };
+
+        vk::SubpassDependency subpassDependency = { // TODO: Understand
+            VK_SUBPASS_EXTERNAL, 
+            0,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput, 
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            {}, 
+            vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite 
+        };
+
+        renderPass = device->createRenderPassUnique(
+            vk::RenderPassCreateInfo{ {}, 1, &colorAttachment, 1, &subpass, 1, &subpassDependency }
+        );
+    }
+
+    void createGraphicsPipeline() {
+        vk::PipelineShaderStageCreateInfo vertShaderStageInfo = { {}, vk::ShaderStageFlagBits::eVertex, *vertexShaderModule, "main"};
+        vk::PipelineShaderStageCreateInfo fragShaderStageInfo = { {}, vk::ShaderStageFlagBits::eFragment, *fragmentShaderModule, "main"};
+        std::vector<vk::PipelineShaderStageCreateInfo> pipelineShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+        vk::PipelineVertexInputStateCreateInfo vertexInputInfo = { {}, 0u, nullptr, 0u, nullptr }; // TODO: Hardcoded shader for now
+        vk::PipelineInputAssemblyStateCreateInfo inputAssembly = { {}, vk::PrimitiveTopology::eTriangleList, false };
+        vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, 1.0f };
+        vk::Rect2D scissor = { { 0, 0 }, windowExtent };
+        vk::PipelineViewportStateCreateInfo viewportState = { {}, 1, &viewport, 1, &scissor };
+        vk::PipelineRasterizationStateCreateInfo rasterizer = { {}, /*depthClamp*/ false,
+        /*rasterizeDiscard*/ false, vk::PolygonMode::eFill, {},
+        /*frontFace*/ vk::FrontFace::eCounterClockwise, {}, {}, {}, {}, 1.0f };
+        vk::PipelineMultisampleStateCreateInfo multisampling = { {}, vk::SampleCountFlagBits::e1, false, 1.0 };
+
+        vk::PipelineColorBlendAttachmentState colorBlendAttachment = { {}, /*srcCol*/ vk::BlendFactor::eOne,
+        /*dstCol*/ vk::BlendFactor::eZero, /*colBlend*/ vk::BlendOp::eAdd,
+        /*srcAlpha*/ vk::BlendFactor::eOne, /*dstAlpha*/ vk::BlendFactor::eZero,
+        /*alphaBlend*/ vk::BlendOp::eAdd,
+        vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+            vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
+        vk::PipelineColorBlendStateCreateInfo colorBlending = { {}, /*logicOpEnable=*/false, vk::LogicOp::eCopy, /*attachmentCount=*/1, /*colourAttachments=*/&colorBlendAttachment };
+
+        pipelineLayout = device->createPipelineLayoutUnique({}, nullptr);
+
+        vk::GraphicsPipelineCreateInfo pipelineCreateInfo = { {}, 2, pipelineShaderStages.data(),
+        &vertexInputInfo, &inputAssembly, nullptr, &viewportState, &rasterizer, &multisampling,
+        nullptr, &colorBlending, nullptr, *pipelineLayout, *renderPass, 0 };
+
+        graphicsPipeline = device->createGraphicsPipelineUnique({}, pipelineCreateInfo).value;
+    }
+
     void initVulkan() {
         createInstance();
         createDebugMessenger();
@@ -359,6 +429,9 @@ private:
         createSwapchain();
         getSwapchainImages();
         createShaderModules();
+        createSynchronizationSturctures();
+        createRenderPass();
+        createGraphicsPipeline();
 
         // uint32_t extensionCount = 0;
         // vk::Result a = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
