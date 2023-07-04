@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.20)
 
 project(magic-red VERSION 1.0)
 
@@ -32,10 +32,10 @@ add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 # Dependencies
 find_package(Vulkan REQUIRED)
-find_package(glfw3 3.3 REQUIRED)
+add_subdirectory(Dependencies)
 
 if (VULKAN_FOUND)
     message(STATUS "Found Vulkan, Including and Linking now")
     include_directories(${Vulkan_INCLUDE_DIRS})
-    target_link_libraries (${PROJECT_NAME} ${Vulkan_LIBRARIES} glfw)
+    target_link_libraries (${PROJECT_NAME} ${Vulkan_LIBRARIES} Dependencies)
 endif (VULKAN_FOUND)

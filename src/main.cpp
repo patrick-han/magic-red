@@ -1,11 +1,11 @@
-#include "vulkan/vulkan.hpp"
-#include <GLFW/glfw3.h>
-
+#include "utils.h" // Includes vulkan and glfw headers!
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
+
+#include <shaderc/shaderc.hpp>
 
 #include <iostream>
 #include <vector>
@@ -13,35 +13,24 @@
 #include <stdexcept>
 #include <cstdlib>
 #include "RootDir.h"
-#include "utils.h"
+
 
 const uint32_t WINDOW_WIDTH = 800;
 const uint32_t WINDOW_HEIGHT = 600;
 
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
+
+shaderc::SpvCompilationResult compileShader(std::string shaderSource, shaderc_shader_kind shaderKind, const char *inputFileName) {
+    // TODO: Not sure what the cost of doing this compiler init everytime is, fine for now
+    shaderc::Compiler compiler;
+    shaderc::CompileOptions options;
+    options.SetOptimizationLevel(shaderc_optimization_level_performance);
+
+    shaderc::SpvCompilationResult shaderModuleCompile = compiler.CompileGlslToSpv(shaderSource, shaderKind, inputFileName, options);
+    if (shaderModuleCompile.GetCompilationStatus() != shaderc_compilation_status_success) {
+        MRCERR(shaderModuleCompile.GetErrorMessage());
+        exit(0); // TODO: Do something else instead?
     }
-}
-
-#ifdef NDEBUG
-    const bool enableValidationLayers = false;
-#else
-    const bool enableValidationLayers = true;
-#endif
-
-#ifdef __APPLE__
-    const bool appleBuild = true;
-#else
-    const bool appleBuild = false;
-#endif
-
-static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT messageType,
-    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-    void* pUserData) {
-    std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
-    return VK_FALSE;
+    return shaderModuleCompile;
 }
 
 class Engine {
@@ -78,6 +67,10 @@ private:
     vk::Format swapChainFormat;
     std::vector<vk::Image> swapChainImages;
     std::vector<vk::UniqueImageView> swapChainImageViews;
+
+    // Shaders
+    vk::UniqueShaderModule vertexShaderModule;
+    vk::UniqueShaderModule fragmentShaderModule;
 
     void initWindow() {
         glfwInit();
@@ -174,6 +167,7 @@ private:
     void findQueueFamilyIndices() {
         // Find graphics and present queue family indices
         std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
+
         graphicsQueueFamilyIndex = std::distance(queueFamilyProperties.begin(),
             std::find_if(queueFamilyProperties.begin(), queueFamilyProperties.end(),
                 [](vk::QueueFamilyProperties const& qfp) {
@@ -291,6 +285,70 @@ private:
         }
     }
 
+    void createShaderModules() {
+        // TODO: Hardcoded for now
+        std::string vertexShaderSource = R"vertexshader(
+            #version 450
+            #extension GL_ARB_separate_shader_objects : enable
+
+            out gl_PerVertex {
+                vec4 gl_Position;
+            };
+
+            layout(location = 0) out vec3 fragColor;
+
+            vec2 positions[3] = vec2[](
+                vec2(0.0, -0.5),
+                vec2(0.5, 0.5),
+                vec2(-0.5, 0.5)
+            );
+
+            vec3 colors[3] = vec3[](
+                vec3(1.0, 0.0, 0.0),
+                vec3(0.0, 1.0, 0.0),
+                vec3(0.0, 0.0, 1.0)
+            );
+
+            void main() {
+                gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
+                fragColor = colors[gl_VertexIndex];
+            }
+            )vertexshader";
+
+        std::string fragmentShaderSource = R"fragmentShader(
+            #version 450
+            #extension GL_ARB_separate_shader_objects : enable
+
+            layout(location = 0) in vec3 fragColor;
+
+            layout(location = 0) out vec4 outColor;
+
+            void main() {
+                outColor = vec4(fragColor, 1.0);
+            }
+            )fragmentShader";
+
+        shaderc::SpvCompilationResult vertexShaderModuleCompile = compileShader(vertexShaderSource, shaderc_glsl_vertex_shader, "vertex shader");
+        std::vector<uint32_t> vertexShaderCode = { vertexShaderModuleCompile.cbegin(), vertexShaderModuleCompile.cend() };
+        ptrdiff_t vertexShaderNumBytes = std::distance(vertexShaderCode.begin(), vertexShaderCode.end());
+        vk::ShaderModuleCreateInfo vertexShaderCreateInfo = {
+            {}, 
+            vertexShaderNumBytes * sizeof(uint32_t),
+            vertexShaderCode.data() 
+        };
+        vertexShaderModule = device->createShaderModuleUnique(vertexShaderCreateInfo);
+
+        shaderc::SpvCompilationResult fragShaderModuleCompile = compileShader(fragmentShaderSource, shaderc_glsl_fragment_shader, "fragment shader");
+        std::vector<uint32_t> fragmentShaderCode = { fragShaderModuleCompile.cbegin(), fragShaderModuleCompile.cend() };
+        ptrdiff_t fragmentShaderNumBytes = std::distance(fragmentShaderCode.begin(), fragmentShaderCode.end());
+        vk::ShaderModuleCreateInfo fragShaderCreateInfo = {
+            {}, 
+            fragmentShaderNumBytes * sizeof(uint32_t), 
+            fragmentShaderCode.data() 
+        };
+        fragmentShaderModule = device->createShaderModuleUnique(fragShaderCreateInfo);
+    }
+
     void initVulkan() {
         createInstance();
         createDebugMessenger();
@@ -300,6 +358,7 @@ private:
         createDevice();
         createSwapchain();
         getSwapchainImages();
+        createShaderModules();
 
         // uint32_t extensionCount = 0;
         // vk::Result a = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);

@@ -1,0 +1,21 @@
+[submodule "Dependencies/shaderc"]
+	path = Dependencies/shaderc
+	url = https://github.com/google/shaderc
+[submodule "Dependencies/SPIRV-Tools"]
+	path = Dependencies/SPIRV-Tools
+	url = https://github.com/KhronosGroup/SPIRV-Tools
+[submodule "Dependencies/SPIRV-Headers"]
+	path = Dependencies/SPIRV-Headers
+	url = https://github.com/KhronosGroup/SPIRV-Headers
+[submodule "Dependencies/SPIRV-Reflect"]
+	path = Dependencies/SPIRV-Reflect
+	url = https://github.com/KhronosGroup/SPIRV-Reflect
+[submodule "Dependencies/glslang"]
+	path = Dependencies/glslang
+	url = https://github.com/KhronosGroup/glslang
+[submodule "Dependencies/glfw"]
+	path = Dependencies/glfw
+	url = https://github.com/glfw/glfw
+[submodule "Dependencies/glm"]
+	path = Dependencies/glm
+	url = https://github.com/g-truc/glm
