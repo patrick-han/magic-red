@@ -67,7 +67,7 @@ private:
 
     // Swapchain
     uint32_t swapChainImageCount;
-    vk::Extent2D swapchainExtent;
+    vk::Extent2D swapChainExtent;
     vk::UniqueSwapchainKHR swapChain;
     vk::Format swapChainFormat;
     std::vector<vk::Image> swapChainImages;
@@ -261,21 +261,33 @@ private:
                            SM{ vk::SharingMode::eConcurrent, 2u, FamilyIndices.data() } :
                            SM{ vk::SharingMode::eExclusive, 0u, static_cast<uint32_t*>(nullptr) } };
         
-         // Needed for validation warnings
+        // Query for surface format support
         vk::SurfaceCapabilitiesKHR capabilities = physicalDevice.getSurfaceCapabilitiesKHR(*surface);
         std::vector<vk::SurfaceFormatKHR> formats = physicalDevice.getSurfaceFormatsKHR(*surface);
-
         swapChainFormat = vk::Format::eB8G8R8A8Unorm;
-        swapchainExtent = vk::Extent2D{ WINDOW_WIDTH, WINDOW_HEIGHT };
-        swapChainImageCount = 2;
+        vk::ColorSpaceKHR swapChainColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear;
+        bool foundCompatible = false;
+        for (auto format : formats) {
+            if (format.format == swapChainFormat && format.colorSpace == swapChainColorSpace) {
+                foundCompatible = true;
+                break;
+            }
+        }
+        if (!foundCompatible) {
+            MRCERR("Could not find compatible surface format!");
+            exit(0);
+        }
 
+        // Create swapchain
+        swapChainExtent = vk::Extent2D{ WINDOW_WIDTH, WINDOW_HEIGHT };
+        swapChainImageCount = 2; // Should probably request support for this, but it's probably fine
         vk::SwapchainCreateInfoKHR swapChainCreateInfo = {
             {}, 
             surface.get(), 
             swapChainImageCount, 
             swapChainFormat,
             vk::ColorSpaceKHR::eSrgbNonlinear, 
-            swapchainExtent, 
+            swapChainExtent, 
             1, 
             vk::ImageUsageFlagBits::eColorAttachment,
             sharingModeUtil.sharingMode, 
@@ -283,7 +295,7 @@ private:
             sharingModeUtil.familyIndicesDataPtr, 
             vk::SurfaceTransformFlagBitsKHR::eIdentity,
             vk::CompositeAlphaFlagBitsKHR::eOpaque, 
-            vk::PresentModeKHR::eFifo, 
+            vk::PresentModeKHR::eFifo, // Required for implementations, no need to query for support
             true, 
             nullptr
         };
@@ -414,7 +426,7 @@ private:
         vk::PipelineVertexInputStateCreateInfo vertexInputInfo = { {}, 0u, nullptr, 0u, nullptr }; // TODO: Hardcoded shader for now
         vk::PipelineInputAssemblyStateCreateInfo inputAssembly = { {}, vk::PrimitiveTopology::eTriangleList, false };
         vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, 1.0f };
-        vk::Rect2D scissor = { { 0, 0 }, swapchainExtent };
+        vk::Rect2D scissor = { { 0, 0 }, swapChainExtent };
         vk::PipelineViewportStateCreateInfo viewportState = { {}, 1, &viewport, 1, &scissor };
         vk::PipelineRasterizationStateCreateInfo rasterizer = { {}, /*depthClamp*/ false,
         /*rasterizeDiscard*/ false, vk::PolygonMode::eFill, {},
@@ -468,8 +480,8 @@ private:
             *renderPass,
             1,
             &(*swapChainImageViews[i]),
-            swapchainExtent.width,
-            swapchainExtent.height,
+            swapChainExtent.width,
+            swapChainExtent.height,
             1 });
         }
     }
@@ -500,7 +512,7 @@ private:
         vk::RenderPassBeginInfo renderPassBeginInfo = {
             renderPass.get(), 
             framebuffers[imageIndex].get(),
-            vk::Rect2D{ { 0, 0 }, swapchainExtent }, 
+            vk::Rect2D{ { 0, 0 }, swapChainExtent }, 
             1, 
             &clearValues 
         };
@@ -508,10 +520,10 @@ private:
         commandBuffers[currentFrame]->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
         commandBuffers[currentFrame]->bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline);
 
-        vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(swapchainExtent.width), static_cast<float>(swapchainExtent.height), 0.0f, 0.0f };
+        vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height), 0.0f, 0.0f };
         commandBuffers[currentFrame]->setViewport(0, 1, &viewport);
 
-        vk::Rect2D scissor = { {0, 0}, swapchainExtent};
+        vk::Rect2D scissor = { {0, 0}, swapChainExtent};
         commandBuffers[currentFrame]->setScissor(0, 1, &scissor);
 
         commandBuffers[currentFrame]->draw(3, 1, 0, 0);
