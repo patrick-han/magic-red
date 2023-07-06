@@ -66,7 +66,7 @@ private:
 
     // Swapchain
     uint32_t swapChainImageCount;
-    vk::Extent2D windowExtent;
+    vk::Extent2D swapchainExtent;
     vk::UniqueSwapchainKHR swapChain;
     vk::Format swapChainFormat;
     std::vector<vk::Image> swapChainImages;
@@ -264,7 +264,7 @@ private:
         std::vector<vk::SurfaceFormatKHR> formats = physicalDevice.getSurfaceFormatsKHR(*surface);
 
         swapChainFormat = vk::Format::eB8G8R8A8Unorm;
-        windowExtent = vk::Extent2D{ WINDOW_WIDTH, WINDOW_HEIGHT };
+        swapchainExtent = vk::Extent2D{ WINDOW_WIDTH, WINDOW_HEIGHT };
         swapChainImageCount = 2;
 
         vk::SwapchainCreateInfoKHR swapChainCreateInfo = {
@@ -273,7 +273,7 @@ private:
             swapChainImageCount, 
             swapChainFormat,
             vk::ColorSpaceKHR::eSrgbNonlinear, 
-            windowExtent, 
+            swapchainExtent, 
             1, 
             vk::ImageUsageFlagBits::eColorAttachment,
             sharingModeUtil.sharingMode, 
@@ -409,7 +409,7 @@ private:
         vk::PipelineVertexInputStateCreateInfo vertexInputInfo = { {}, 0u, nullptr, 0u, nullptr }; // TODO: Hardcoded shader for now
         vk::PipelineInputAssemblyStateCreateInfo inputAssembly = { {}, vk::PrimitiveTopology::eTriangleList, false };
         vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, 1.0f };
-        vk::Rect2D scissor = { { 0, 0 }, windowExtent };
+        vk::Rect2D scissor = { { 0, 0 }, swapchainExtent };
         vk::PipelineViewportStateCreateInfo viewportState = { {}, 1, &viewport, 1, &scissor };
         vk::PipelineRasterizationStateCreateInfo rasterizer = { {}, /*depthClamp*/ false,
         /*rasterizeDiscard*/ false, vk::PolygonMode::eFill, {},
@@ -455,8 +455,8 @@ private:
             *renderPass,
             1,
             &(*swapChainImageViews[i]),
-            windowExtent.width,
-            windowExtent.height,
+            swapchainExtent.width,
+            swapchainExtent.height,
             1 });
         }
     }
@@ -486,7 +486,7 @@ private:
             vk::RenderPassBeginInfo renderPassBeginInfo = {
                 renderPass.get(), 
                 framebuffers[i].get(),
-                vk::Rect2D{ { 0, 0 }, windowExtent }, 
+                vk::Rect2D{ { 0, 0 }, swapchainExtent }, 
                 1, 
                 &clearValues 
             };
