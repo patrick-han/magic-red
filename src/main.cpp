@@ -28,21 +28,6 @@ const uint32_t WINDOW_WIDTH = 800;
 const uint32_t WINDOW_HEIGHT = 600;
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
-
-shaderc::SpvCompilationResult compileShader(std::string shaderSource, shaderc_shader_kind shaderKind, const char *inputFileName) {
-    // TODO: Not sure what the cost of doing this compiler init everytime is, fine for now
-    shaderc::Compiler compiler;
-    shaderc::CompileOptions options;
-    options.SetOptimizationLevel(shaderc_optimization_level_performance);
-
-    shaderc::SpvCompilationResult shaderModuleCompile = compiler.CompileGlslToSpv(shaderSource, shaderKind, inputFileName, options);
-    if (shaderModuleCompile.GetCompilationStatus() != shaderc_compilation_status_success) {
-        MRCERR(shaderModuleCompile.GetErrorMessage());
-        exit(0); // TODO: Do something else instead?
-    }
-    return shaderModuleCompile;
-}
-
 class Engine {
 public:
     void run() {
@@ -344,22 +329,18 @@ private:
         std::string vertexShaderSource = load_shader_source_to_string(ROOT_DIR "shaders/triangle_mesh.vert");
         std::string fragmentShaderSource = load_shader_source_to_string(ROOT_DIR "shaders/triangle_mesh.frag");
 
-        shaderc::SpvCompilationResult vertexShaderModuleCompile = compileShader(vertexShaderSource, shaderc_glsl_vertex_shader, "vertex shader");
-        std::vector<uint32_t> vertexShaderCode = { vertexShaderModuleCompile.cbegin(), vertexShaderModuleCompile.cend() };
-        ptrdiff_t vertexShaderNumBytes = std::distance(vertexShaderCode.begin(), vertexShaderCode.end());
-        vk::ShaderModuleCreateInfo vertexShaderCreateInfo = {
+        std::vector<uint32_t> vertexShaderCode = compile_shader(vertexShaderSource, shaderc_glsl_vertex_shader, "vertex shader");
+        vk::ShaderModuleCreateInfo vertexShaderCreateInfo = { 
             {}, 
-            vertexShaderNumBytes * sizeof(uint32_t),
+            std::distance(vertexShaderCode.begin(), vertexShaderCode.end()) * sizeof(uint32_t),
             vertexShaderCode.data() 
         };
         vertexShaderModule = device->createShaderModuleUnique(vertexShaderCreateInfo);
 
-        shaderc::SpvCompilationResult fragShaderModuleCompile = compileShader(fragmentShaderSource, shaderc_glsl_fragment_shader, "fragment shader");
-        std::vector<uint32_t> fragmentShaderCode = { fragShaderModuleCompile.cbegin(), fragShaderModuleCompile.cend() };
-        ptrdiff_t fragmentShaderNumBytes = std::distance(fragmentShaderCode.begin(), fragmentShaderCode.end());
-        vk::ShaderModuleCreateInfo fragShaderCreateInfo = {
+        std::vector<uint32_t> fragmentShaderCode = compile_shader(fragmentShaderSource, shaderc_glsl_fragment_shader, "fragment shader");
+        vk::ShaderModuleCreateInfo fragShaderCreateInfo = { 
             {}, 
-            fragmentShaderNumBytes * sizeof(uint32_t), 
+            std::distance(fragmentShaderCode.begin(), fragmentShaderCode.end()) * sizeof(uint32_t), 
             fragmentShaderCode.data() 
         };
         fragmentShaderModule = device->createShaderModuleUnique(fragShaderCreateInfo);
