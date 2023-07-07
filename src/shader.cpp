@@ -29,7 +29,7 @@ std::string load_shader_source_to_string(std::string const& shaderPath) {
     return shaderSource;
 }
 
-std::vector<uint32_t> compile_shader(std::string shaderSource, shaderc_shader_kind shaderKind, const char *inputFileName) {
+vk::UniqueShaderModule compile_shader(vk::Device device, std::string shaderSource, shaderc_shader_kind shaderKind, const char *inputFileName) {
     // TODO: Not sure what the cost of doing this compiler init everytime is, fine for now
     shaderc::Compiler compiler;
     shaderc::CompileOptions options;
@@ -43,5 +43,13 @@ std::vector<uint32_t> compile_shader(std::string shaderSource, shaderc_shader_ki
     }
     std::vector<uint32_t> shaderCode = { shaderModuleCompile.cbegin(), shaderModuleCompile.cend() };
 
-    return shaderCode;
+    vk::ShaderModuleCreateInfo shaderCreateInfo = { 
+            {}, 
+            std::distance(shaderCode.begin(), shaderCode.end()) * sizeof(uint32_t),
+            shaderCode.data() 
+    };
+
+    vk::UniqueShaderModule shaderModule = device.createShaderModuleUnique(shaderCreateInfo);
+
+    return shaderModule;
 }
