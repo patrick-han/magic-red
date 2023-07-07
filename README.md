@@ -1,14 +1,26 @@
-This project requires:
-- VulkanSDK
-- GLFW3
-- GLM (can be installed with the Vulkan SDK)
+This project requires from you:
+- Vulkan SDK
+- CMake 3.20 or later
 
-Setup:
+Initial clone:
 ```sh
+git clone --recurse-submodules git@github.com:patrick-han/magic-red.git
+```
+
+If you forgot to fetch the submodules:
+```sh
+cd magic-red
+git submodule update --init --recursive
+```
+
+
+Build setup:
+```sh
+cd magic-red
 mkdir build
 cd build
 cmake ..
-make
+make debug # or release
 ```
 
 WIP
