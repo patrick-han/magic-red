@@ -8,5 +8,5 @@ struct AllocatedBuffer {
     VmaAllocation allocation;
 };
 
-
+/* Given the raw desired data, upload a buffer to the GPU */
 void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const void* bufferData, VkBufferUsageFlags bufferUsage, VmaAllocator allocator, DeletionQueue& deletionQueue);
