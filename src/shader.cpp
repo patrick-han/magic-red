@@ -2,6 +2,9 @@
 #include "utils.h"
 #include <iostream>
 #include <fstream>
+#ifdef _WIN32
+#include <sstream>
+#endif
 
 
 std::string load_shader_source_to_string(std::string const& shaderPath) {
