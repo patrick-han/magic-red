@@ -1,6 +1,6 @@
 #include "buffer.h"
 
-void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const void* bufferData, VkBufferUsageFlags bufferUsage, VmaAllocator allocator, DeletionQueue* deletionQueue) {
+void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const void* bufferData, VkBufferUsageFlags bufferUsage, VmaAllocator allocator, DeletionQueue& deletionQueue) {
     // Create buffer
     VkBufferCreateInfo bufferCreateInfo = {};
     bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -23,7 +23,7 @@ void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const vo
     }
     
     // Add the destruction of mesh buffer to the deletion queue
-    deletionQueue->push_function([=]() {
+    deletionQueue.push_function([=]() {
         vmaDestroyBuffer(allocator, allocatedBuffer.buffer, allocatedBuffer.allocation);
     });
 
