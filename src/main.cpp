@@ -172,8 +172,7 @@ private:
         VkSurfaceKHR surfaceTmp;
         VkResult err = glfwCreateWindowSurface(*instance, window, nullptr, &surfaceTmp);
         if (err != VK_SUCCESS) {
-            MRLOG("Surface creation unsuccessful!");
-            exit(0);
+            throw std::runtime_error("Could not create surface!");
         }
         surface = vk::UniqueSurfaceKHR(surfaceTmp, *instance);
     }
@@ -285,8 +284,7 @@ private:
             }
         }
         if (!foundCompatible) {
-            MRCERR("Could not find compatible surface format!");
-            exit(0);
+            throw std::runtime_error("Could not find compatible surface format!");
         }
 
         // Create swapchain
@@ -532,8 +530,7 @@ private:
         allocatorInfo.instance = instance.get();
         VkResult res = vmaCreateAllocator(&allocatorInfo, &vmaAllocator);
         if (res != VK_SUCCESS) {
-            MRLOG("vmaCreateAllocator unsuccessful!");
-            exit(0);
+            throw std::runtime_error("vmaCreateAllocator unsuccessful!");
         }
         mainDeletionQueue.push_function([&]() {
 		    vmaDestroyAllocator(vmaAllocator);

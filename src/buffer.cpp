@@ -18,8 +18,7 @@ void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const vo
         nullptr
     );
     if (res != VK_SUCCESS) {
-        MRCERR("Failed to allocate buffer!");
-        exit(0);
+        throw std::runtime_error("Could not allocate buffer!");
     }
     
     // Add the destruction of mesh buffer to the deletion queue
