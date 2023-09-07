@@ -499,8 +499,10 @@ private:
         commandBuffers[currentFrame]->bindPipeline(vk::PipelineBindPoint::eGraphics, *meshPipeline);
 
         vk::DeviceSize offset = 0;
-        commandBuffers[currentFrame]->bindVertexBuffers(0, 1, &sceneMeshes[0].vertexBuffer.buffer, &offset);
-        commandBuffers[currentFrame]->bindIndexBuffer(sceneMeshes[0].indexBuffer.buffer, offset, vk::IndexType::eUint32);
+        // commandBuffers[currentFrame]->bindVertexBuffers(0, 1, &sceneMeshes[0].vertexBuffer.buffer, &offset);
+        // commandBuffers[currentFrame]->bindIndexBuffer(sceneMeshes[0].indexBuffer.buffer, offset, vk::IndexType::eUint32);
+
+        commandBuffers[currentFrame]->bindVertexBuffers(0, 1, &sceneMeshes[1].vertexBuffer.buffer, &offset);
 
         vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height), 0.0f, 0.0f };
         commandBuffers[currentFrame]->setViewport(0, 1, &viewport);
@@ -512,14 +514,15 @@ private:
         glm::vec3 camPos = { 0.f,0.f,-2.f };
         glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
-        // projection[1][1] *= -1; // flips the model
+        projection[1][1] *= -1; // flips the model
         glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(frameNumber * 0.4f), glm::vec3(0, 1, 0));
         glm::mat4 mvpMatrix = projection * view * model;
         MeshPushConstants constants;
         constants.renderMatrix = mvpMatrix;
         commandBuffers[currentFrame]->pushConstants(meshPipelineLayout.get(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(MeshPushConstants), &constants);
 
-        commandBuffers[currentFrame]->drawIndexed(static_cast<uint32_t>(sceneMeshes[0].indices.size()), 1, 0, offset, 0);
+        // commandBuffers[currentFrame]->drawIndexed(static_cast<uint32_t>(sceneMeshes[0].indices.size()), 1, 0, offset, 0);
+        commandBuffers[currentFrame]->draw(sceneMeshes[1].vertices.size(), 1, 0, 0);
         commandBuffers[currentFrame]->endRenderPass();
         commandBuffers[currentFrame]->end();
     }
@@ -565,6 +568,12 @@ private:
 
         sceneMeshes.push_back(triangleMesh);
         upload_mesh(sceneMeshes[0], vmaAllocator, mainDeletionQueue);
+
+        // Suzanne mesh
+        Mesh monkeyMesh;
+        sceneMeshes.push_back(monkeyMesh);
+        load_mesh_from_obj(sceneMeshes[1], ROOT_DIR "/assets/meshes/suzanne.obj");
+        upload_mesh(sceneMeshes[1], vmaAllocator, mainDeletionQueue);
     }
 
     void initVulkan() {
