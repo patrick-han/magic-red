@@ -56,7 +56,7 @@ void upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue* deletionQueu
         nullptr
     );
     if (res != VK_SUCCESS) {
-        MRCERR("Failed to allocate buffer!");
+        MRCERR("Failed to allocate vertex buffer!");
         exit(0);
     }
     
@@ -70,5 +70,39 @@ void upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue* deletionQueu
     vmaMapMemory(allocator, mesh.vertexBuffer.allocation, &data);
     memcpy(data, mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
     vmaUnmapMemory(allocator, mesh.vertexBuffer.allocation);
+
+
+
+    // Create index buffer
+    VkBufferCreateInfo bufferCreateInfo2 = {};
+    bufferCreateInfo2.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferCreateInfo2.size = mesh.indices.size() * sizeof(uint32_t);
+    bufferCreateInfo2.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+
+    // Let the VMA library know that this data should be writeable by CPU, but also readable by GPU
+    VmaAllocationCreateInfo vmaAllocInfo2 = {};
+    vmaAllocInfo2.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+
+    // Allocate the buffer
+    VkResult res2 = vmaCreateBuffer(allocator, &bufferCreateInfo2, &vmaAllocInfo2,
+        &reinterpret_cast<VkBuffer &>(mesh.indexBuffer.buffer), // bleck, but apparently "vulkan.hpp contains static_asserts that ensure that vk::Buffer and VkBuffer are the same size" so this is okay
+        &mesh.indexBuffer.allocation,
+        nullptr
+    );
+    if (res2 != VK_SUCCESS) {
+        MRCERR("Failed to allocate index buffer!");
+        exit(0);
+    }
+    
+    // Add the destruction of mesh buffer to the deletion queue
+    deletionQueue->push_function([=]() {
+        vmaDestroyBuffer(allocator, mesh.indexBuffer.buffer, mesh.indexBuffer.allocation);
+    });
+
+    // Copy vertex data into mapped memory
+    void* data2;
+    vmaMapMemory(allocator, mesh.indexBuffer.allocation, &data2);
+    memcpy(data2, mesh.indices.data(), mesh.indices.size() * sizeof(uint32_t));
+    vmaUnmapMemory(allocator, mesh.indexBuffer.allocation);
 
 }

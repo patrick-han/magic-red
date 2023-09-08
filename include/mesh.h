@@ -35,7 +35,9 @@ VertexInputDescription get_vertex_description();
 
 struct Mesh {
     std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
     AllocatedBuffer vertexBuffer;
+    AllocatedBuffer  indexBuffer;
 };
 
 /* Upload an instantiated Mesh to the GPU using a created VMA allocator */

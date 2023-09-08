@@ -501,6 +501,7 @@ private:
 
         vk::DeviceSize offset = 0;
         commandBuffers[currentFrame]->bindVertexBuffers(0, 1, &sceneMeshes[0].vertexBuffer.buffer, &offset);
+        commandBuffers[currentFrame]->bindIndexBuffer(sceneMeshes[0].indexBuffer.buffer, offset, vk::IndexType::eUint32);
 
         vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height), 0.0f, 0.0f };
         commandBuffers[currentFrame]->setViewport(0, 1, &viewport);
@@ -512,14 +513,14 @@ private:
         glm::vec3 camPos = { 0.f,0.f,-2.f };
         glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
-        projection[1][1] *= -1;
+        // projection[1][1] *= -1; // flips the model
         glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(frameNumber * 0.4f), glm::vec3(0, 1, 0));
         glm::mat4 mvpMatrix = projection * view * model;
         MeshPushConstants constants;
         constants.renderMatrix = mvpMatrix;
         commandBuffers[currentFrame]->pushConstants(meshPipelineLayout.get(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(MeshPushConstants), &constants);
 
-        commandBuffers[currentFrame]->draw(sceneMeshes[0].vertices.size(), 1, 0, 0);
+        commandBuffers[currentFrame]->drawIndexed(static_cast<uint32_t>(sceneMeshes[0].indices.size()), 1, 0, offset, 0);
         commandBuffers[currentFrame]->endRenderPass();
         commandBuffers[currentFrame]->end();
     }
@@ -541,16 +542,26 @@ private:
 
     void load_meshes() {
         Mesh triangleMesh;
-        triangleMesh.vertices.resize(3); // 3 vertices
-        triangleMesh.vertices[0].position = { 1.f, 1.f, 0.0f };
-        triangleMesh.vertices[1].position = {-1.f, 1.f, 0.0f };
-        triangleMesh.vertices[2].position = { 0.f,-1.f, 0.0f };
+        triangleMesh.vertices.resize(4);
+        triangleMesh.vertices[0].position = { 1.f, 1.f, 0.0f }; // Lower right
+        triangleMesh.vertices[1].position = {-1.f, 1.f, 0.0f }; // Lower left
+        triangleMesh.vertices[2].position = { 1.f,-1.f, 0.0f }; // Upper right
+        triangleMesh.vertices[3].position = {-1.f,-1.f, 0.0f }; // Upper left
 
         // Don't care about normals for now
 
-        triangleMesh.vertices[0].color = { 0.f, 1.f, 0.f};
-        triangleMesh.vertices[1].color = { 0.f, 1.f, 0.f};
-        triangleMesh.vertices[2].color = { 0.f, 1.f, 0.f};
+        triangleMesh.vertices[0].color = { 1.f, 0.f, 0.f}; // Red
+        triangleMesh.vertices[1].color = { 0.f, 1.f, 0.f}; // Green
+        triangleMesh.vertices[2].color = { 0.f, 0.f, 1.f}; // Blue
+        triangleMesh.vertices[3].color = { 1.f, 1.f, 0.f}; // Yellow
+
+        triangleMesh.indices.resize(6);
+        triangleMesh.indices.push_back(3);
+        triangleMesh.indices.push_back(2);
+        triangleMesh.indices.push_back(0);
+        triangleMesh.indices.push_back(0);
+        triangleMesh.indices.push_back(3);
+        triangleMesh.indices.push_back(1);
 
         
 

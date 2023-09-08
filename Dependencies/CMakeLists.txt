@@ -13,6 +13,11 @@ add_library(SPIRV-Reflect STATIC SPIRV-Reflect/spirv_reflect.h SPIRV-Reflect/spi
 target_link_libraries(Dependencies INTERFACE SPIRV-Reflect)
 target_include_directories(Dependencies INTERFACE SPIRV-Reflect/)
 
+# ========== VulkanMemoryAllocator ========== #
+set(VMA_STATIC_VULKAN_FUNCTIONS OFF)
+add_subdirectory(VulkanMemoryAllocator)
+target_include_directories(Dependencies SYSTEM INTERFACE VulkanMemoryAllocator/include/ -w)
+
 # ========== SHADERC ========== #
 set(SHADERC_SKIP_TESTS ON)
 set(SHADERC_SKIP_EXAMPLES ON)
@@ -35,7 +40,15 @@ add_subdirectory(glm)
 target_link_libraries(Dependencies INTERFACE glm)
 target_include_directories(Dependencies INTERFACE glm)
 
-# ========== VulkanMemoryAllocator ========== #
-set(VMA_STATIC_VULKAN_FUNCTIONS OFF)
-add_subdirectory(VulkanMemoryAllocator)
-target_include_directories(Dependencies SYSTEM INTERFACE VulkanMemoryAllocator/include/ -w)
+# ========== ASSIMP ========== #
+set(ASSIMP_NO_EXPORT ON)
+set(ASSIMP_BUILD_TESTS OFF)
+set(ASSIMP_INSTALL OFF)
+set(ASSIMP_WARNINGS_AS_ERRORS OFF)
+if (NOT CMAKE_BUILD_TYPE MATCHES Debug)
+    set(ASSIMP_INJECT_DEBUG_POSTFIX OFF)
+endif()
+
+add_subdirectory(Assimp)
+target_link_libraries(Dependencies INTERFACE assimp)
+target_include_directories(Dependencies SYSTEM INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/Assimp/include/)
