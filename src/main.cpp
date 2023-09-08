@@ -73,6 +73,9 @@ private:
     std::set<uint32_t> uniqueQueueFamilyIndices;
     std::vector<uint32_t> FamilyIndices;
 
+    // Swapchain
+    vk::UniqueSwapchainKHR swapChain;
+
     void initWindow() {
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -209,7 +212,11 @@ private:
         }
 
         // Device extensions
-        const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+        std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+        if (appleBuild) {
+            deviceExtensions.push_back("VK_KHR_portability_subset");
+        }
+        
 
         vk::DeviceCreateInfo deviceCreateInfo = {
             vk::DeviceCreateFlags(),
@@ -224,6 +231,46 @@ private:
 
     }
 
+    void createSwapchain() {
+        // If the graphics and presentation queue family indices are different, allow concurrent access to object from multiple queue families
+        struct SM {
+            vk::SharingMode sharingMode;
+            uint32_t familyIndicesCount;
+            uint32_t* familyIndicesDataPtr;
+        } sharingModeUtil  = { (graphicsQueueFamilyIndex != presentQueueFamilyIndex) ?
+                           SM{ vk::SharingMode::eConcurrent, 2u, FamilyIndices.data() } :
+                           SM{ vk::SharingMode::eExclusive, 0u, static_cast<uint32_t*>(nullptr) } };
+        
+         // Needed for validation warnings
+        vk::SurfaceCapabilitiesKHR capabilities = physicalDevice.getSurfaceCapabilitiesKHR(*surface);
+        std::vector<vk::SurfaceFormatKHR> formats = physicalDevice.getSurfaceFormatsKHR(*surface);
+
+        vk::Format format = vk::Format::eB8G8R8A8Unorm;
+        vk::Extent2D extent  = { WINDOW_WIDTH, WINDOW_HEIGHT };
+        uint32_t imageCount = 2;
+
+        vk::SwapchainCreateInfoKHR swapChainCreateInfo = {
+            {}, 
+            surface.get(), 
+            imageCount, 
+            format,
+            vk::ColorSpaceKHR::eSrgbNonlinear, 
+            extent, 
+            1, 
+            vk::ImageUsageFlagBits::eColorAttachment,
+            sharingModeUtil.sharingMode, 
+            sharingModeUtil.familyIndicesCount,
+            sharingModeUtil.familyIndicesDataPtr, 
+            vk::SurfaceTransformFlagBitsKHR::eIdentity,
+            vk::CompositeAlphaFlagBitsKHR::eOpaque, 
+            vk::PresentModeKHR::eFifo, 
+            true, 
+            nullptr
+        };
+
+        swapChain = device->createSwapchainKHRUnique(swapChainCreateInfo);
+    }
+
     void initVulkan() {
         createInstance();
         createDebugMessenger();
@@ -231,6 +278,7 @@ private:
         initPhysicalDevice();
         findQueueFamilyIndices();
         createDevice();
+        createSwapchain();
 
         // uint32_t extensionCount = 0;
         // vk::Result a = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
