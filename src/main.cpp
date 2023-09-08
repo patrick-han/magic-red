@@ -329,21 +329,11 @@ private:
         std::string vertexShaderSource = load_shader_source_to_string(ROOT_DIR "shaders/triangle_mesh.vert");
         std::string fragmentShaderSource = load_shader_source_to_string(ROOT_DIR "shaders/triangle_mesh.frag");
 
-        std::vector<uint32_t> vertexShaderCode = compile_shader(vertexShaderSource, shaderc_glsl_vertex_shader, "vertex shader");
-        vk::ShaderModuleCreateInfo vertexShaderCreateInfo = { 
-            {}, 
-            std::distance(vertexShaderCode.begin(), vertexShaderCode.end()) * sizeof(uint32_t),
-            vertexShaderCode.data() 
-        };
-        vertexShaderModule = device->createShaderModuleUnique(vertexShaderCreateInfo);
+        vertexShaderModule = compile_shader(device.get(), vertexShaderSource, shaderc_glsl_vertex_shader, "vertex shader");
+        fragmentShaderModule = compile_shader(device.get(), fragmentShaderSource, shaderc_glsl_fragment_shader, "fragment shader");
 
-        std::vector<uint32_t> fragmentShaderCode = compile_shader(fragmentShaderSource, shaderc_glsl_fragment_shader, "fragment shader");
-        vk::ShaderModuleCreateInfo fragShaderCreateInfo = { 
-            {}, 
-            std::distance(fragmentShaderCode.begin(), fragmentShaderCode.end()) * sizeof(uint32_t), 
-            fragmentShaderCode.data() 
-        };
-        fragmentShaderModule = device->createShaderModuleUnique(fragShaderCreateInfo);
+        vk::Device d = device.get();
+        VkDevice d2 = reinterpret_cast<VkDevice&>(d);
     }
 
     void createSynchronizationStructures() {
