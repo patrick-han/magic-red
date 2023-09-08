@@ -566,7 +566,7 @@ private:
         
 
         sceneMeshes.push_back(triangleMesh);
-        upload_mesh(sceneMeshes[0], vmaAllocator, &mainDeletionQueue);
+        upload_mesh(sceneMeshes[0], vmaAllocator, mainDeletionQueue);
     }
 
     void initVulkan() {

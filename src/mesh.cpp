@@ -38,7 +38,7 @@ VertexInputDescription get_vertex_description() {
     return description;
 }
 
-void upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue* deletionQueue) {
+void upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue& deletionQueue) {
     upload_buffer(mesh.vertexBuffer, mesh.vertices.size() * sizeof(Vertex), mesh.vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, allocator, deletionQueue);
     upload_buffer(mesh.indexBuffer, mesh.indices.size() * sizeof(uint32_t), mesh.indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, allocator, deletionQueue);
 }

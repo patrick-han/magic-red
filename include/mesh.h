@@ -41,4 +41,4 @@ struct Mesh {
 };
 
 /* Upload an instantiated Mesh to the GPU using a created VMA allocator */
-void upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue* deletionQueue);
+void upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue& deletionQueue);
