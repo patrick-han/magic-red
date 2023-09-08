@@ -112,7 +112,7 @@ private:
         glfwExtensionsVector = std::vector<const char*>(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
         // MoltenVK requires
-        vk::InstanceCreateFlagBits instanceCreateFlagBits;
+        vk::InstanceCreateFlagBits instanceCreateFlagBits = {};
         if (appleBuild) {
             std::cout << "Running on an Apple device, adding appropriate extension and instance creation flag bits" << std::endl;
             glfwExtensionsVector.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
