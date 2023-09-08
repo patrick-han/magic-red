@@ -1,6 +1,11 @@
 #include "buffer.h"
+#include <vulkan/vk_enum_string_helper.h>
 
 void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const void* bufferData, VkBufferUsageFlags bufferUsage, VmaAllocator allocator, DeletionQueue& deletionQueue) {
+
+    assert(bufferSize > 0);
+
+    
     // Create buffer
     VkBufferCreateInfo bufferCreateInfo = {};
     bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -18,6 +23,7 @@ void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const vo
         nullptr
     );
     if (res != VK_SUCCESS) {
+        MRCERR(string_VkResult(res));
         throw std::runtime_error("Could not allocate buffer!");
     }
     

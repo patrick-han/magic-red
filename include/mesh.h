@@ -40,5 +40,8 @@ struct Mesh {
     AllocatedBuffer  indexBuffer;
 };
 
+/* Load Mesh data from an .obj file */
+void load_mesh_from_obj(Mesh& mesh, const char* objFileName);
+
 /* Upload an instantiated Mesh to the GPU using a created VMA allocator */
 void upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue& deletionQueue);

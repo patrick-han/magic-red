@@ -22,6 +22,7 @@ configure_file(include/helpers/RootDir.h.in ${CMAKE_BINARY_DIR}/include/helpers/
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_BINARY_DIR}/include/helpers)
+include_directories(${CMAKE_BINARY_DIR}/include/external)
 
 # Add SOURCE_FILES and HEADER_FILES variables, will traverse all subdirectories
 file(GLOB_RECURSE SOURCE_FILES ${CMAKE_SOURCE_DIR}/src/*.cpp)
