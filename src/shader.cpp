@@ -42,7 +42,6 @@ vk::UniqueShaderModule compile_shader(vk::Device device, std::string shaderSourc
     shaderc::SpvCompilationResult shaderModuleCompile = compiler.CompileGlslToSpv(shaderSource, shaderKind, inputFileName, options);
     if (shaderModuleCompile.GetCompilationStatus() != shaderc_compilation_status_success) {
         MRCERR(shaderModuleCompile.GetErrorMessage());
-        exit(0); // TODO: Do something else instead?
     }
     std::vector<uint32_t> shaderCode = { shaderModuleCompile.cbegin(), shaderModuleCompile.cend() };
 
