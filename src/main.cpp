@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <vector>
+#include <set>
 #include <stdexcept>
 #include <cstdlib>
 #include "RootDir.h"
@@ -61,9 +62,16 @@ private:
     std::vector<const char*> layers;
     vk::UniqueInstance instance;
 
-    // Surface
+    // Surface and devices
     vk::UniqueSurfaceKHR surface;
     vk::PhysicalDevice physicalDevice;
+    vk::UniqueDevice device;
+
+    // Queues
+    size_t graphicsQueueFamilyIndex;
+    size_t presentQueueFamilyIndex;
+    std::set<uint32_t> uniqueQueueFamilyIndices;
+    std::vector<uint32_t> FamilyIndices;
 
     void initWindow() {
         glfwInit();
@@ -131,11 +139,12 @@ private:
         VkResult err = glfwCreateWindowSurface(*instance, window, nullptr, &surfaceTmp);
         if (err != VK_SUCCESS) {
             MRLOG("Surface creation unsuccessful!");
+            exit(0);
         }
         surface = vk::UniqueSurfaceKHR(surfaceTmp, *instance);
     }
 
-    void initPhysicalDevices() {
+    void initPhysicalDevice() {
         std::vector<vk::PhysicalDevice> physicalDevices = instance->enumeratePhysicalDevices();
         for (vk::PhysicalDevice& d : physicalDevices) {
             MRLOG("Physical device enumerated: " << d.getProperties().deviceName);
@@ -156,11 +165,72 @@ private:
         }
     }
 
+    void findQueueFamilyIndices() {
+        // Find graphics and present queue family indices
+        std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
+        graphicsQueueFamilyIndex = std::distance(queueFamilyProperties.begin(),
+            std::find_if(queueFamilyProperties.begin(), queueFamilyProperties.end(),
+                [](vk::QueueFamilyProperties const& qfp) {
+                    return qfp.queueFlags & vk::QueueFlagBits::eGraphics;
+                }
+            )
+        );
+        presentQueueFamilyIndex = 0u;
+        for (unsigned long queueFamilyIndex = 0ul; queueFamilyIndex < queueFamilyProperties.size(); queueFamilyIndex++) {
+            // Check if a given queue family on our device supports presentation to the surface that was created
+            if (physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(queueFamilyIndex), surface.get())) {
+                presentQueueFamilyIndex = queueFamilyIndex;
+            }
+        }
+        MRLOG("Graphics and Present queue family indices, respectively: " << graphicsQueueFamilyIndex << ", " << presentQueueFamilyIndex);
+
+        uniqueQueueFamilyIndices = {
+            static_cast<uint32_t>(graphicsQueueFamilyIndex),
+            static_cast<uint32_t>(presentQueueFamilyIndex)
+        };
+
+        FamilyIndices = {
+            uniqueQueueFamilyIndices.begin(),
+            uniqueQueueFamilyIndices.end()
+        };
+
+    }
+
+    void createDevice() {
+        // Creation of logical device requires queue creation info as well as extensions + layers we want
+
+        // For each queue family, create a single queue
+        std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+        float queuePriority = 0.0f;
+        uint32_t queueCountPerFamily = 1;
+        for (auto& queueFamilyIndex : uniqueQueueFamilyIndices) {
+            queueCreateInfos.push_back(vk::DeviceQueueCreateInfo{ vk::DeviceQueueCreateFlags(),
+                static_cast<uint32_t>(queueFamilyIndex), queueCountPerFamily, &queuePriority });
+        }
+
+        // Device extensions
+        const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+
+        vk::DeviceCreateInfo deviceCreateInfo = {
+            vk::DeviceCreateFlags(),
+            static_cast<uint32_t>(queueCreateInfos.size()),
+            queueCreateInfos.data(),
+            0u,
+            nullptr,
+            static_cast<uint32_t>(deviceExtensions.size()),
+            deviceExtensions.data()
+        };
+        device = physicalDevice.createDeviceUnique(deviceCreateInfo);
+
+    }
+
     void initVulkan() {
         createInstance();
         createDebugMessenger();
         createSurface();
-        initPhysicalDevices();
+        initPhysicalDevice();
+        findQueueFamilyIndices();
+        createDevice();
 
         // uint32_t extensionCount = 0;
         // vk::Result a = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
