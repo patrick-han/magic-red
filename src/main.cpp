@@ -347,7 +347,7 @@ private:
         fragmentShaderModule = device->createShaderModuleUnique(fragShaderCreateInfo);
     }
 
-    void createSynchronizationSturctures() {
+    void createSynchronizationStructures() {
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             vk::SemaphoreCreateInfo semaphoreCreateInfo = {};
             imageAvailableSemaphores.push_back(device->createSemaphoreUnique(semaphoreCreateInfo));
@@ -527,7 +527,7 @@ private:
         createSwapchain();
         getSwapchainImages();
         createShaderModules();
-        createSynchronizationSturctures();
+        createSynchronizationStructures();
         createRenderPass();
         createGraphicsPipeline();
         createFramebuffer();
