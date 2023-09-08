@@ -385,16 +385,16 @@ private:
 
         vk::AttachmentReference colourAttachmentRef = { 0, vk::ImageLayout::eColorAttachmentOptimal };
 
-        vk::SubpassDescription subpass = { {}, vk::PipelineBindPoint::eGraphics, /*inAttachmentCount*/ 0, nullptr, 1, &colourAttachmentRef };
+        vk::SubpassDescription subpass = { {}, vk::PipelineBindPoint::eGraphics, /*inAttachmentCount*/ 0, nullptr, 1, &colourAttachmentRef, {}, {}, {}, {}};
 
         vk::SubpassDependency subpassDependency = { // TODO: Understand
-            VK_SUBPASS_EXTERNAL, 
-            0,
-            vk::PipelineStageFlagBits::eColorAttachmentOutput, // This should wait for swapchain to finish reading from the image
-            vk::PipelineStageFlagBits::eColorAttachmentOutput,
-            {}, 
-            vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite, // Reads and writes should wait on this to finish too
-            {}
+            VK_SUBPASS_EXTERNAL, // srcSubpass
+            0, // dstSubpass
+            vk::PipelineStageFlagBits::eColorAttachmentOutput, // srcStageMask This should wait for swapchain to finish reading from the image
+            vk::PipelineStageFlagBits::eColorAttachmentOutput, // dstStageMask
+            {}, // srcAccessMask
+            vk::AccessFlagBits::eColorAttachmentWrite, // dstAccessMask
+            {} // dependencyFlags
         };
 
         renderPass = device->createRenderPassUnique(
@@ -426,9 +426,23 @@ private:
 
         pipelineLayout = device->createPipelineLayoutUnique({}, nullptr);
 
-        vk::GraphicsPipelineCreateInfo pipelineCreateInfo = { {}, 2, pipelineShaderStages.data(),
-        &vertexInputInfo, &inputAssembly, nullptr, &viewportState, &rasterizer, &multisampling,
-        nullptr, &colorBlending, nullptr, *pipelineLayout, *renderPass, 0 };
+        vk::GraphicsPipelineCreateInfo pipelineCreateInfo = {
+            {}, 
+            2, 
+            pipelineShaderStages.data(), 
+            &vertexInputInfo, 
+            &inputAssembly, 
+            nullptr, 
+            &viewportState, 
+            &rasterizer, 
+            &multisampling,
+            nullptr, // Depth Stencil
+            &colorBlending,
+            nullptr, // Dynamic State
+            *pipelineLayout,
+            *renderPass,
+            0
+        };
 
         graphicsPipeline = device->createGraphicsPipelineUnique({}, pipelineCreateInfo).value;
     }
@@ -451,19 +465,23 @@ private:
         commandPoolUnique = device->createCommandPoolUnique({ {}, static_cast<uint32_t>(graphicsQueueFamilyIndex) });
     }
 
-    void recordCommandBuffer() {
+    void createCommandBuffers() {
         commandBuffers = device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(
             commandPoolUnique.get(),
             vk::CommandBufferLevel::ePrimary,
-            static_cast<uint32_t>(framebuffers.size()))); // 1 Command buffer per framebuffer
+            static_cast<uint32_t>(framebuffers.size())));
+    }
 
-        // TODO: Move this somewhere else maybe
+    void retrieveQueues() {
         graphicsQueue = device->getQueue(static_cast<uint32_t>(graphicsQueueFamilyIndex), 0);
         presentQueue = device->getQueue(static_cast<uint32_t>(presentQueueFamilyIndex), 0);
+    }
 
+    void recordCommandBuffer() {
         for (size_t i = 0; i < commandBuffers.size(); i++) {
             vk::CommandBufferBeginInfo beginInfo = {};
             commandBuffers[i]->begin(beginInfo);
+
             vk::ClearValue clearValues = {};
             vk::RenderPassBeginInfo renderPassBeginInfo = {
                 renderPass.get(), 
@@ -496,6 +514,8 @@ private:
         createGraphicsPipeline();
         createFramebuffer();
         createCommandPool();
+        createCommandBuffers();
+        retrieveQueues();
         recordCommandBuffer();
 
     }
