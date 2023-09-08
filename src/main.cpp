@@ -1,4 +1,5 @@
-#include "utils.h" // Includes vulkan and glfw headers!
+#include "vulkan/vulkan.hpp"
+#include <GLFW/glfw3.h>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -16,7 +17,11 @@
 #include <stdexcept>
 #include <cstdlib>
 #include "RootDir.h"
+#include "utils.h"
 #include "shader.h"
+#include "types.h"
+#include "mesh.h"
+#include "buffer.h"
 
 
 const uint32_t WINDOW_WIDTH = 800;
@@ -95,7 +100,7 @@ private:
 
     // Graphics Pipeline
     vk::UniquePipelineLayout pipelineLayout;
-    vk::UniquePipeline graphicsPipeline;
+    vk::UniquePipeline meshPipeline;
 
     // Framebuffers
     std::vector<vk::UniqueFramebuffer> framebuffers;
@@ -103,6 +108,12 @@ private:
     // Command Pools and Buffers
     vk::UniqueCommandPool commandPoolUnique;
     std::vector<vk::UniqueCommandBuffer> commandBuffers; // (per in-flight frame resource)
+
+    // Resources
+    DeletionQueue mainDeletionQueue;
+
+    // Meshes
+    std::vector<Mesh> sceneMeshes;
 
     void initWindow() {
         glfwInit();
@@ -181,6 +192,7 @@ private:
             MRLOG("Physical device enumerated: " << d.getProperties().deviceName);
         }
 
+        // Find Apple device if Apple build, otherwise just choose the first device in the list
         std::vector<vk::PhysicalDevice>::iterator findIfIterator;
         if (appleBuild) {
             findIfIterator = std::find_if(physicalDevices.begin(), physicalDevices.end(), 
@@ -192,7 +204,7 @@ private:
             vk::PhysicalDeviceProperties physDeviceProperties = physicalDevice.getProperties();
             MRLOG("Chosen deviceName: " << physDeviceProperties.deviceName);
         } else {
-            physicalDevice = physicalDevices[0]; // TODO: By Default, just select the first physical device
+            physicalDevice = physicalDevices[0]; // TODO: By Default, just select the first physical device, could be bad if there are both integrated and discrete GPUs in the system
         }
     }
 
@@ -329,8 +341,8 @@ private:
 
     void createShaderModules() {
         // TODO: Hardcoded for now
-        std::string vertexShaderSource = load_shader_source_to_string(ROOT_DIR "shaders/hello_triangle.vert");
-        std::string fragmentShaderSource = load_shader_source_to_string(ROOT_DIR "shaders/hello_triangle.frag");
+        std::string vertexShaderSource = load_shader_source_to_string(ROOT_DIR "shaders/triangle_mesh.vert");
+        std::string fragmentShaderSource = load_shader_source_to_string(ROOT_DIR "shaders/triangle_mesh.frag");
 
         shaderc::SpvCompilationResult vertexShaderModuleCompile = compileShader(vertexShaderSource, shaderc_glsl_vertex_shader, "vertex shader");
         std::vector<uint32_t> vertexShaderCode = { vertexShaderModuleCompile.cbegin(), vertexShaderModuleCompile.cend() };
@@ -392,7 +404,14 @@ private:
         vk::PipelineShaderStageCreateInfo vertShaderStageInfo = { {}, vk::ShaderStageFlagBits::eVertex, *vertexShaderModule, "main"};
         vk::PipelineShaderStageCreateInfo fragShaderStageInfo = { {}, vk::ShaderStageFlagBits::eFragment, *fragmentShaderModule, "main"};
         std::vector<vk::PipelineShaderStageCreateInfo> pipelineShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+        
         vk::PipelineVertexInputStateCreateInfo vertexInputInfo = { {}, 0u, nullptr, 0u, nullptr }; // TODO: Hardcoded shader for now
+        VertexInputDescription vertexDescription = get_vertex_description();
+        vertexInputInfo.vertexBindingDescriptionCount = vertexDescription.bindings.size();
+        vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
+        vertexInputInfo.vertexAttributeDescriptionCount = vertexDescription.attributes.size();
+        vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
+        
         vk::PipelineInputAssemblyStateCreateInfo inputAssembly = { {}, vk::PrimitiveTopology::eTriangleList, false };
         vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, 1.0f };
         vk::Rect2D scissor = { { 0, 0 }, swapChainExtent };
@@ -438,7 +457,7 @@ private:
             0
         };
 
-        graphicsPipeline = device->createGraphicsPipelineUnique({}, pipelineCreateInfo).value;
+        meshPipeline = device->createGraphicsPipelineUnique({}, pipelineCreateInfo).value;
     }
 
     void createFramebuffer() {
@@ -487,7 +506,10 @@ private:
         };
 
         commandBuffers[currentFrame]->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
-        commandBuffers[currentFrame]->bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline);
+        commandBuffers[currentFrame]->bindPipeline(vk::PipelineBindPoint::eGraphics, *meshPipeline);
+
+        vk::DeviceSize offset = 0;
+        commandBuffers[currentFrame]->bindVertexBuffers(0, 1, &sceneMeshes[0].vertexBuffer.buffer, &offset);
 
         vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height), 0.0f, 0.0f };
         commandBuffers[currentFrame]->setViewport(0, 1, &viewport);
@@ -495,7 +517,7 @@ private:
         vk::Rect2D scissor = { {0, 0}, swapChainExtent};
         commandBuffers[currentFrame]->setScissor(0, 1, &scissor);
 
-        commandBuffers[currentFrame]->draw(3, 1, 0, 0);
+        commandBuffers[currentFrame]->draw(sceneMeshes[0].vertices.size(), 1, 0, 0);
         commandBuffers[currentFrame]->endRenderPass();
         commandBuffers[currentFrame]->end();
     }
@@ -510,6 +532,28 @@ private:
             MRLOG("vmaCreateAllocator unsuccessful!");
             exit(0);
         }
+        mainDeletionQueue.push_function([&]() {
+		    vmaDestroyAllocator(vmaAllocator);
+        });
+    }
+
+    void load_meshes() {
+        Mesh triangleMesh;
+        triangleMesh.vertices.resize(3); // 3 vertices
+        triangleMesh.vertices[0].position = { 1.f, 1.f, 0.0f };
+        triangleMesh.vertices[1].position = {-1.f, 1.f, 0.0f };
+        triangleMesh.vertices[2].position = { 0.f,-1.f, 0.0f };
+
+        // Don't care about normals for now
+
+        triangleMesh.vertices[0].color = { 0.f, 1.f, 0.f};
+        triangleMesh.vertices[1].color = { 0.f, 1.f, 0.f};
+        triangleMesh.vertices[2].color = { 0.f, 1.f, 0.f};
+
+        
+
+        sceneMeshes.push_back(triangleMesh);
+        upload_mesh(sceneMeshes[0], vmaAllocator, &mainDeletionQueue);
     }
 
     void initVulkan() {
@@ -530,6 +574,7 @@ private:
         createCommandBuffers();
         retrieveQueues();
         initVMA();
+        load_meshes();
 
     }
 
@@ -553,7 +598,7 @@ private:
             vk::Result result = presentQueue.presentKHR(presentInfo);
 
             currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-            device->waitIdle();
+            
     }
 
     void mainLoop() {
@@ -565,8 +610,11 @@ private:
     }
 
     void cleanup() {
-        glfwDestroyWindow(window);
+        device->waitIdle();
 
+        mainDeletionQueue.flush();
+
+        glfwDestroyWindow(window);
         glfwTerminate();
     }
 };
