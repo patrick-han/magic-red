@@ -37,20 +37,32 @@ private:
     }
 
     void initVulkan() {
+        vk::ApplicationInfo appInfo("Hello Triangle", VK_MAKE_API_VERSION(1, 0, 0, 0), "Magic Red", VK_MAKE_API_VERSION(1, 0, 0, 0), VK_API_VERSION_1_2);
 
-    }
+        uint32_t glfwExtensionCount = 0;
+        auto glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+        std::vector<const char*> glfwExtensionsVector(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
-    void mainLoop() {
+        #ifdef NDEBUG
+            std::cout << "Run release" << std::endl;
+        #else
+            std::cout << "Run debug" << std::endl;
+            glfwExtensionsVector.push_back("VK_EXT_debug_utils");
+        #endif
+
+
+
+
         uint32_t extensionCount = 0;
         vk::Result a = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
 
         std::cout << extensionCount << " extensions supported\n";
-
-        glm::mat4 matrix;
-        glm::vec4 vec;
-        auto test = matrix * vec;
-        
         std::cout << ROOT_DIR << std::endl;
+
+    }
+
+    void mainLoop() {
+        
 
 
         while(!glfwWindowShouldClose(window)) {
