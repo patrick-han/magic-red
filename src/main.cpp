@@ -79,6 +79,7 @@ private:
     // Synchronization
     vk::UniqueSemaphore imageAvailableSemaphore;
     vk::UniqueSemaphore renderFinishedSemaphore;
+    vk::UniqueFence renderFence;
 
     // Renderpass
     vk::UniqueRenderPass renderPass;
@@ -373,6 +374,10 @@ private:
         vk::SemaphoreCreateInfo semaphoreCreateInfo = {};
         imageAvailableSemaphore = device->createSemaphoreUnique(semaphoreCreateInfo);
         renderFinishedSemaphore = device->createSemaphoreUnique(semaphoreCreateInfo);
+
+        vk::FenceCreateInfo fenceCreateInfo = {vk::FenceCreateFlagBits::eSignaled};
+        renderFence = device->createFenceUnique(fenceCreateInfo);
+
     }
 
     void createRenderPass() {
@@ -499,13 +504,19 @@ private:
         while(!glfwWindowShouldClose(window)) {
             glfwPollEvents();
 
+            
+
+            vk::Result res = device->waitForFences(renderFence.get(), true, (std::numeric_limits<uint64_t>::max)());
+
+            device->resetFences(renderFence.get());
+
             vk::ResultValue<uint32_t> imageIndex = device->acquireNextImageKHR(swapChain.get(), std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore.get(), {});
 
             vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
             vk::SubmitInfo submitInfo = { 1, &imageAvailableSemaphore.get(), &waitStageMask, 1, &commandBuffers[imageIndex.value].get(), 1, &renderFinishedSemaphore.get() };
 
-            graphicsQueue.submit(submitInfo, {});
+            graphicsQueue.submit(submitInfo, renderFence.get());
 
             vk::PresentInfoKHR presentInfo = { 1, &renderFinishedSemaphore.get(), 1, &swapChain.get(), &imageIndex.value };
             vk::Result result = presentQueue.presentKHR(presentInfo);
