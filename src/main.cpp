@@ -424,6 +424,14 @@ private:
             vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
         vk::PipelineColorBlendStateCreateInfo colorBlending = { {}, /*logicOpEnable=*/false, vk::LogicOp::eCopy, /*attachmentCount=*/1, /*colourAttachments=*/&colorBlendAttachment };
 
+        std::vector<vk::DynamicState> dynamicStates = {
+            vk::DynamicState::eViewport,
+            vk::DynamicState::eScissor
+        };
+        vk::PipelineDynamicStateCreateInfo dynamicState = {};
+        dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+        dynamicState.pDynamicStates = dynamicStates.data();
+
         pipelineLayout = device->createPipelineLayoutUnique({}, nullptr);
 
         vk::GraphicsPipelineCreateInfo pipelineCreateInfo = {
@@ -438,7 +446,7 @@ private:
             &multisampling,
             nullptr, // Depth Stencil
             &colorBlending,
-            nullptr, // Dynamic State
+            &dynamicState, // Dynamic State
             *pipelineLayout,
             *renderPass,
             0
@@ -493,10 +501,36 @@ private:
 
             commandBuffers[i]->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
             commandBuffers[i]->bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline);
+
+            vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(swapchainExtent.width), static_cast<float>(swapchainExtent.height), 0.0f, 0.0f };
+            commandBuffers[i]->setViewport(0, 1, &viewport);
+
+            vk::Rect2D scissor = { {0, 0}, swapchainExtent};
+            commandBuffers[i]->setScissor(0, 1, &scissor);
+
             commandBuffers[i]->draw(3, 1, 0, 0);
             commandBuffers[i]->endRenderPass();
             commandBuffers[i]->end();
         }
+    }
+
+    void drawFrame() {
+            vk::Result res = device->waitForFences(renderFence.get(), true, (std::numeric_limits<uint64_t>::max)());
+
+            device->resetFences(renderFence.get());
+
+            vk::ResultValue<uint32_t> imageIndex = device->acquireNextImageKHR(swapChain.get(), std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore.get(), {});
+
+            vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+
+            vk::SubmitInfo submitInfo = { 1, &imageAvailableSemaphore.get(), &waitStageMask, 1, &commandBuffers[imageIndex.value].get(), 1, &renderFinishedSemaphore.get() };
+
+            graphicsQueue.submit(submitInfo, renderFence.get());
+
+            vk::PresentInfoKHR presentInfo = { 1, &renderFinishedSemaphore.get(), 1, &swapChain.get(), &imageIndex.value };
+            vk::Result result = presentQueue.presentKHR(presentInfo);
+
+            device->waitIdle();
     }
 
     void initVulkan() {
@@ -526,22 +560,7 @@ private:
 
             
 
-            vk::Result res = device->waitForFences(renderFence.get(), true, (std::numeric_limits<uint64_t>::max)());
-
-            device->resetFences(renderFence.get());
-
-            vk::ResultValue<uint32_t> imageIndex = device->acquireNextImageKHR(swapChain.get(), std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore.get(), {});
-
-            vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-
-            vk::SubmitInfo submitInfo = { 1, &imageAvailableSemaphore.get(), &waitStageMask, 1, &commandBuffers[imageIndex.value].get(), 1, &renderFinishedSemaphore.get() };
-
-            graphicsQueue.submit(submitInfo, renderFence.get());
-
-            vk::PresentInfoKHR presentInfo = { 1, &renderFinishedSemaphore.get(), 1, &swapChain.get(), &imageIndex.value };
-            vk::Result result = presentQueue.presentKHR(presentInfo);
-
-            device->waitIdle();
+            drawFrame();
         }
     }
 
