@@ -11,6 +11,8 @@
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
+#include <vulkan/vk_enum_string_helper.h>
+
 #include <iostream>
 #include <vector>
 #include <set>
@@ -23,6 +25,7 @@
 #include "types.h"
 #include "mesh.h"
 #include "buffer.h"
+#include "image.h"
 
 
 const uint32_t WINDOW_WIDTH = 800;
@@ -69,6 +72,10 @@ private:
     std::vector<uint32_t> FamilyIndices;
     vk::Queue graphicsQueue;
     vk::Queue presentQueue;
+
+    // Images
+    AllocatedImage depthImage;
+    vk::ImageView depthImageView;
 
     // Swapchain
     uint32_t swapChainImageCount;
@@ -330,6 +337,34 @@ private:
         }
     }
 
+    void createDepthImage() {
+        vk::Extent3D depthExtent = vk::Extent3D{ swapChainExtent, 1 };
+        vk::Format depthFormat = vk::Format::eD32Sfloat;
+
+        vk::ImageCreateInfo depthImageCreateInfo = {{}, vk::ImageType::e2D, depthFormat, depthExtent, 1, 1, vk::SampleCountFlagBits::e1, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::SharingMode::eExclusive, 0, nullptr, vk::ImageLayout::eUndefined};
+
+        VkImageCreateInfo ci = static_cast<VkImageCreateInfo>(depthImageCreateInfo);
+
+        VmaAllocationCreateInfo vmaAllocInfo = {};
+        vmaAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        vmaAllocInfo.requiredFlags = static_cast<VkMemoryPropertyFlagBits>(vk::MemoryPropertyFlagBits::eDeviceLocal);
+        VkResult res = vmaCreateImage(vmaAllocator, &ci, &vmaAllocInfo, &reinterpret_cast<VkImage &>(depthImage.image), &depthImage.allocation, nullptr);
+
+        if (res != VK_SUCCESS) {
+            MRCERR(string_VkResult(res));
+            throw std::runtime_error("Could not create depth image!");
+        }
+
+        vk::ImageSubresourceRange depthSubresRange = {vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1};
+        vk::ImageViewCreateInfo depthImageViewCreateInfo = {{}, depthImage.image, vk::ImageViewType::e2D, depthFormat, {}, depthSubresRange};
+        depthImageView = device.get().createImageView(depthImageViewCreateInfo);
+
+        mainDeletionQueue.push_function([=]() {
+            device.get().destroyImageView(depthImageView, nullptr);
+            vmaDestroyImage(vmaAllocator, depthImage.image, depthImage.allocation);
+        });
+    }
+
     void createShaderModules() {
         // TODO: Hardcoded for now
         std::string vertexShaderSource = load_shader_source_to_string(ROOT_DIR "shaders/triangle_mesh.vert");
@@ -583,8 +618,10 @@ private:
         initPhysicalDevice();
         findQueueFamilyIndices();
         createDevice();
+        initVMA();
         createSwapchain();
         getSwapchainImages();
+        createDepthImage();
         createShaderModules();
         createSynchronizationStructures();
         createRenderPass();
@@ -593,7 +630,6 @@ private:
         createCommandPool();
         createCommandBuffers();
         retrieveQueues();
-        initVMA();
         load_meshes();
 
     }
