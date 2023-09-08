@@ -7,6 +7,9 @@
 
 #include <shaderc/shaderc.hpp>
 
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
+
 #include <iostream>
 #include <vector>
 #include <set>
@@ -46,6 +49,9 @@ public:
 
 private:
     GLFWwindow* window;
+
+    // VulkanMemoryAllocator (VMA)
+    VmaAllocator vmaAllocator;
 
     // Instance
     vk::ApplicationInfo appInfo;
@@ -494,6 +500,39 @@ private:
         commandBuffers[currentFrame]->end();
     }
 
+    void initVMA() {
+        VmaAllocatorCreateInfo allocatorInfo = {};
+        allocatorInfo.physicalDevice = physicalDevice;
+        allocatorInfo.device = device.get();
+        allocatorInfo.instance = instance.get();
+        VkResult res = vmaCreateAllocator(&allocatorInfo, &vmaAllocator);
+        if (res != VK_SUCCESS) {
+            MRLOG("vmaCreateAllocator unsuccessful!");
+            exit(0);
+        }
+    }
+
+    void initVulkan() {
+        createInstance();
+        createDebugMessenger();
+        createSurface();
+        initPhysicalDevice();
+        findQueueFamilyIndices();
+        createDevice();
+        createSwapchain();
+        getSwapchainImages();
+        createShaderModules();
+        createSynchronizationStructures();
+        createRenderPass();
+        createGraphicsPipeline();
+        createFramebuffer();
+        createCommandPool();
+        createCommandBuffers();
+        retrieveQueues();
+        initVMA();
+
+    }
+
     void drawFrame() {
             // Wait for previous frame to finish rendering before allowing us to acquire another image
             vk::Result res = device->waitForFences(renderFences[currentFrame].get(), true, (std::numeric_limits<uint64_t>::max)());
@@ -515,26 +554,6 @@ private:
 
             currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
             device->waitIdle();
-    }
-
-    void initVulkan() {
-        createInstance();
-        createDebugMessenger();
-        createSurface();
-        initPhysicalDevice();
-        findQueueFamilyIndices();
-        createDevice();
-        createSwapchain();
-        getSwapchainImages();
-        createShaderModules();
-        createSynchronizationStructures();
-        createRenderPass();
-        createGraphicsPipeline();
-        createFramebuffer();
-        createCommandPool();
-        createCommandBuffers();
-        retrieveQueues();
-
     }
 
     void mainLoop() {

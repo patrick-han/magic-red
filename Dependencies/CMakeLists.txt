@@ -34,3 +34,8 @@ target_include_directories(Dependencies INTERFACE GLFW/include/)
 add_subdirectory(glm)
 target_link_libraries(Dependencies INTERFACE glm)
 target_include_directories(Dependencies INTERFACE glm)
+
+# ========== VulkanMemoryAllocator ========== #
+set(VMA_STATIC_VULKAN_FUNCTIONS OFF)
+add_subdirectory(VulkanMemoryAllocator)
+target_include_directories(Dependencies SYSTEM INTERFACE VulkanMemoryAllocator/include/ -w)
