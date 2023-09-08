@@ -17,6 +17,7 @@
 #include <stdexcept>
 #include <cstdlib>
 #include "RootDir.h"
+#include "callbacks.h"
 #include "utils.h"
 #include "shader.h"
 #include "types.h"
