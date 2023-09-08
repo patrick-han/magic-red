@@ -2,6 +2,8 @@ This project requires from you:
 - Vulkan SDK
 - CMake 3.20 or later
 
+All other dependencies are pulled as submodules and built from source
+
 Initial clone:
 ```sh
 git clone --recurse-submodules git@github.com:patrick-han/magic-red.git
@@ -13,19 +15,11 @@ cd magic-red
 git submodule update --init --recursive
 ```
 
-
-Build setup:
+Build:
 ```sh
 cd magic-red
 mkdir build
 cd build
 cmake ..
 make debug # or release
-```
-
-WIP
-```sh
-source ~/path/to/VulkanSDK/version/setup-env.sh # Setup env variables needed by cmake to find Vulkan
-export VULKAN_SDK=path/to/VulkanSDK/version/ # Git Bash
-$Env:VULKAN_SDK = 'path/to/VulkanSDK/version/' # Powershell
 ```
