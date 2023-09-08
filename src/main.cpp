@@ -17,6 +17,7 @@
 
 const uint32_t WINDOW_WIDTH = 800;
 const uint32_t WINDOW_HEIGHT = 600;
+const int MAX_FRAMES_IN_FLIGHT = 2;
 
 
 shaderc::SpvCompilationResult compileShader(std::string shaderSource, shaderc_shader_kind shaderKind, const char *inputFileName) {
@@ -76,10 +77,11 @@ private:
     vk::UniqueShaderModule vertexShaderModule;
     vk::UniqueShaderModule fragmentShaderModule;
 
-    // Synchronization
-    vk::UniqueSemaphore imageAvailableSemaphore;
-    vk::UniqueSemaphore renderFinishedSemaphore;
-    vk::UniqueFence renderFence;
+    // Synchronization (per in-flight frame resources)
+    std::vector<vk::UniqueSemaphore> imageAvailableSemaphores;
+    std::vector<vk::UniqueSemaphore> renderFinishedSemaphores;
+    std::vector<vk::UniqueFence> renderFences;
+    uint32_t currentFrame = 0;
 
     // Renderpass
     vk::UniqueRenderPass renderPass;
@@ -93,7 +95,7 @@ private:
 
     // Command Pools and Buffers
     vk::UniqueCommandPool commandPoolUnique;
-    std::vector<vk::UniqueCommandBuffer> commandBuffers;
+    std::vector<vk::UniqueCommandBuffer> commandBuffers; // (per in-flight frame resource)
 
     void initWindow() {
         glfwInit();
@@ -371,12 +373,15 @@ private:
     }
 
     void createSynchronizationSturctures() {
-        vk::SemaphoreCreateInfo semaphoreCreateInfo = {};
-        imageAvailableSemaphore = device->createSemaphoreUnique(semaphoreCreateInfo);
-        renderFinishedSemaphore = device->createSemaphoreUnique(semaphoreCreateInfo);
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            vk::SemaphoreCreateInfo semaphoreCreateInfo = {};
+            imageAvailableSemaphores.push_back(device->createSemaphoreUnique(semaphoreCreateInfo));
+            renderFinishedSemaphores.push_back(device->createSemaphoreUnique(semaphoreCreateInfo));
 
-        vk::FenceCreateInfo fenceCreateInfo = {vk::FenceCreateFlagBits::eSignaled};
-        renderFence = device->createFenceUnique(fenceCreateInfo);
+            vk::FenceCreateInfo fenceCreateInfo = {vk::FenceCreateFlagBits::eSignaled};
+            renderFences.push_back(device->createFenceUnique(fenceCreateInfo));
+        }
+        
 
     }
 
@@ -470,14 +475,16 @@ private:
     }
 
     void createCommandPool() {
-        commandPoolUnique = device->createCommandPoolUnique({ {}, static_cast<uint32_t>(graphicsQueueFamilyIndex) });
+        commandPoolUnique = device->createCommandPoolUnique({ vk::CommandPoolCreateFlagBits::eResetCommandBuffer, static_cast<uint32_t>(graphicsQueueFamilyIndex) });
     }
+    
 
     void createCommandBuffers() {
+        commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
         commandBuffers = device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(
             commandPoolUnique.get(),
             vk::CommandBufferLevel::ePrimary,
-            static_cast<uint32_t>(framebuffers.size())));
+            static_cast<uint32_t>(commandBuffers.size())));
     }
 
     void retrieveQueues() {
@@ -485,51 +492,53 @@ private:
         presentQueue = device->getQueue(static_cast<uint32_t>(presentQueueFamilyIndex), 0);
     }
 
-    void recordCommandBuffer() {
-        for (size_t i = 0; i < commandBuffers.size(); i++) {
-            vk::CommandBufferBeginInfo beginInfo = {};
-            commandBuffers[i]->begin(beginInfo);
+    void recordCommandBuffers(uint32_t imageIndex) {
+        vk::CommandBufferBeginInfo beginInfo = {};
+        commandBuffers[currentFrame]->begin(beginInfo);
 
-            vk::ClearValue clearValues = {};
-            vk::RenderPassBeginInfo renderPassBeginInfo = {
-                renderPass.get(), 
-                framebuffers[i].get(),
-                vk::Rect2D{ { 0, 0 }, swapchainExtent }, 
-                1, 
-                &clearValues 
-            };
+        vk::ClearValue clearValues = {};
+        vk::RenderPassBeginInfo renderPassBeginInfo = {
+            renderPass.get(), 
+            framebuffers[imageIndex].get(),
+            vk::Rect2D{ { 0, 0 }, swapchainExtent }, 
+            1, 
+            &clearValues 
+        };
 
-            commandBuffers[i]->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
-            commandBuffers[i]->bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline);
+        commandBuffers[currentFrame]->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+        commandBuffers[currentFrame]->bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline);
 
-            vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(swapchainExtent.width), static_cast<float>(swapchainExtent.height), 0.0f, 0.0f };
-            commandBuffers[i]->setViewport(0, 1, &viewport);
+        vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(swapchainExtent.width), static_cast<float>(swapchainExtent.height), 0.0f, 0.0f };
+        commandBuffers[currentFrame]->setViewport(0, 1, &viewport);
 
-            vk::Rect2D scissor = { {0, 0}, swapchainExtent};
-            commandBuffers[i]->setScissor(0, 1, &scissor);
+        vk::Rect2D scissor = { {0, 0}, swapchainExtent};
+        commandBuffers[currentFrame]->setScissor(0, 1, &scissor);
 
-            commandBuffers[i]->draw(3, 1, 0, 0);
-            commandBuffers[i]->endRenderPass();
-            commandBuffers[i]->end();
-        }
+        commandBuffers[currentFrame]->draw(3, 1, 0, 0);
+        commandBuffers[currentFrame]->endRenderPass();
+        commandBuffers[currentFrame]->end();
     }
 
     void drawFrame() {
-            vk::Result res = device->waitForFences(renderFence.get(), true, (std::numeric_limits<uint64_t>::max)());
+            // Wait for previous frame to finish
+            vk::Result res = device->waitForFences(renderFences[currentFrame].get(), true, (std::numeric_limits<uint64_t>::max)());
+            device->resetFences(renderFences[currentFrame].get());
 
-            device->resetFences(renderFence.get());
+            // Retrieve image index to list of swapchain-backed framebuffers and re-record command buffers
+            vk::ResultValue<uint32_t> imageIndex = device->acquireNextImageKHR(swapChain.get(), std::numeric_limits<uint64_t>::max(), imageAvailableSemaphores[currentFrame].get(), {});
+            commandBuffers[currentFrame]->reset();
+            recordCommandBuffers(imageIndex.value);
 
-            vk::ResultValue<uint32_t> imageIndex = device->acquireNextImageKHR(swapChain.get(), std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore.get(), {});
-
+            // Submit graphics workload
             vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+            vk::SubmitInfo submitInfo = { 1, &imageAvailableSemaphores[currentFrame].get(), &waitStageMask, 1, &commandBuffers[imageIndex.value].get(), 1, &renderFinishedSemaphores[currentFrame].get() };
+            graphicsQueue.submit(submitInfo, renderFences[currentFrame].get());
 
-            vk::SubmitInfo submitInfo = { 1, &imageAvailableSemaphore.get(), &waitStageMask, 1, &commandBuffers[imageIndex.value].get(), 1, &renderFinishedSemaphore.get() };
-
-            graphicsQueue.submit(submitInfo, renderFence.get());
-
-            vk::PresentInfoKHR presentInfo = { 1, &renderFinishedSemaphore.get(), 1, &swapChain.get(), &imageIndex.value };
+            // Present frame
+            vk::PresentInfoKHR presentInfo = { 1, &renderFinishedSemaphores[currentFrame].get(), 1, &swapChain.get(), &imageIndex.value };
             vk::Result result = presentQueue.presentKHR(presentInfo);
 
+            currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
             device->waitIdle();
     }
 
@@ -550,15 +559,12 @@ private:
         createCommandPool();
         createCommandBuffers();
         retrieveQueues();
-        recordCommandBuffer();
 
     }
 
     void mainLoop() {
         while(!glfwWindowShouldClose(window)) {
             glfwPollEvents();
-
-            
 
             drawFrame();
         }
