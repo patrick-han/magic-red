@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <cstdlib>
 #include "RootDir.h"
+#include "utils.h"
 
 const uint32_t WINDOW_WIDTH = 800;
 const uint32_t WINDOW_HEIGHT = 600;
@@ -80,11 +81,11 @@ private:
 
         // Enable validation layers and creation of debug messenger if building debug
         if (enableValidationLayers) {
-            std::cout << "Debug build" << std::endl;
+            MRLOG("Debug build");
             glfwExtensionsVector.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
             layers.push_back("VK_LAYER_KHRONOS_validation");
         } else {
-            std::cout << "Release build" << std::endl;
+            MRLOG("Release build");
         }
 
         // Create instance
@@ -118,7 +119,6 @@ private:
         createInstance();
         createDebugMessenger();
 
-
         // uint32_t extensionCount = 0;
         // vk::Result a = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
 
@@ -149,7 +149,7 @@ int main() {
     try {
         engine.run();
     } catch (const std::exception& e) {
-        std::cerr << e.what() << std::endl;
+        std::cerr << "[EXCEPTION] " << e.what() << std::endl;
         return EXIT_FAILURE;
     }
 
