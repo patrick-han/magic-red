@@ -532,7 +532,7 @@ private:
     }
 
     void drawFrame() {
-            // Wait for previous frame to finish
+            // Wait for previous frame to finish rendering before allowing us to acquire another image
             vk::Result res = device->waitForFences(renderFences[currentFrame].get(), true, (std::numeric_limits<uint64_t>::max)());
             device->resetFences(renderFences[currentFrame].get());
 
@@ -543,7 +543,7 @@ private:
 
             // Submit graphics workload
             vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-            vk::SubmitInfo submitInfo = { 1, &imageAvailableSemaphores[currentFrame].get(), &waitStageMask, 1, &commandBuffers[imageIndex.value].get(), 1, &renderFinishedSemaphores[currentFrame].get() };
+            vk::SubmitInfo submitInfo = { 1, &imageAvailableSemaphores[currentFrame].get(), &waitStageMask, 1, &commandBuffers[currentFrame].get(), 1, &renderFinishedSemaphores[currentFrame].get() };
             graphicsQueue.submit(submitInfo, renderFences[currentFrame].get());
 
             // Present frame
