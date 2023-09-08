@@ -3,8 +3,8 @@
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp>
+#include <glm/glm.hpp>
+#include <glm/gtx/transform.hpp>
 
 #include <shaderc/shaderc.hpp>
 
@@ -27,6 +27,13 @@
 const uint32_t WINDOW_WIDTH = 800;
 const uint32_t WINDOW_HEIGHT = 600;
 const int MAX_FRAMES_IN_FLIGHT = 2;
+
+int frameNumber = 0;
+
+struct MeshPushConstants {
+    glm::vec4 data;
+    glm::mat4 renderMatrix;
+};
 
 class Engine {
 public:
@@ -84,7 +91,7 @@ private:
     vk::UniqueRenderPass renderPass;
 
     // Graphics Pipeline
-    vk::UniquePipelineLayout pipelineLayout;
+    vk::UniquePipelineLayout meshPipelineLayout;
     vk::UniquePipeline meshPipeline;
 
     // Framebuffers
@@ -408,7 +415,20 @@ private:
         dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
         dynamicState.pDynamicStates = dynamicStates.data();
 
-        pipelineLayout = device->createPipelineLayoutUnique({}, nullptr);
+        // Push constants
+        vk::PushConstantRange meshPushConstant = {};
+        meshPushConstant.offset = 0;
+        meshPushConstant.size = sizeof(MeshPushConstants);
+        meshPushConstant.stageFlags = vk::ShaderStageFlagBits::eVertex;
+
+        vk::PipelineLayoutCreateInfo meshPipelineLayoutCreateInfo = {};
+        meshPipelineLayoutCreateInfo.flags = {};
+        meshPipelineLayoutCreateInfo.setLayoutCount = 0;
+        meshPipelineLayoutCreateInfo.pSetLayouts = nullptr;
+        meshPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+        meshPipelineLayoutCreateInfo.pPushConstantRanges = &meshPushConstant;
+
+        meshPipelineLayout = device->createPipelineLayoutUnique(meshPipelineLayoutCreateInfo, nullptr);
 
         vk::GraphicsPipelineCreateInfo pipelineCreateInfo = {
             {}, 
@@ -423,7 +443,7 @@ private:
             nullptr, // Depth Stencil
             &colorBlending,
             &dynamicState, // Dynamic State
-            *pipelineLayout,
+            *meshPipelineLayout,
             *renderPass,
             0
         };
@@ -487,6 +507,17 @@ private:
 
         vk::Rect2D scissor = { {0, 0}, swapChainExtent};
         commandBuffers[currentFrame]->setScissor(0, 1, &scissor);
+
+        // Compute MVP matrix
+        glm::vec3 camPos = { 0.f,0.f,-2.f };
+        glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
+        glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
+        projection[1][1] *= -1;
+        glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(frameNumber * 0.4f), glm::vec3(0, 1, 0));
+        glm::mat4 mvpMatrix = projection * view * model;
+        MeshPushConstants constants;
+        constants.renderMatrix = mvpMatrix;
+        commandBuffers[currentFrame]->pushConstants(meshPipelineLayout.get(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(MeshPushConstants), &constants);
 
         commandBuffers[currentFrame]->draw(sceneMeshes[0].vertices.size(), 1, 0, 0);
         commandBuffers[currentFrame]->endRenderPass();
@@ -569,6 +600,7 @@ private:
             vk::Result result = presentQueue.presentKHR(presentInfo);
 
             currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+            frameNumber++;
             
     }
 
