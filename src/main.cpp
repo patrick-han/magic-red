@@ -1,5 +1,6 @@
-#include <GLFW/glfw3.h>
 #include "vulkan/vulkan.hpp"
+#include <GLFW/glfw3.h>
+
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -48,11 +49,14 @@ public:
 private:
     GLFWwindow* window;
 
-    // Vulkan
+    // Instance
     vk::ApplicationInfo appInfo;
     std::vector<const char*> glfwExtensionsVector;
     std::vector<const char*> layers;
     vk::UniqueInstance instance;
+
+    // Surface
+    vk::UniqueSurfaceKHR surface;
 
     void initWindow() {
         glfwInit();
@@ -115,9 +119,19 @@ private:
         nullptr, dldi);
     }
 
+    void createSurface() {
+        VkSurfaceKHR surfaceTmp;
+        VkResult err = glfwCreateWindowSurface(*instance, window, nullptr, &surfaceTmp);
+        if (err != VK_SUCCESS) {
+            MRLOG("Surface creation unsuccessful!");
+        }
+        surface = vk::UniqueSurfaceKHR(surfaceTmp, *instance);
+    }
+
     void initVulkan() {
         createInstance();
         createDebugMessenger();
+        createSurface();
 
         // uint32_t extensionCount = 0;
         // vk::Result a = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
