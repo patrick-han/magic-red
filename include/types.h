@@ -1,6 +1,9 @@
 #pragma once
 #include <deque>
 #include "utils.h"
+#ifdef _WIN32
+#include <functional>
+#endif
 
 // Useful engine types that don't deserve their own category
 
