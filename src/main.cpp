@@ -606,14 +606,14 @@ private:
 
         commandBuffers[currentFrame]->bindVertexBuffers(0, 1, &sceneMeshes[1].vertexBuffer.buffer, &offset);
 
-        vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height), 0.0f, 0.0f };
+        vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height), 0.0f, 1.0f };
         commandBuffers[currentFrame]->setViewport(0, 1, &viewport);
 
         vk::Rect2D scissor = { {0, 0}, swapChainExtent};
         commandBuffers[currentFrame]->setScissor(0, 1, &scissor);
 
         // Compute MVP matrix
-        glm::vec3 camPos = { 0.f,0.f,-2.f };
+        glm::vec3 camPos = { 0.f,0.f,-3.f };
         glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
         projection[1][1] *= -1; // flips the model
