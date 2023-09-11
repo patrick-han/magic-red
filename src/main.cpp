@@ -28,9 +28,11 @@
 #include "image.h"
 
 
-const uint32_t WINDOW_WIDTH = 800;
-const uint32_t WINDOW_HEIGHT = 600;
-const int MAX_FRAMES_IN_FLIGHT = 2;
+constexpr uint32_t WINDOW_WIDTH = 800;
+constexpr uint32_t WINDOW_HEIGHT = 600;
+constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+constexpr bool bDepthTest = true;
+constexpr bool bDepthWrite = true;
 
 int frameNumber = 0;
 
@@ -74,6 +76,7 @@ private:
     vk::Queue presentQueue;
 
     // Images
+    vk::Format depthFormat = vk::Format::eD32Sfloat;
     AllocatedImage depthImage;
     vk::ImageView depthImageView;
 
@@ -337,9 +340,8 @@ private:
         }
     }
 
-    void createDepthImage() {
+    void createDepthImageAndView() {
         vk::Extent3D depthExtent = vk::Extent3D{ swapChainExtent, 1 };
-        vk::Format depthFormat = vk::Format::eD32Sfloat;
 
         vk::ImageCreateInfo depthImageCreateInfo = {{}, vk::ImageType::e2D, depthFormat, depthExtent, 1, 1, vk::SampleCountFlagBits::e1, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::SharingMode::eExclusive, 0, nullptr, vk::ImageLayout::eUndefined};
 
@@ -391,24 +393,72 @@ private:
     }
 
     void createRenderPass() {
-        vk::AttachmentDescription colorAttachment = { {}, swapChainFormat, vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore, {}, {}, {}, vk::ImageLayout::ePresentSrcKHR };
+        // Prepare attachment descriptions and references
+        vk::AttachmentDescription colorAttachment = { {}, swapChainFormat, vk::SampleCountFlagBits::e1, 
+            vk::AttachmentLoadOp::eClear,
+            vk::AttachmentStoreOp::eStore,
+            {}, 
+            {}, 
+            {}, 
+            vk::ImageLayout::ePresentSrcKHR
+        };
+        vk::AttachmentReference colorAttachmentRef = { 0, vk::ImageLayout::eColorAttachmentOptimal };
 
-        vk::AttachmentReference colourAttachmentRef = { 0, vk::ImageLayout::eColorAttachmentOptimal };
+        vk::AttachmentDescription depthAttachment = { {}, depthFormat, vk::SampleCountFlagBits::e1, 
+            vk::AttachmentLoadOp::eClear,     // Color/depth
+            vk::AttachmentStoreOp::eStore,    // Color/depth
+            vk::AttachmentLoadOp::eClear,     // Stencil
+            vk::AttachmentStoreOp::eDontCare, // Stencil
+            vk::ImageLayout::eUndefined,                    // Renderpass instance begin layout
+            vk::ImageLayout::eDepthStencilAttachmentOptimal // Renderpass instance end layout
+        };
+        vk::AttachmentReference depthAttachmentRef = { 1, vk::ImageLayout::eDepthStencilAttachmentOptimal }; // Layout during the subpass
 
-        vk::SubpassDescription subpass = { {}, vk::PipelineBindPoint::eGraphics, /*inAttachmentCount*/ 0, nullptr, 1, &colourAttachmentRef, {}, {}, {}, {}};
+        vk::SubpassDescription subpass = { {}, 
+            vk::PipelineBindPoint::eGraphics, 
+            0,                  // Input attachment count
+            nullptr, 
+            1, 
+            &colorAttachmentRef, 
+            {},                 // Resolve attachments
+            &depthAttachmentRef, 
+            {}, {}
+        };
 
-        vk::SubpassDependency subpassDependency = { // TODO: Understand
-            VK_SUBPASS_EXTERNAL, // srcSubpass
-            0, // dstSubpass
+        // Color attachment synchronization
+        vk::SubpassDependency subpassDependencyColor = { // TODO: Understand
+            VK_SUBPASS_EXTERNAL,                               // srcSubpass
+            0,                                                 // dstSubpass
             vk::PipelineStageFlagBits::eColorAttachmentOutput, // srcStageMask This should wait for swapchain to finish reading from the image
             vk::PipelineStageFlagBits::eColorAttachmentOutput, // dstStageMask
-            {}, // srcAccessMask
-            vk::AccessFlagBits::eColorAttachmentWrite, // dstAccessMask
+            {},                                                // srcAccessMask
+            vk::AccessFlagBits::eColorAttachmentWrite,         // dstAccessMask
             {} // dependencyFlags
         };
 
+        // Depth attachment synchronization
+        vk::SubpassDependency subpassDependencyDepth = { // TODO: Understand
+            VK_SUBPASS_EXTERNAL,
+            0,
+            vk::PipelineStageFlagBits::eEarlyFragmentTests | vk::PipelineStageFlagBits::eLateFragmentTests, // Potentially used in either
+            vk::PipelineStageFlagBits::eEarlyFragmentTests | vk::PipelineStageFlagBits::eLateFragmentTests,
+            {},
+            vk::AccessFlagBits::eDepthStencilAttachmentWrite,
+            {} // dependencyFlags
+        };
+
+        vk::AttachmentDescription attachments[2] = { colorAttachment, depthAttachment };
+        vk::SubpassDependency subpassDependencies[2] = { subpassDependencyColor, subpassDependencyDepth };
+
         renderPass = device->createRenderPassUnique(
-            vk::RenderPassCreateInfo{ {}, 1, &colorAttachment, 1, &subpass, 1, &subpassDependency }
+            vk::RenderPassCreateInfo{ {}, 
+                2, 
+                attachments, 
+                1, 
+                &subpass, 
+                2, 
+                subpassDependencies
+            }
         );
     }
 
@@ -431,6 +481,16 @@ private:
         vk::PipelineRasterizationStateCreateInfo rasterizer = { {}, /*depthClamp*/ false,
         /*rasterizeDiscard*/ false, vk::PolygonMode::eFill, {},
         /*frontFace*/ vk::FrontFace::eCounterClockwise, {}, {}, {}, {}, 1.0f };
+
+        vk::PipelineDepthStencilStateCreateInfo depthStencil = { {}, 
+            bDepthTest ? VK_TRUE : VK_FALSE,
+            bDepthWrite ? VK_TRUE : VK_FALSE,
+            vk::CompareOp::eLessOrEqual,
+            VK_FALSE, // depth bounds test
+            VK_FALSE, // stencil
+            {}, {}, {}, {}
+        };
+
         vk::PipelineMultisampleStateCreateInfo multisampling = { {}, vk::SampleCountFlagBits::e1, false, 1.0 };
 
         vk::PipelineColorBlendAttachmentState colorBlendAttachment = { {}, /*srcCol*/ vk::BlendFactor::eOne,
@@ -474,7 +534,7 @@ private:
             &viewportState, 
             &rasterizer, 
             &multisampling,
-            nullptr, // Depth Stencil
+            &depthStencil,
             &colorBlending,
             &dynamicState, // Dynamic State
             *meshPipelineLayout,
@@ -485,14 +545,17 @@ private:
         meshPipeline = device->createGraphicsPipelineUnique({}, pipelineCreateInfo).value;
     }
 
-    void createFramebuffer() {
+    void createFramebuffers() {
         framebuffers = std::vector<vk::UniqueFramebuffer>(swapChainImageCount);
+
         for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+            vk::ImageView attachments[2] = { swapChainImageViews[i].get(), depthImageView};
+
             framebuffers[i] = device->createFramebufferUnique(vk::FramebufferCreateInfo{
             {},
             *renderPass,
-            1,
-            &(*swapChainImageViews[i]),
+            2,
+            attachments,
             swapChainExtent.width,
             swapChainExtent.height,
             1 });
@@ -521,13 +584,17 @@ private:
         vk::CommandBufferBeginInfo beginInfo = {};
         commandBuffers[currentFrame]->begin(beginInfo);
 
-        vk::ClearValue clearValues = {};
+        vk::ClearValue clearValue = {{0.0f, 0.0f, 0.5f, 1.0f}};
+        vk::ClearValue clearValueDepth = {{1.0f, 0}};
+
+
+        vk::ClearValue clearValues[2] = { clearValue, clearValueDepth };
         vk::RenderPassBeginInfo renderPassBeginInfo = {
             renderPass.get(), 
             framebuffers[imageIndex].get(),
             vk::Rect2D{ { 0, 0 }, swapChainExtent }, 
-            1, 
-            &clearValues 
+            2,
+            clearValues 
         };
 
         commandBuffers[currentFrame]->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
@@ -621,12 +688,12 @@ private:
         initVMA();
         createSwapchain();
         getSwapchainImages();
-        createDepthImage();
+        createDepthImageAndView();
         createShaderModules();
         createSynchronizationStructures();
         createRenderPass();
         createGraphicsPipeline();
-        createFramebuffer();
+        createFramebuffers();
         createCommandPool();
         createCommandBuffers();
         retrieveQueues();
