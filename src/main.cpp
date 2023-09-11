@@ -19,13 +19,13 @@
 #include <stdexcept>
 #include <cstdlib>
 #include "RootDir.h"
-#include "callbacks.h"
-#include "utils.h"
-#include "shader.h"
-#include "types.h"
-#include "mesh.h"
-#include "buffer.h"
-#include "image.h"
+#include "Callbacks.h"
+#include "Utils.h"
+#include "Shader.h"
+#include "Types.h"
+#include "Mesh.h"
+#include "Buffer.h"
+#include "Image.h"
 
 
 constexpr uint32_t WINDOW_WIDTH = 800;

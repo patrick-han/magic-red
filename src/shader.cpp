@@ -1,5 +1,5 @@
-#include "shader.h"
-#include "utils.h"
+#include "Shader.h"
+#include "Utils.h"
 #include <iostream>
 #include <fstream>
 #ifdef _WIN32

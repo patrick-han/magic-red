@@ -1,4 +1,4 @@
-#include "buffer.h"
+#include "Buffer.h"
 #include <vulkan/vk_enum_string_helper.h>
 
 void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const void* bufferData, VkBufferUsageFlags bufferUsage, VmaAllocator allocator, DeletionQueue& deletionQueue) {

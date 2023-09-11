@@ -1,7 +1,7 @@
 #pragma once
 
-#include "buffer.h"
-#include "types.h"
+#include "Buffer.h"
+#include "Types.h"
 #include <vector>
 #include <glm/vec3.hpp>
 

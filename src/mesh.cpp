@@ -1,6 +1,6 @@
-#include "mesh.h"
+#include "Mesh.h"
 #include "vulkan/vulkan.hpp"
-#include "utils.h"
+#include "Utils.h"
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "external/tiny_obj_loader.h"
 
