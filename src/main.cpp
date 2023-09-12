@@ -16,9 +16,12 @@
 #include <iostream>
 #include <vector>
 #include <set>
+#include <unordered_map>
 #include <stdexcept>
 #include <cstdlib>
+
 #include "RootDir.h"
+
 #include "Callbacks.h"
 #include "Utils.h"
 #include "Shader.h"
@@ -26,6 +29,8 @@
 #include "Mesh.h"
 #include "Buffer.h"
 #include "Image.h"
+#include "Material.h"
+#include "RenderObject.h"
 
 
 constexpr uint32_t WINDOW_WIDTH = 800;
@@ -115,8 +120,10 @@ private:
     // Resources
     DeletionQueue mainDeletionQueue;
 
-    // Meshes
-    std::vector<Mesh> sceneMeshes;
+    // Scene
+    std::vector<RenderObject> sceneRenderObjects;
+    std::unordered_map<std::string, Material> sceneMaterialMap;
+    std::unordered_map<std::string, Mesh> sceneMeshMap;
 
     void initWindow() {
         glfwInit();
@@ -543,6 +550,8 @@ private:
         };
 
         meshPipeline = device->createGraphicsPipelineUnique({}, pipelineCreateInfo).value;
+
+        create_material(meshPipeline.get(), meshPipelineLayout.get(), "defaultMesh", sceneMaterialMap);
     }
 
     void createFramebuffers() {
@@ -578,55 +587,6 @@ private:
     void retrieveQueues() {
         graphicsQueue = device->getQueue(static_cast<uint32_t>(graphicsQueueFamilyIndex), 0);
         presentQueue = device->getQueue(static_cast<uint32_t>(presentQueueFamilyIndex), 0);
-    }
-
-    void recordCommandBuffers(uint32_t imageIndex) {
-        vk::CommandBufferBeginInfo beginInfo = {};
-        commandBuffers[currentFrame]->begin(beginInfo);
-
-        vk::ClearValue clearValue = {{0.0f, 0.0f, 0.5f, 1.0f}};
-        vk::ClearValue clearValueDepth = {{1.0f, 0}};
-
-
-        vk::ClearValue clearValues[2] = { clearValue, clearValueDepth };
-        vk::RenderPassBeginInfo renderPassBeginInfo = {
-            renderPass.get(), 
-            framebuffers[imageIndex].get(),
-            vk::Rect2D{ { 0, 0 }, swapChainExtent }, 
-            2,
-            clearValues 
-        };
-
-        commandBuffers[currentFrame]->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
-        commandBuffers[currentFrame]->bindPipeline(vk::PipelineBindPoint::eGraphics, *meshPipeline);
-
-        vk::DeviceSize offset = 0;
-        // commandBuffers[currentFrame]->bindVertexBuffers(0, 1, &sceneMeshes[0].vertexBuffer.buffer, &offset);
-        // commandBuffers[currentFrame]->bindIndexBuffer(sceneMeshes[0].indexBuffer.buffer, offset, vk::IndexType::eUint32);
-
-        commandBuffers[currentFrame]->bindVertexBuffers(0, 1, &sceneMeshes[1].vertexBuffer.buffer, &offset);
-
-        vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height), 0.0f, 1.0f };
-        commandBuffers[currentFrame]->setViewport(0, 1, &viewport);
-
-        vk::Rect2D scissor = { {0, 0}, swapChainExtent};
-        commandBuffers[currentFrame]->setScissor(0, 1, &scissor);
-
-        // Compute MVP matrix
-        glm::vec3 camPos = { 0.f,0.f,-3.f };
-        glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
-        glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
-        projection[1][1] *= -1; // flips the model
-        glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(frameNumber * 0.4f), glm::vec3(0, 1, 0));
-        glm::mat4 mvpMatrix = projection * view * model;
-        MeshPushConstants constants;
-        constants.renderMatrix = mvpMatrix;
-        commandBuffers[currentFrame]->pushConstants(meshPipelineLayout.get(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(MeshPushConstants), &constants);
-
-        // commandBuffers[currentFrame]->drawIndexed(static_cast<uint32_t>(sceneMeshes[0].indices.size()), 1, 0, offset, 0);
-        commandBuffers[currentFrame]->draw(sceneMeshes[1].vertices.size(), 1, 0, 0);
-        commandBuffers[currentFrame]->endRenderPass();
-        commandBuffers[currentFrame]->end();
     }
 
     void initVMA() {
@@ -666,16 +626,93 @@ private:
         triangleMesh.indices.push_back(3);
         triangleMesh.indices.push_back(1);
 
+        upload_mesh(triangleMesh, vmaAllocator, mainDeletionQueue);
+        sceneMeshMap["triangle"] = triangleMesh;
         
-
-        sceneMeshes.push_back(triangleMesh);
-        upload_mesh(sceneMeshes[0], vmaAllocator, mainDeletionQueue);
-
         // Suzanne mesh
         Mesh monkeyMesh;
-        sceneMeshes.push_back(monkeyMesh);
-        load_mesh_from_obj(sceneMeshes[1], ROOT_DIR "/assets/meshes/suzanne.obj");
-        upload_mesh(sceneMeshes[1], vmaAllocator, mainDeletionQueue);
+        load_mesh_from_obj(monkeyMesh, ROOT_DIR "/assets/meshes/suzanne.obj");
+        upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
+        sceneMeshMap["suzanne"] = monkeyMesh;
+
+        // Sponza mesh
+        Mesh sponzaMesh;
+        load_mesh_from_obj(sponzaMesh, ROOT_DIR "/assets/meshes/sponza.obj");
+        upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
+        sceneMeshMap["sponza"] = sponzaMesh;
+    }
+
+    void init_scene() {
+        RenderObject sponzaObject;
+        sponzaObject.material = get_material("defaultMesh", sceneMaterialMap);
+        sponzaObject.mesh = get_mesh("sponza", sceneMeshMap);
+        glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
+        glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.1, 0.1, 0.1));
+        sponzaObject.transformMatrix = translate * scale;
+
+        sceneRenderObjects.push_back(sponzaObject);
+
+        RenderObject monkeyObject;
+        monkeyObject.material = get_material("defaultMesh", sceneMaterialMap);
+        monkeyObject.mesh = get_mesh("suzanne", sceneMeshMap);
+        monkeyObject.transformMatrix = glm::mat4{ 1.0f };
+
+        sceneRenderObjects.push_back(monkeyObject);
+
+        for (int x = -10; x < 10; x++) {
+            for (int y = -10; y < 10; y++) {
+                RenderObject triangleObject;
+                triangleObject.material = get_material("defaultMesh", sceneMaterialMap);
+                triangleObject.mesh = get_mesh("triangle", sceneMeshMap);
+                glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(x, 0.0f, y));
+                glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.2, 0.2, 0.2));
+                triangleObject.transformMatrix = translate * scale;
+                
+                sceneRenderObjects.push_back(triangleObject);
+            }
+        }
+    }
+
+    void draw_objects(uint32_t imageIndex) {
+        
+
+        glm::vec3 camPos = { 0.f,-2.f,-8.f };
+        glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
+        glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
+        projection[1][1] *= -1; // flips the model
+
+        // Bind the first pipeline
+        vk::Pipeline previousPipeline = sceneRenderObjects[0].material->pipeline;
+        commandBuffers[currentFrame]->bindPipeline(vk::PipelineBindPoint::eGraphics, previousPipeline);
+
+        for (RenderObject renderObject : sceneRenderObjects) {
+            
+            if (previousPipeline != renderObject.material->pipeline) {
+                commandBuffers[currentFrame]->bindPipeline(vk::PipelineBindPoint::eGraphics, renderObject.material->pipeline);
+                previousPipeline = renderObject.material->pipeline;
+            }
+
+            vk::DeviceSize offset = 0;
+            
+            commandBuffers[currentFrame]->bindVertexBuffers(0, 1, &renderObject.mesh->vertexBuffer.buffer, &offset);
+
+            vk::Viewport viewport = { 0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height), 0.0f, 1.0f };
+            commandBuffers[currentFrame]->setViewport(0, 1, &viewport);
+
+            vk::Rect2D scissor = { {0, 0}, swapChainExtent};
+            commandBuffers[currentFrame]->setScissor(0, 1, &scissor);
+
+            // Compute MVP matrix
+            glm::mat4 model = renderObject.transformMatrix;
+            glm::mat4 rotate = glm::rotate(glm::mat4{ 1.0f }, glm::radians(frameNumber * 0.4f), glm::vec3(0, 1, 0));
+            model = rotate * model;
+            glm::mat4 mvpMatrix = projection * view * model;
+
+            MeshPushConstants constants;
+            constants.renderMatrix = mvpMatrix;
+            commandBuffers[currentFrame]->pushConstants(meshPipelineLayout.get(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(MeshPushConstants), &constants);
+            commandBuffers[currentFrame]->draw(renderObject.mesh->vertices.size(), 1, 0, 0);
+        }
     }
 
     void initVulkan() {
@@ -698,6 +735,7 @@ private:
         createCommandBuffers();
         retrieveQueues();
         load_meshes();
+        init_scene();
 
     }
 
@@ -709,7 +747,22 @@ private:
             // Retrieve image index to list of swapchain-backed framebuffers and re-record command buffers
             vk::ResultValue<uint32_t> imageIndex = device->acquireNextImageKHR(swapChain.get(), std::numeric_limits<uint64_t>::max(), imageAvailableSemaphores[currentFrame].get(), {});
             commandBuffers[currentFrame]->reset();
-            recordCommandBuffers(imageIndex.value);
+
+            vk::ClearValue clearValue = {{0.0f, 0.0f, 0.5f, 1.0f}};
+            vk::ClearValue clearValueDepth = {{1.0f, 0}};
+            vk::ClearValue clearValues[2] = { clearValue, clearValueDepth };
+
+            vk::CommandBufferBeginInfo beginInfo = {};
+            commandBuffers[currentFrame]->begin(beginInfo);
+            vk::RenderPassBeginInfo renderPassBeginInfo = { renderPass.get(), framebuffers[imageIndex.value].get(), vk::Rect2D{ { 0, 0 }, swapChainExtent }, 
+                2,
+                clearValues 
+            };
+
+            commandBuffers[currentFrame]->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+            draw_objects(imageIndex.value);
+            commandBuffers[currentFrame]->endRenderPass();
+            commandBuffers[currentFrame]->end();
 
             // Submit graphics workload
             vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;

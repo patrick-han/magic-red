@@ -115,3 +115,14 @@ void upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue& deletionQueu
         upload_buffer(mesh.indexBuffer, mesh.indices.size() * sizeof(uint32_t), mesh.indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, allocator, deletionQueue);
     }
 }
+
+Mesh* get_mesh(const std::string& meshName, std::unordered_map<std::string, Mesh>& meshMap) {
+    // Search for the mesh, and return nullptr if not found
+    auto it = meshMap.find(meshName);
+    if (it == meshMap.end()) {
+        return nullptr;
+    }
+    else {
+        return &(*it).second;
+    }
+}
