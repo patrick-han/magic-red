@@ -12,6 +12,7 @@
 #include "vk_mem_alloc.h"
 
 #include <vulkan/vk_enum_string_helper.h>
+#include "Common/Debug.h"
 
 #include <iostream>
 #include <vector>
@@ -22,8 +23,8 @@
 
 #include "RootDir.h"
 
-#include "Callbacks.h"
-#include "Utils.h"
+#include "Control/Control.h"
+#include "Common/Log.h"
 #include "Shader.h"
 #include "Types.h"
 #include "Mesh.h"
@@ -39,7 +40,10 @@ constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr bool bDepthTest = true;
 constexpr bool bDepthWrite = true;
 
+// Frame data
 int frameNumber = 0;
+float deltaTime = 0.0f; // Time between current and last frame
+float lastFrame = 0.0f; // Time of last frame
 
 struct MeshPushConstants {
     glm::vec4 data;
@@ -131,6 +135,9 @@ private:
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
         window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Vulkan Engine", nullptr, nullptr);
         glfwSetKeyCallback(window, key_callback);
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Hide cursor and capture it
+	    glfwSetCursorPosCallback(window, mouse_callback);
+        glfwSetScrollCallback(window, scroll_callback);
     }
 
     void createInstance() {
@@ -647,7 +654,7 @@ private:
         sponzaObject.material = get_material("defaultMesh", sceneMaterialMap);
         sponzaObject.mesh = get_mesh("sponza", sceneMeshMap);
         glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
-        glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.1, 0.1, 0.1));
+        glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
         sponzaObject.transformMatrix = translate * scale;
 
         sceneRenderObjects.push_back(sponzaObject);
@@ -655,7 +662,8 @@ private:
         RenderObject monkeyObject;
         monkeyObject.material = get_material("defaultMesh", sceneMaterialMap);
         monkeyObject.mesh = get_mesh("suzanne", sceneMeshMap);
-        monkeyObject.transformMatrix = glm::mat4{ 1.0f };
+        glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
+        monkeyObject.transformMatrix = monkeyTranslate;
 
         sceneRenderObjects.push_back(monkeyObject);
 
@@ -674,10 +682,7 @@ private:
     }
 
     void draw_objects(uint32_t imageIndex) {
-        
-
-        glm::vec3 camPos = { 0.f,-2.f,-8.f };
-        glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
+        glm::mat4 view = camera.get_view_matrix();
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
         projection[1][1] *= -1; // flips the model
 
@@ -704,8 +709,8 @@ private:
 
             // Compute MVP matrix
             glm::mat4 model = renderObject.transformMatrix;
-            glm::mat4 rotate = glm::rotate(glm::mat4{ 1.0f }, glm::radians(frameNumber * 0.4f), glm::vec3(0, 1, 0));
-            model = rotate * model;
+            // glm::mat4 rotate = glm::rotate(glm::mat4{ 1.0f }, glm::radians(frameNumber * 0.4f), glm::vec3(0, 1, 0));
+            // model = rotate * model;
             glm::mat4 mvpMatrix = projection * view * model;
 
             MeshPushConstants constants;
@@ -781,6 +786,10 @@ private:
     void mainLoop() {
         while(!glfwWindowShouldClose(window)) {
             glfwPollEvents();
+            float currentFrame = static_cast<float>(glfwGetTime());
+            deltaTime = currentFrame - lastFrame;
+            lastFrame = currentFrame;
+            process_input(window, deltaTime);
 
             drawFrame();
         }

@@ -1,8 +1,8 @@
 #include "Mesh.h"
 #include "vulkan/vulkan.hpp"
-#include "Utils.h"
+#include "Common/Log.h"
 #define TINYOBJLOADER_IMPLEMENTATION
-#include "external/tiny_obj_loader.h"
+#include "External/tiny_obj_loader.h"
 
 VertexInputDescription get_vertex_description() {
     VertexInputDescription description;

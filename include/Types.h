@@ -1,6 +1,6 @@
 #pragma once
 #include <deque>
-#include "Utils.h"
+#include "Common/Log.h"
 #ifdef _WIN32
 #include <functional>
 #endif
