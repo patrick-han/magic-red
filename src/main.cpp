@@ -633,20 +633,17 @@ private:
         triangleMesh.indices.push_back(3);
         triangleMesh.indices.push_back(1);
 
-        upload_mesh(triangleMesh, vmaAllocator, mainDeletionQueue);
-        sceneMeshMap["triangle"] = triangleMesh;
+        sceneMeshMap["triangle"] = upload_mesh(triangleMesh, vmaAllocator, mainDeletionQueue);
         
         // Suzanne mesh
         Mesh monkeyMesh;
         load_mesh_from_obj(monkeyMesh, ROOT_DIR "/assets/meshes/suzanne.obj");
-        upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
-        sceneMeshMap["suzanne"] = monkeyMesh;
+        sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
 
         // Sponza mesh
         Mesh sponzaMesh;
         load_mesh_from_obj(sponzaMesh, ROOT_DIR "/assets/meshes/sponza.obj");
-        upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
-        sceneMeshMap["sponza"] = sponzaMesh;
+        sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
     }
 
     void init_scene() {

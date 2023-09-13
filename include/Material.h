@@ -8,7 +8,7 @@ struct Material {
 };
 
 /* Add a material to a scene material map */
-Material* create_material(vk::Pipeline pipeline, vk::PipelineLayout pipelineLayout, const std::string& materialName, std::unordered_map<std::string, Material>& materialMap);
+void create_material(vk::Pipeline pipeline, vk::PipelineLayout pipelineLayout, const std::string& materialName, std::unordered_map<std::string, Material>& materialMap);
 
 /* Get a material from a scene material map */
-Material* get_material(const std::string& materialName, std::unordered_map<std::string, Material>& materialMap);
+[[nodiscard]] Material* get_material(const std::string& materialName, std::unordered_map<std::string, Material>& materialMap);

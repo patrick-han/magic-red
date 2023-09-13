@@ -44,7 +44,7 @@ struct Mesh {
 void load_mesh_from_obj(Mesh& mesh, const char* objFileName);
 
 /* Upload an instantiated Mesh to the GPU using a created VMA allocator */
-void upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue& deletionQueue);
+[[nodiscard]] Mesh& upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue& deletionQueue);
 
 /* Get a meshn from a scene mesh map */
-Mesh* get_mesh(const std::string& meshName, std::unordered_map<std::string, Mesh>& meshMap);
+[[nodiscard]] Mesh* get_mesh(const std::string& meshName, std::unordered_map<std::string, Mesh>& meshMap);

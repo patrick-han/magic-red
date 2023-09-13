@@ -4,7 +4,7 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "External/tiny_obj_loader.h"
 
-VertexInputDescription get_vertex_description() {
+[[nodiscard]] VertexInputDescription get_vertex_description() {
     VertexInputDescription description;
 
     // We will have 1 vertex buffer binding, with a per vertex rate (rather than instance)
@@ -108,15 +108,16 @@ void load_mesh_from_obj(Mesh& mesh, const char* fileName) {
 	}
 }
 
-void upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue& deletionQueue) {
+[[nodiscard]] Mesh& upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue& deletionQueue) {
     upload_buffer(mesh.vertexBuffer, mesh.vertices.size() * sizeof(Vertex), mesh.vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, allocator, deletionQueue);
 
     if (mesh.indices.size() > 0) {
         upload_buffer(mesh.indexBuffer, mesh.indices.size() * sizeof(uint32_t), mesh.indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, allocator, deletionQueue);
     }
+    return mesh;
 }
 
-Mesh* get_mesh(const std::string& meshName, std::unordered_map<std::string, Mesh>& meshMap) {
+[[nodiscard]] Mesh* get_mesh(const std::string& meshName, std::unordered_map<std::string, Mesh>& meshMap) {
     // Search for the mesh, and return nullptr if not found
     auto it = meshMap.find(meshName);
     if (it == meshMap.end()) {
