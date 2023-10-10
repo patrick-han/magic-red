@@ -383,8 +383,8 @@ private:
 
     void createShaderModules() {
         // TODO: Hardcoded for now
-        std::string vertexShaderSource = load_shader_source_to_string(ROOT_DIR "shaders/triangle_mesh.vert");
-        std::string fragmentShaderSource = load_shader_source_to_string(ROOT_DIR "shaders/triangle_mesh.frag");
+        std::string vertexShaderSource = load_shader_source_to_string(ROOT_DIR "Shaders/triangle_mesh.vert");
+        std::string fragmentShaderSource = load_shader_source_to_string(ROOT_DIR "Shaders/triangle_mesh.frag");
 
         vertexShaderModule = compile_shader(device.get(), vertexShaderSource, shaderc_glsl_vertex_shader, "vertex shader");
         fragmentShaderModule = compile_shader(device.get(), fragmentShaderSource, shaderc_glsl_fragment_shader, "fragment shader");
@@ -637,12 +637,12 @@ private:
         
         // Suzanne mesh
         Mesh monkeyMesh;
-        load_mesh_from_obj(monkeyMesh, ROOT_DIR "/assets/meshes/suzanne.obj");
+        load_mesh_from_obj(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.obj");
         sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
 
         // Sponza mesh
         Mesh sponzaMesh;
-        load_mesh_from_obj(sponzaMesh, ROOT_DIR "/assets/meshes/sponza.obj");
+        load_mesh_from_obj(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza.obj");
         sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
     }
 
@@ -681,7 +681,7 @@ private:
     void draw_objects(uint32_t imageIndex) {
         glm::mat4 view = camera.get_view_matrix();
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
-        projection[1][1] *= -1; // flips the model
+        projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
 
         // Bind the first pipeline
         vk::Pipeline previousPipeline = sceneRenderObjects[0].material->pipeline;

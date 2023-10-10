@@ -17,15 +17,15 @@ ADD_CUSTOM_TARGET(release
   COMMENT "Creating the executable in the release mode.")
 
 # Configure assets header file to help us find resources
-configure_file(include/helpers/RootDir.h.in ${CMAKE_BINARY_DIR}/include/helpers/RootDir.h)
+configure_file(Include/Helpers/RootDir.h.in ${CMAKE_BINARY_DIR}/Include/Helpers/RootDir.h)
 
 # Include directories
-include_directories(${CMAKE_SOURCE_DIR}/include)
-include_directories(${CMAKE_BINARY_DIR}/include/helpers)
-include_directories(${CMAKE_BINARY_DIR}/include/external)
+include_directories(${CMAKE_SOURCE_DIR}/Include)
+include_directories(${CMAKE_BINARY_DIR}/Include/Helpers)
+include_directories(${CMAKE_BINARY_DIR}/Include/External)
 
 # Add SOURCE_FILES and HEADER_FILES variables, will traverse all subdirectories
-file(GLOB_RECURSE SOURCE_FILES ${CMAKE_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE SOURCE_FILES ${CMAKE_SOURCE_DIR}/Source/*.cpp)
 # file(GLOB_RECURSE HEADER_FILES ${CMAKE_SOURCE_DIR}/include/*.h)
 
 # Define the executable
