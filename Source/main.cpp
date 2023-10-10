@@ -27,11 +27,12 @@
 #include "Common/Log.h"
 #include "Shader.h"
 #include "Types.h"
-#include "Mesh.h"
-#include "Buffer.h"
-#include "Image.h"
+#include "Mesh/Mesh.h"
+#include "Wrappers/Buffer.h"
+#include "Wrappers/Image.h"
 #include "Material.h"
-#include "RenderObject.h"
+#include "Mesh/RenderMesh.h"
+#include "VertexDescriptors.h"
 
 
 constexpr uint32_t WINDOW_WIDTH = 800;
@@ -125,7 +126,7 @@ private:
     DeletionQueue mainDeletionQueue;
 
     // Scene
-    std::vector<RenderObject> sceneRenderObjects;
+    std::vector<RenderMesh> sceneRenderMeshes;
     std::unordered_map<std::string, Material> sceneMaterialMap;
     std::unordered_map<std::string, Mesh> sceneMeshMap;
 
@@ -482,7 +483,7 @@ private:
         std::vector<vk::PipelineShaderStageCreateInfo> pipelineShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
         vk::PipelineVertexInputStateCreateInfo vertexInputInfo = { {}, 0u, nullptr, 0u, nullptr }; // TODO: Hardcoded shader for now
-        VertexInputDescription vertexDescription = get_vertex_description();
+        VertexInputDescription vertexDescription = VertexInputDescription::get_default_vertex_description();
         vertexInputInfo.vertexBindingDescriptionCount = vertexDescription.bindings.size();
         vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
         vertexInputInfo.vertexAttributeDescriptionCount = vertexDescription.attributes.size();
@@ -647,33 +648,33 @@ private:
     }
 
     void init_scene() {
-        RenderObject sponzaObject;
+        RenderMesh sponzaObject;
         sponzaObject.material = get_material("defaultMesh", sceneMaterialMap);
         sponzaObject.mesh = get_mesh("sponza", sceneMeshMap);
         glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
         glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
         sponzaObject.transformMatrix = translate * scale;
 
-        sceneRenderObjects.push_back(sponzaObject);
+        sceneRenderMeshes.push_back(sponzaObject);
 
-        RenderObject monkeyObject;
+        RenderMesh monkeyObject;
         monkeyObject.material = get_material("defaultMesh", sceneMaterialMap);
         monkeyObject.mesh = get_mesh("suzanne", sceneMeshMap);
         glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
         monkeyObject.transformMatrix = monkeyTranslate;
 
-        sceneRenderObjects.push_back(monkeyObject);
+        sceneRenderMeshes.push_back(monkeyObject);
 
         for (int x = -10; x < 10; x++) {
             for (int y = -10; y < 10; y++) {
-                RenderObject triangleObject;
+                RenderMesh triangleObject;
                 triangleObject.material = get_material("defaultMesh", sceneMaterialMap);
                 triangleObject.mesh = get_mesh("triangle", sceneMeshMap);
                 glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(x, 0.0f, y));
                 glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.2, 0.2, 0.2));
                 triangleObject.transformMatrix = translate * scale;
                 
-                sceneRenderObjects.push_back(triangleObject);
+                sceneRenderMeshes.push_back(triangleObject);
             }
         }
     }
@@ -684,10 +685,10 @@ private:
         projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
 
         // Bind the first pipeline
-        vk::Pipeline previousPipeline = sceneRenderObjects[0].material->pipeline;
+        vk::Pipeline previousPipeline = sceneRenderMeshes[0].material->pipeline;
         commandBuffers[currentFrame]->bindPipeline(vk::PipelineBindPoint::eGraphics, previousPipeline);
 
-        for (RenderObject renderObject : sceneRenderObjects) {
+        for (RenderMesh renderObject : sceneRenderMeshes) {
             
             if (previousPipeline != renderObject.material->pipeline) {
                 commandBuffers[currentFrame]->bindPipeline(vk::PipelineBindPoint::eGraphics, renderObject.material->pipeline);
