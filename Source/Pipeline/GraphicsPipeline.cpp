@@ -1,15 +1,19 @@
 #include "Pipeline/GraphicsPipeline.h"
 #include "Shader.h"
 #include "VertexDescriptors.h" // Temp
-#include "Common/Config.h" // Temp
 #include "RootDir.h"
 
 GraphicsPipeline::GraphicsPipeline() {
 }
 
-GraphicsPipeline::GraphicsPipeline(const VkDevice logicalDevice, const VkRenderPass renderPass, const std::string& vertexShaderPath, const std::string& fragmentShaderPath, const std::vector<VkPushConstantRange>& pushConstantRanges) : Pipeline(logicalDevice) {
-    // std::string vertexShaderSource = load_shader_source_to_string(ROOT_DIR "Shaders/triangle_mesh.vert");
-    // std::string fragmentShaderSource = load_shader_source_to_string(ROOT_DIR "Shaders/triangle_mesh.frag");
+GraphicsPipeline::GraphicsPipeline(
+    const VkDevice logicalDevice, 
+    const VkRenderPass renderPass, 
+    const std::string& vertexShaderPath, 
+    const std::string& fragmentShaderPath, 
+    const std::vector<VkPushConstantRange>& pushConstantRanges, 
+    VkExtent2D extent
+    ) : Pipeline(logicalDevice) {
 
     std::string vertexShaderSource = load_shader_source_to_string(std::string(ROOT_DIR) + vertexShaderPath);
     std::string fragmentShaderSource = load_shader_source_to_string(std::string(ROOT_DIR) + fragmentShaderPath);
@@ -33,17 +37,18 @@ GraphicsPipeline::GraphicsPipeline(const VkDevice logicalDevice, const VkRenderP
     vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
     
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, nullptr, VkPipelineInputAssemblyStateCreateFlags(), VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE };
-    VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, 1.0f };
-    VkExtent2D swapChainExtent = VkExtent2D{ WINDOW_WIDTH, WINDOW_HEIGHT };
-    VkRect2D scissor = { { 0, 0 }, swapChainExtent };
+    VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height), 0.0f, 1.0f };
+    VkRect2D scissor = { { 0, 0 }, {extent.width, extent.height}};
     VkPipelineViewportStateCreateInfo viewportState = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO, nullptr, VkPipelineViewportStateCreateFlags(), 1, &viewport, 1, &scissor };
     VkPipelineRasterizationStateCreateInfo rasterizer = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO, nullptr, VkPipelineRasterizationStateCreateFlags(), /*depthClamp*/ VK_FALSE,
     /*rasterizeDiscard*/ VK_FALSE, VK_POLYGON_MODE_FILL, VkCullModeFlags(),
     /*frontFace*/ VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, {}, {}, {}, 1.0f };
 
     VkPipelineDepthStencilStateCreateInfo depthStencil = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO, nullptr, VkPipelineDepthStencilStateCreateFlags(),
-        bDepthTest ? VK_TRUE : VK_FALSE,
-        bDepthWrite ? VK_TRUE : VK_FALSE,
+        VK_TRUE, // Enable depth test by default
+        VK_TRUE, // Enable depth writes by default
+        // bDepthTest ? VK_TRUE : VK_FALSE,
+        // bDepthWrite ? VK_TRUE : VK_FALSE,
         VK_COMPARE_OP_LESS_OR_EQUAL,
         VK_FALSE, // depth bounds test
         VK_FALSE, // stencil
@@ -70,13 +75,6 @@ GraphicsPipeline::GraphicsPipeline(const VkDevice logicalDevice, const VkRenderP
     dynamicState.flags = VkPipelineDynamicStateCreateFlags();
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
-
-    // Push constants
-    // VkPushConstantRange meshPushConstant = {};
-    // meshPushConstant.offset = 0;
-    // meshPushConstant.size = sizeof(MeshPushConstants);
-    // meshPushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
 
     CreatePipelineLayout(pushConstantRanges);
 

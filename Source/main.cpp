@@ -84,16 +84,11 @@ private:
     VkImageView depthImageView;
 
     // Swapchain
-    VkExtent2D swapChainExtent;
     VkSwapchainKHR swapChain;
     VkFormat swapChainFormat;
     uint32_t swapChainImageCount = 2; // Should probably request support for this, but it's probably fine
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;
-
-    // Shaders
-    // VkShaderModule vertexShaderModule;
-    // VkShaderModule fragmentShaderModule;
 
     // Synchronization (per in-flight frame resources)
     std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -104,10 +99,6 @@ private:
     // Renderpass
     VkRenderPass renderPass;
 
-    // Graphics Pipeline
-    // VkPipelineLayout meshPipelineLayout;
-    // VkPipeline meshPipeline;
-
     // Framebuffers
     std::vector<VkFramebuffer> framebuffers;
 
@@ -116,12 +107,7 @@ private:
     std::vector<VkCommandBuffer> commandBuffers; // (per in-flight frame resource)
 
     // Resources
-    DeletionQueue mainDeletionQueue;
-
-    // // Scene
-    // std::vector<RenderMesh> sceneRenderMeshes;
-    // std::unordered_map<std::string, Material> sceneMaterialMap;
-    // std::unordered_map<std::string, Mesh> sceneMeshMap;
+    DeletionQueue mainDeletionQueue; // Contains all deletable vulkan resources except pipelines/pipeline layouts
 
     void initWindow() {
         glfwInit();
@@ -362,7 +348,7 @@ private:
         }
 
         // Create swapchain
-        swapChainExtent = VkExtent2D{ WINDOW_WIDTH, WINDOW_HEIGHT };
+        VkExtent2D swapChainExtent = { WINDOW_WIDTH, WINDOW_HEIGHT };
         VkSwapchainCreateInfoKHR swapChainCreateInfo = {
             VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             nullptr,
@@ -424,7 +410,7 @@ private:
     }
 
     void createDepthImageAndView() {
-        VkExtent3D depthExtent = VkExtent3D{ swapChainExtent.width, swapChainExtent.height, 1 };
+        VkExtent3D depthExtent = VkExtent3D{ WINDOW_WIDTH, WINDOW_HEIGHT, 1 };
 
         VkImageCreateInfo depthImageCreateInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, nullptr, VkImageCreateFlags(), VK_IMAGE_TYPE_2D, depthFormat, depthExtent, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED};
 
@@ -582,7 +568,7 @@ private:
     std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
 
     void createPipelines() {
-        GraphicsPipeline defaultPipeline(device, renderPass, std::string("Shaders/triangle_mesh.vert"), std::string("Shaders/triangle_mesh.frag"), defaultPushConstantRanges);
+        GraphicsPipeline defaultPipeline(device, renderPass, std::string("Shaders/triangle_mesh.vert"), std::string("Shaders/triangle_mesh.frag"), defaultPushConstantRanges, {WINDOW_WIDTH, WINDOW_HEIGHT});
         create_material(defaultPipeline, "defaultMaterial");
     }
 
@@ -591,7 +577,7 @@ private:
 
         for (size_t i = 0; i < swapChainImageViews.size(); i++) {
             VkImageView attachments[2] = { swapChainImageViews[i], depthImageView};
-            VkFramebufferCreateInfo framebufferCreateInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO, nullptr, VkFramebufferCreateFlags(), renderPass, 2, attachments, swapChainExtent.width, swapChainExtent.height, 1 };
+            VkFramebufferCreateInfo framebufferCreateInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO, nullptr, VkFramebufferCreateFlags(), renderPass, 2, attachments, WINDOW_WIDTH, WINDOW_HEIGHT, 1 };
 
             VkResult res = vkCreateFramebuffer(device, &framebufferCreateInfo, nullptr, &framebuffers[i]);
             if (res != VK_SUCCESS) {
@@ -738,10 +724,10 @@ private:
             
             vkCmdBindVertexBuffers(commandBuffers[currentFrame], 0, 1, &renderObject.mesh->vertexBuffer.buffer, &offset);
 
-            VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height), 0.0f, 1.0f };
+            VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, 1.0f };
             vkCmdSetViewport(commandBuffers[currentFrame], 0, 1, &viewport);
 
-            VkRect2D scissor = { {0, 0}, swapChainExtent};
+            VkRect2D scissor = { {0, 0}, {WINDOW_WIDTH, WINDOW_HEIGHT}};
             vkCmdSetScissor(commandBuffers[currentFrame], 0, 1, &scissor);
 
             // Compute MVP matrix
@@ -808,7 +794,7 @@ private:
             renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
             renderPassBeginInfo.renderPass = renderPass;
             renderPassBeginInfo.framebuffer = framebuffers[imageIndex];
-            renderPassBeginInfo.renderArea = VkRect2D{ {0, 0}, swapChainExtent};
+            renderPassBeginInfo.renderArea = VkRect2D{ {0, 0}, {WINDOW_WIDTH, WINDOW_HEIGHT}};
             renderPassBeginInfo.clearValueCount = 2;
             renderPassBeginInfo.pClearValues = clearValues;
 

@@ -9,7 +9,8 @@ public:
         const VkRenderPass renderPass, 
         const std::string& vertexShaderPath, // std::string or something else?
         const std::string& fragmentShaderPath, 
-        const std::vector<VkPushConstantRange>& pushConstantRanges
+        const std::vector<VkPushConstantRange>& pushConstantRanges,
+        VkExtent2D extent
         );
     ~GraphicsPipeline();
 protected:
