@@ -4,7 +4,7 @@
 #include <fstream>
 #include <sstream>
 
-
+#include "Common/Log.h"
 std::string load_shader_source_to_string(std::string const& shaderPath) {
     std::string shaderSource;
     std::ifstream shaderFile;
@@ -50,6 +50,5 @@ void compile_shader(VkDevice device, VkShaderModule& shaderModule, std::string s
             std::distance(shaderCode.begin(), shaderCode.end()) * sizeof(uint32_t),
             shaderCode.data() 
     };
-
     vkCreateShaderModule(device, &shaderCreateInfo, nullptr, &shaderModule);
 }

@@ -1,11 +1,14 @@
 #pragma once
-
-#include "Mesh/Mesh.h"
-#include "Material.h"
+#include "vulkan/vulkan.h"
 #include <glm/glm.hpp>
+#include "MeshPushConstants.h"
+
+class Mesh;
+class GraphicsPipeline;
 
 struct RenderMesh {
+    void BindAndDraw(VkCommandBuffer commandBuffer, glm::mat4 viewProjectionMatrix) const;
     Mesh* mesh;
-    Material* material;
+    GraphicsPipeline* material;
     glm::mat4 transformMatrix;
 };

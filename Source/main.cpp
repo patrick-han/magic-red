@@ -33,23 +33,17 @@
 #include "Material.h"
 #include "Mesh/RenderMesh.h"
 #include "VertexDescriptors.h"
+#include "Common/Config.h"
+#include "Scene/Scene.h"
+#include "Pipeline/GraphicsPipeline.h"
+#include "Mesh/MeshPushConstants.h"
 
-
-constexpr uint32_t WINDOW_WIDTH = 800;
-constexpr uint32_t WINDOW_HEIGHT = 600;
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-constexpr bool bDepthTest = true;
-constexpr bool bDepthWrite = true;
 
 // Frame data
 int frameNumber = 0;
 float deltaTime = 0.0f; // Time between current and last frame
 float lastFrame = 0.0f; // Time of last frame
-
-struct MeshPushConstants {
-    glm::vec4 data;
-    glm::mat4 renderMatrix;
-};
 
 class Engine {
 public:
@@ -91,16 +85,11 @@ private:
     VkImageView depthImageView;
 
     // Swapchain
-    VkExtent2D swapChainExtent;
     VkSwapchainKHR swapChain;
     VkFormat swapChainFormat;
     uint32_t swapChainImageCount = 2; // Should probably request support for this, but it's probably fine
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;
-
-    // Shaders
-    VkShaderModule vertexShaderModule;
-    VkShaderModule fragmentShaderModule;
 
     // Synchronization (per in-flight frame resources)
     std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -111,10 +100,6 @@ private:
     // Renderpass
     VkRenderPass renderPass;
 
-    // Graphics Pipeline
-    VkPipelineLayout meshPipelineLayout;
-    VkPipeline meshPipeline;
-
     // Framebuffers
     std::vector<VkFramebuffer> framebuffers;
 
@@ -123,12 +108,7 @@ private:
     std::vector<VkCommandBuffer> commandBuffers; // (per in-flight frame resource)
 
     // Resources
-    DeletionQueue mainDeletionQueue;
-
-    // Scene
-    std::vector<RenderMesh> sceneRenderMeshes;
-    std::unordered_map<std::string, Material> sceneMaterialMap;
-    std::unordered_map<std::string, Mesh> sceneMeshMap;
+    DeletionQueue mainDeletionQueue; // Contains all deletable vulkan resources except pipelines/pipeline layouts
 
     void initWindow() {
         glfwInit();
@@ -369,7 +349,7 @@ private:
         }
 
         // Create swapchain
-        swapChainExtent = VkExtent2D{ WINDOW_WIDTH, WINDOW_HEIGHT };
+        VkExtent2D swapChainExtent = { WINDOW_WIDTH, WINDOW_HEIGHT };
         VkSwapchainCreateInfoKHR swapChainCreateInfo = {
             VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             nullptr,
@@ -431,7 +411,7 @@ private:
     }
 
     void createDepthImageAndView() {
-        VkExtent3D depthExtent = VkExtent3D{ swapChainExtent.width, swapChainExtent.height, 1 };
+        VkExtent3D depthExtent = VkExtent3D{ WINDOW_WIDTH, WINDOW_HEIGHT, 1 };
 
         VkImageCreateInfo depthImageCreateInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, nullptr, VkImageCreateFlags(), VK_IMAGE_TYPE_2D, depthFormat, depthExtent, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED};
 
@@ -455,21 +435,6 @@ private:
             vkDestroyImageView(device, depthImageView, nullptr);
             vmaDestroyImage(vmaAllocator, depthImage.image, depthImage.allocation);
         });
-    }
-
-    void createShaderModules() {
-        // TODO: Hardcoded for now
-        std::string vertexShaderSource = load_shader_source_to_string(ROOT_DIR "Shaders/triangle_mesh.vert");
-        std::string fragmentShaderSource = load_shader_source_to_string(ROOT_DIR "Shaders/triangle_mesh.frag");
-
-        compile_shader(device, vertexShaderModule, vertexShaderSource, shaderc_glsl_vertex_shader, "vertex shader");
-        compile_shader(device, fragmentShaderModule, fragmentShaderSource, shaderc_glsl_fragment_shader, "fragment shader");
-
-         mainDeletionQueue.push_function([=]() {
-            vkDestroyShaderModule(device, vertexShaderModule, nullptr);
-            vkDestroyShaderModule(device, fragmentShaderModule, nullptr);
-        });
-
     }
 
     void createSynchronizationStructures() {
@@ -572,105 +537,12 @@ private:
         });
     }
 
-    void createGraphicsPipeline() {
-        VkPipelineShaderStageCreateInfo vertShaderStageInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, VkPipelineShaderStageCreateFlags(), VK_SHADER_STAGE_VERTEX_BIT, vertexShaderModule, "main", nullptr};
-        VkPipelineShaderStageCreateInfo fragShaderStageInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, VkPipelineShaderStageCreateFlags(), VK_SHADER_STAGE_FRAGMENT_BIT, fragmentShaderModule, "main", nullptr};
+    // temp
+    std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
 
-        std::vector<VkPipelineShaderStageCreateInfo> pipelineShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
-        
-        VkPipelineVertexInputStateCreateInfo vertexInputInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, VkPipelineVertexInputStateCreateFlags(), 0u, nullptr, 0u, nullptr };
-        VertexInputDescription vertexDescription = VertexInputDescription::get_default_vertex_description();
-        vertexInputInfo.vertexBindingDescriptionCount = vertexDescription.bindings.size();
-        vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
-        vertexInputInfo.vertexAttributeDescriptionCount = vertexDescription.attributes.size();
-        vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
-        
-        VkPipelineInputAssemblyStateCreateInfo inputAssembly = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, nullptr, VkPipelineInputAssemblyStateCreateFlags(), VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE };
-        VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, 1.0f };
-        VkRect2D scissor = { { 0, 0 }, swapChainExtent };
-        VkPipelineViewportStateCreateInfo viewportState = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO, nullptr, VkPipelineViewportStateCreateFlags(), 1, &viewport, 1, &scissor };
-        VkPipelineRasterizationStateCreateInfo rasterizer = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO, nullptr, VkPipelineRasterizationStateCreateFlags(), /*depthClamp*/ VK_FALSE,
-        /*rasterizeDiscard*/ VK_FALSE, VK_POLYGON_MODE_FILL, VkCullModeFlags(),
-        /*frontFace*/ VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, {}, {}, {}, 1.0f };
-
-        VkPipelineDepthStencilStateCreateInfo depthStencil = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO, nullptr, VkPipelineDepthStencilStateCreateFlags(),
-            bDepthTest ? VK_TRUE : VK_FALSE,
-            bDepthWrite ? VK_TRUE : VK_FALSE,
-            VK_COMPARE_OP_LESS_OR_EQUAL,
-            VK_FALSE, // depth bounds test
-            VK_FALSE, // stencil
-            {}, {}, {}, {}
-        };
-
-        VkPipelineMultisampleStateCreateInfo multisampling = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO, nullptr, VkPipelineMultisampleStateCreateFlags(), VK_SAMPLE_COUNT_1_BIT, VK_FALSE, 1.0 , {}, {}, {}};
-
-        VkPipelineColorBlendAttachmentState colorBlendAttachment = { VK_FALSE, /*srcCol*/ VK_BLEND_FACTOR_ONE,
-        /*dstCol*/ VK_BLEND_FACTOR_ZERO, /*colBlend*/ VK_BLEND_OP_ADD,
-        /*srcAlpha*/ VK_BLEND_FACTOR_ONE, /*dstAlpha*/ VK_BLEND_FACTOR_ZERO,
-        /*alphaBlend*/ VK_BLEND_OP_ADD,
-        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-            VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT };
-        VkPipelineColorBlendStateCreateInfo colorBlending = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, nullptr, VkPipelineColorBlendStateCreateFlags(), /*logicOpEnable=*/false, VK_LOGIC_OP_COPY, /*attachmentCount=*/1, /*colourAttachments=*/&colorBlendAttachment, {}};
-
-        std::vector<VkDynamicState> dynamicStates = {
-            VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR
-        };
-        VkPipelineDynamicStateCreateInfo dynamicState = {};
-        dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-        dynamicState.pNext = nullptr;
-        dynamicState.flags = VkPipelineDynamicStateCreateFlags();
-        dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-        dynamicState.pDynamicStates = dynamicStates.data();
-
-        // Push constants
-        VkPushConstantRange meshPushConstant = {};
-        meshPushConstant.offset = 0;
-        meshPushConstant.size = sizeof(MeshPushConstants);
-        meshPushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-        VkPipelineLayoutCreateInfo meshPipelineLayoutCreateInfo = {};
-        meshPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        meshPipelineLayoutCreateInfo.pNext = nullptr;
-        meshPipelineLayoutCreateInfo.flags = {};
-        meshPipelineLayoutCreateInfo.setLayoutCount = 0;
-        meshPipelineLayoutCreateInfo.pSetLayouts = nullptr;
-        meshPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-        meshPipelineLayoutCreateInfo.pPushConstantRanges = &meshPushConstant;
-
-        vkCreatePipelineLayout(device, &meshPipelineLayoutCreateInfo, nullptr, &meshPipelineLayout);
-        mainDeletionQueue.push_function([=]() {
-            vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
-        });
-
-        VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
-            VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-            nullptr,
-            VkPipelineCreateFlags(),
-            2, 
-            pipelineShaderStages.data(), 
-            &vertexInputInfo, 
-            &inputAssembly, 
-            nullptr, 
-            &viewportState, 
-            &rasterizer, 
-            &multisampling,
-            &depthStencil,
-            &colorBlending,
-            &dynamicState, // Dynamic State
-            meshPipelineLayout,
-            renderPass,
-            0,
-            {},
-            0
-        };
-
-        vkCreateGraphicsPipelines(device, {}, 1, &pipelineCreateInfo, nullptr, &meshPipeline);
-        mainDeletionQueue.push_function([=]() {
-            vkDestroyPipeline(device, meshPipeline, nullptr);
-        });
-
-        create_material(meshPipeline, meshPipelineLayout, "defaultMesh", sceneMaterialMap);
+    void createPipelines() {
+        GraphicsPipeline defaultPipeline(device, renderPass, std::string("Shaders/triangle_mesh.vert"), std::string("Shaders/triangle_mesh.frag"), defaultPushConstantRanges, {WINDOW_WIDTH, WINDOW_HEIGHT});
+        create_material(defaultPipeline, "defaultMaterial");
     }
 
     void createFramebuffers() {
@@ -678,7 +550,7 @@ private:
 
         for (size_t i = 0; i < swapChainImageViews.size(); i++) {
             VkImageView attachments[2] = { swapChainImageViews[i], depthImageView};
-            VkFramebufferCreateInfo framebufferCreateInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO, nullptr, VkFramebufferCreateFlags(), renderPass, 2, attachments, swapChainExtent.width, swapChainExtent.height, 1 };
+            VkFramebufferCreateInfo framebufferCreateInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO, nullptr, VkFramebufferCreateFlags(), renderPass, 2, attachments, WINDOW_WIDTH, WINDOW_HEIGHT, 1 };
 
             VkResult res = vkCreateFramebuffer(device, &framebufferCreateInfo, nullptr, &framebuffers[i]);
             if (res != VK_SUCCESS) {
@@ -765,47 +637,47 @@ private:
         triangleMesh.indices.push_back(3);
         triangleMesh.indices.push_back(1);
 
-        sceneMeshMap["triangle"] = upload_mesh(triangleMesh, vmaAllocator, mainDeletionQueue);
+         Scene::GetInstance().sceneMeshMap["triangle"] = upload_mesh(triangleMesh, vmaAllocator, mainDeletionQueue);
         
         // Suzanne mesh
         Mesh monkeyMesh;
         load_mesh_from_obj(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.obj");
-        sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
+         Scene::GetInstance().sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
 
         // Sponza mesh
         Mesh sponzaMesh;
         load_mesh_from_obj(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza.obj");
-        sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
+         Scene::GetInstance().sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
     }
 
     void init_scene() {
         RenderMesh sponzaObject;
-        sponzaObject.material = get_material("defaultMesh", sceneMaterialMap);
-        sponzaObject.mesh = get_mesh("sponza", sceneMeshMap);
+        sponzaObject.material = get_material("defaultMaterial");
+        sponzaObject.mesh = get_mesh("sponza",  Scene::GetInstance().sceneMeshMap);
         glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
         glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
         sponzaObject.transformMatrix = translate * scale;
 
-        sceneRenderMeshes.push_back(sponzaObject);
+        Scene::GetInstance().sceneRenderMeshes.push_back(sponzaObject);
 
         RenderMesh monkeyObject;
-        monkeyObject.material = get_material("defaultMesh", sceneMaterialMap);
-        monkeyObject.mesh = get_mesh("suzanne", sceneMeshMap);
+        monkeyObject.material = get_material("defaultMaterial");
+        monkeyObject.mesh = get_mesh("suzanne",  Scene::GetInstance().sceneMeshMap);
         glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
         monkeyObject.transformMatrix = monkeyTranslate;
 
-        sceneRenderMeshes.push_back(monkeyObject);
+         Scene::GetInstance().sceneRenderMeshes.push_back(monkeyObject);
 
         for (int x = -10; x < 10; x++) {
             for (int y = -10; y < 10; y++) {
                 RenderMesh triangleObject;
-                triangleObject.material = get_material("defaultMesh", sceneMaterialMap);
-                triangleObject.mesh = get_mesh("triangle", sceneMeshMap);
+                triangleObject.material = get_material("defaultMaterial");
+                triangleObject.mesh = get_mesh("triangle",  Scene::GetInstance().sceneMeshMap);
                 glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(x, 0.0f, y));
                 glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.2, 0.2, 0.2));
                 triangleObject.transformMatrix = translate * scale;
                 
-                sceneRenderMeshes.push_back(triangleObject);
+                 Scene::GetInstance().sceneRenderMeshes.push_back(triangleObject);
             }
         }
     }
@@ -814,38 +686,10 @@ private:
         glm::mat4 view = camera.get_view_matrix();
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
         projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
+        glm::mat4 viewProjectionMatrix = projection * view;
 
-        // Bind the first pipeline
-        VkPipeline previousPipeline = sceneRenderMeshes[0].material->pipeline;
-        vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, previousPipeline);
-
-        for (RenderMesh renderObject : sceneRenderMeshes) {
-            
-            if (previousPipeline != renderObject.material->pipeline) {
-                vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, renderObject.material->pipeline);
-                previousPipeline = renderObject.material->pipeline;
-            }
-
-            VkDeviceSize offset = 0;
-            
-            vkCmdBindVertexBuffers(commandBuffers[currentFrame], 0, 1, &renderObject.mesh->vertexBuffer.buffer, &offset);
-
-            VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height), 0.0f, 1.0f };
-            vkCmdSetViewport(commandBuffers[currentFrame], 0, 1, &viewport);
-
-            VkRect2D scissor = { {0, 0}, swapChainExtent};
-            vkCmdSetScissor(commandBuffers[currentFrame], 0, 1, &scissor);
-
-            // Compute MVP matrix
-            glm::mat4 model = renderObject.transformMatrix;
-            // glm::mat4 rotate = glm::rotate(glm::mat4{ 1.0f }, glm::radians(frameNumber * 0.4f), glm::vec3(0, 1, 0));
-            // model = rotate * model;
-            glm::mat4 mvpMatrix = projection * view * model;
-
-            MeshPushConstants constants;
-            constants.renderMatrix = mvpMatrix;
-            vkCmdPushConstants(commandBuffers[currentFrame], meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
-            vkCmdDraw(commandBuffers[currentFrame], renderObject.mesh->vertices.size(), 1, 0, 0);
+        for (RenderMesh renderObject :  Scene::GetInstance().sceneRenderMeshes) {
+            renderObject.BindAndDraw(commandBuffers[currentFrame], viewProjectionMatrix);
         }
     }
 
@@ -860,10 +704,9 @@ private:
         createSwapchain();
         getSwapchainImages();
         createDepthImageAndView();
-        createShaderModules();
         createSynchronizationStructures();
         createRenderPass();
-        createGraphicsPipeline();
+        createPipelines();
         createFramebuffers();
         createCommandPool();
         createCommandBuffers();
@@ -899,11 +742,15 @@ private:
             renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
             renderPassBeginInfo.renderPass = renderPass;
             renderPassBeginInfo.framebuffer = framebuffers[imageIndex];
-            renderPassBeginInfo.renderArea = VkRect2D{ {0, 0}, swapChainExtent};
+            renderPassBeginInfo.renderArea = VkRect2D{ {0, 0}, {WINDOW_WIDTH, WINDOW_HEIGHT}};
             renderPassBeginInfo.clearValueCount = 2;
             renderPassBeginInfo.pClearValues = clearValues;
 
             vkCmdBeginRenderPass(commandBuffers[currentFrame], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+            VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, 1.0f };
+            vkCmdSetViewport(commandBuffers[currentFrame], 0, 1, &viewport);
+            VkRect2D scissor = { {0, 0}, {WINDOW_WIDTH, WINDOW_HEIGHT}};
+            vkCmdSetScissor(commandBuffers[currentFrame], 0, 1, &scissor);
             draw_objects(imageIndex);
             vkCmdEndRenderPass(commandBuffers[currentFrame]);
             vkEndCommandBuffer(commandBuffers[currentFrame]);
@@ -952,9 +799,12 @@ private:
     }
 
     void cleanup() {
-        // device->waitIdle();
         vkDeviceWaitIdle(device);
 
+        for (auto material : Scene::GetInstance().sceneMaterialMap) {
+            vkDestroyPipeline(device, material.second.getPipeline(), nullptr);
+            vkDestroyPipelineLayout(device, material.second.getPipelineLayout(), nullptr);
+        }
         mainDeletionQueue.flush();
 
         glfwDestroyWindow(window);
