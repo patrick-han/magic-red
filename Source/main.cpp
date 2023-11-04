@@ -436,21 +436,6 @@ private:
         });
     }
 
-    // void createShaderModules() {
-    //     // TODO: Hardcoded for now
-    //     std::string vertexShaderSource = load_shader_source_to_string(ROOT_DIR "Shaders/triangle_mesh.vert");
-    //     std::string fragmentShaderSource = load_shader_source_to_string(ROOT_DIR "Shaders/triangle_mesh.frag");
-
-    //     compile_shader(device, vertexShaderModule, vertexShaderSource, shaderc_glsl_vertex_shader, "vertex shader");
-    //     compile_shader(device, fragmentShaderModule, fragmentShaderSource, shaderc_glsl_fragment_shader, "fragment shader");
-
-    //      mainDeletionQueue.push_function([=]() {
-    //         vkDestroyShaderModule(device, vertexShaderModule, nullptr);
-    //         vkDestroyShaderModule(device, fragmentShaderModule, nullptr);
-    //     });
-
-    // }
-
     void createSynchronizationStructures() {
         imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
         renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);

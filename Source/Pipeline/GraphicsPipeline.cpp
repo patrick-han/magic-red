@@ -92,7 +92,7 @@ GraphicsPipeline::GraphicsPipeline(
         &multisampling,
         &depthStencil,
         &colorBlending,
-        &dynamicState, // Dynamic State
+        &dynamicState,
         m_pipelineLayout,
         renderPass,
         0,
