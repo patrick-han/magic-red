@@ -6,7 +6,7 @@ class Pipeline {
 public:
     Pipeline();
     Pipeline(const VkDevice logicalDevice);
-    virtual ~Pipeline() = 0; // Prevents direction creation of this object "pure virtual destructor"
+    virtual ~Pipeline() = 0; // Prevents direct creation of this object "pure virtual destructor"
     void Destroy();
     const VkPipeline& getPipeline() const;
     const VkPipelineLayout& getPipelineLayout() const;

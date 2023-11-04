@@ -3,10 +3,10 @@
 #include <glm/glm.hpp>
 
 class Mesh;
-class Material;
+class GraphicsPipeline;
 
 struct RenderMesh {
     Mesh* mesh;
-    Material* material;
+    GraphicsPipeline* material;
     glm::mat4 transformMatrix;
 };

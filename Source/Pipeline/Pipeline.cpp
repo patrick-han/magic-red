@@ -1,11 +1,9 @@
 #include "Pipeline/Pipeline.h"
 
 Pipeline::Pipeline() {
-
 }
 
 Pipeline::Pipeline(const VkDevice device) : m_logicalDevice(device) {
-
 }
 
 Pipeline::~Pipeline() {}

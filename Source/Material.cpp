@@ -2,12 +2,11 @@
 #include "Common/Log.h"
 #include "Scene/Scene.h"
 
-void create_material(GraphicsPipeline *graphicsPipeline, const std::string& materialName) {
-    Material mat = { graphicsPipeline };
-    Scene::GetInstance().sceneMaterialMap[materialName] = mat;
+void create_material(GraphicsPipeline graphicsPipeline, const std::string& materialName) {
+    Scene::GetInstance().sceneMaterialMap[materialName] = graphicsPipeline;
 }
 
-[[nodiscard]] Material* get_material(const std::string& materialName) {
+[[nodiscard]] GraphicsPipeline* get_material(const std::string& materialName) {
     // Search for the material, and return nullptr if not found
     auto it = Scene::GetInstance().sceneMaterialMap.find(materialName);
     if (it == Scene::GetInstance().sceneMaterialMap.end()) {

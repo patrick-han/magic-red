@@ -5,7 +5,6 @@
 #include "RootDir.h"
 
 GraphicsPipeline::GraphicsPipeline() {
-
 }
 
 GraphicsPipeline::GraphicsPipeline(const VkDevice logicalDevice, const VkRenderPass renderPass, const std::string& vertexShaderPath, const std::string& fragmentShaderPath, const std::vector<VkPushConstantRange>& pushConstantRanges) : Pipeline(logicalDevice) {

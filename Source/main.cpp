@@ -564,107 +564,6 @@ private:
             vkDestroyRenderPass(device, renderPass, nullptr);
         });
     }
-
-    // void createGraphicsPipeline() {
-    //     VkPipelineShaderStageCreateInfo vertShaderStageInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, VkPipelineShaderStageCreateFlags(), VK_SHADER_STAGE_VERTEX_BIT, vertexShaderModule, "main", nullptr};
-    //     VkPipelineShaderStageCreateInfo fragShaderStageInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, VkPipelineShaderStageCreateFlags(), VK_SHADER_STAGE_FRAGMENT_BIT, fragmentShaderModule, "main", nullptr};
-
-    //     std::vector<VkPipelineShaderStageCreateInfo> pipelineShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
-        
-    //     VkPipelineVertexInputStateCreateInfo vertexInputInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, VkPipelineVertexInputStateCreateFlags(), 0u, nullptr, 0u, nullptr };
-    //     VertexInputDescription vertexDescription = VertexInputDescription::get_default_vertex_description();
-    //     vertexInputInfo.vertexBindingDescriptionCount = vertexDescription.bindings.size();
-    //     vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
-    //     vertexInputInfo.vertexAttributeDescriptionCount = vertexDescription.attributes.size();
-    //     vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
-        
-    //     VkPipelineInputAssemblyStateCreateInfo inputAssembly = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, nullptr, VkPipelineInputAssemblyStateCreateFlags(), VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE };
-    //     VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, 1.0f };
-    //     VkRect2D scissor = { { 0, 0 }, swapChainExtent };
-    //     VkPipelineViewportStateCreateInfo viewportState = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO, nullptr, VkPipelineViewportStateCreateFlags(), 1, &viewport, 1, &scissor };
-    //     VkPipelineRasterizationStateCreateInfo rasterizer = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO, nullptr, VkPipelineRasterizationStateCreateFlags(), /*depthClamp*/ VK_FALSE,
-    //     /*rasterizeDiscard*/ VK_FALSE, VK_POLYGON_MODE_FILL, VkCullModeFlags(),
-    //     /*frontFace*/ VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, {}, {}, {}, 1.0f };
-
-    //     VkPipelineDepthStencilStateCreateInfo depthStencil = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO, nullptr, VkPipelineDepthStencilStateCreateFlags(),
-    //         bDepthTest ? VK_TRUE : VK_FALSE,
-    //         bDepthWrite ? VK_TRUE : VK_FALSE,
-    //         VK_COMPARE_OP_LESS_OR_EQUAL,
-    //         VK_FALSE, // depth bounds test
-    //         VK_FALSE, // stencil
-    //         {}, {}, {}, {}
-    //     };
-
-    //     VkPipelineMultisampleStateCreateInfo multisampling = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO, nullptr, VkPipelineMultisampleStateCreateFlags(), VK_SAMPLE_COUNT_1_BIT, VK_FALSE, 1.0 , {}, {}, {}};
-
-    //     VkPipelineColorBlendAttachmentState colorBlendAttachment = { VK_FALSE, /*srcCol*/ VK_BLEND_FACTOR_ONE,
-    //     /*dstCol*/ VK_BLEND_FACTOR_ZERO, /*colBlend*/ VK_BLEND_OP_ADD,
-    //     /*srcAlpha*/ VK_BLEND_FACTOR_ONE, /*dstAlpha*/ VK_BLEND_FACTOR_ZERO,
-    //     /*alphaBlend*/ VK_BLEND_OP_ADD,
-    //     VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-    //         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT };
-    //     VkPipelineColorBlendStateCreateInfo colorBlending = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, nullptr, VkPipelineColorBlendStateCreateFlags(), /*logicOpEnable=*/false, VK_LOGIC_OP_COPY, /*attachmentCount=*/1, /*colourAttachments=*/&colorBlendAttachment, {}};
-
-    //     std::vector<VkDynamicState> dynamicStates = {
-    //         VK_DYNAMIC_STATE_VIEWPORT,
-    //         VK_DYNAMIC_STATE_SCISSOR
-    //     };
-    //     VkPipelineDynamicStateCreateInfo dynamicState = {};
-    //     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    //     dynamicState.pNext = nullptr;
-    //     dynamicState.flags = VkPipelineDynamicStateCreateFlags();
-    //     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-    //     dynamicState.pDynamicStates = dynamicStates.data();
-
-    //     // Push constants
-    //     VkPushConstantRange meshPushConstant = {};
-    //     meshPushConstant.offset = 0;
-    //     meshPushConstant.size = sizeof(MeshPushConstants);
-    //     meshPushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-    //     VkPipelineLayoutCreateInfo meshPipelineLayoutCreateInfo = {};
-    //     meshPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    //     meshPipelineLayoutCreateInfo.pNext = nullptr;
-    //     meshPipelineLayoutCreateInfo.flags = {};
-    //     meshPipelineLayoutCreateInfo.setLayoutCount = 0;
-    //     meshPipelineLayoutCreateInfo.pSetLayouts = nullptr;
-    //     meshPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-    //     meshPipelineLayoutCreateInfo.pPushConstantRanges = &meshPushConstant;
-
-    //     vkCreatePipelineLayout(device, &meshPipelineLayoutCreateInfo, nullptr, &meshPipelineLayout);
-    //     mainDeletionQueue.push_function([=]() {
-    //         vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
-    //     });
-
-    //     VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
-    //         VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-    //         nullptr,
-    //         VkPipelineCreateFlags(),
-    //         2, 
-    //         pipelineShaderStages.data(), 
-    //         &vertexInputInfo, 
-    //         &inputAssembly, 
-    //         nullptr, 
-    //         &viewportState, 
-    //         &rasterizer, 
-    //         &multisampling,
-    //         &depthStencil,
-    //         &colorBlending,
-    //         &dynamicState, // Dynamic State
-    //         meshPipelineLayout,
-    //         renderPass,
-    //         0,
-    //         {},
-    //         0
-    //     };
-
-    //     vkCreateGraphicsPipelines(device, {}, 1, &pipelineCreateInfo, nullptr, &meshPipeline);
-    //     mainDeletionQueue.push_function([=]() {
-    //         vkDestroyPipeline(device, meshPipeline, nullptr);
-    //     });
-
-    //     create_material(meshPipeline, meshPipelineLayout, "defaultMesh", sceneMaterialMap);
-    // }
     
     //temp
     struct MeshPushConstants {
@@ -682,22 +581,9 @@ private:
 
     std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
 
-    GraphicsPipeline defaultPipeline;
     void createPipelines() {
-        
-        // std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
-        
-        // defaultPushConstanRanges.push_back(MeshPushConstants::range());
-
-        defaultPipeline = GraphicsPipeline(device, renderPass, std::string("Shaders/triangle_mesh.vert"), std::string("Shaders/triangle_mesh.frag"), defaultPushConstantRanges);
-        mainDeletionQueue.push_function([&]() {
-		    defaultPipeline.Destroy();
-        });
-
-        Scene::GetInstance().sceneGraphicsPipelines.push_back(defaultPipeline);
-
-        // create_material(&Scene::GetInstance().sceneGraphicsPipelines[0], "defaultMaterial", Scene::GetInstance().sceneMaterialMap);
-        create_material(&defaultPipeline, "defaultMaterial");
+        GraphicsPipeline defaultPipeline(device, renderPass, std::string("Shaders/triangle_mesh.vert"), std::string("Shaders/triangle_mesh.frag"), defaultPushConstantRanges);
+        create_material(defaultPipeline, "defaultMaterial");
     }
 
     void createFramebuffers() {
@@ -845,7 +731,7 @@ private:
 
         for (RenderMesh renderObject :  Scene::GetInstance().sceneRenderMeshes) {
             
-            vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, (*renderObject.material->pipeline).getPipeline());
+            vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, (*renderObject.material).getPipeline());
 
 
             VkDeviceSize offset = 0;
@@ -866,7 +752,7 @@ private:
 
             MeshPushConstants constants;
             constants.renderMatrix = mvpMatrix;
-            vkCmdPushConstants(commandBuffers[currentFrame], (*renderObject.material->pipeline).getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
+            vkCmdPushConstants(commandBuffers[currentFrame], (*renderObject.material).getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
             vkCmdDraw(commandBuffers[currentFrame], renderObject.mesh->vertices.size(), 1, 0, 0);
         }
     }
@@ -978,6 +864,10 @@ private:
         // device->waitIdle();
         vkDeviceWaitIdle(device);
 
+        for (auto material : Scene::GetInstance().sceneMaterialMap) {
+            vkDestroyPipeline(device, material.second.getPipeline(), nullptr);
+            vkDestroyPipelineLayout(device, material.second.getPipelineLayout(), nullptr);
+        }
         mainDeletionQueue.flush();
 
         glfwDestroyWindow(window);
