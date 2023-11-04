@@ -694,10 +694,10 @@ private:
 		    defaultPipeline.Destroy();
         });
 
-        Scene::GetInstance()->sceneGraphicsPipelines.push_back(defaultPipeline);
+        Scene::GetInstance().sceneGraphicsPipelines.push_back(defaultPipeline);
 
-        // create_material(&Scene::GetInstance()->sceneGraphicsPipelines[0], "defaultMaterial", Scene::GetInstance()->sceneMaterialMap);
-        create_material(&defaultPipeline, "defaultMaterial", Scene::GetInstance()->sceneMaterialMap);
+        // create_material(&Scene::GetInstance().sceneGraphicsPipelines[0], "defaultMaterial", Scene::GetInstance().sceneMaterialMap);
+        create_material(&defaultPipeline, "defaultMaterial");
     }
 
     void createFramebuffers() {
@@ -792,47 +792,47 @@ private:
         triangleMesh.indices.push_back(3);
         triangleMesh.indices.push_back(1);
 
-         Scene::GetInstance()->sceneMeshMap["triangle"] = upload_mesh(triangleMesh, vmaAllocator, mainDeletionQueue);
+         Scene::GetInstance().sceneMeshMap["triangle"] = upload_mesh(triangleMesh, vmaAllocator, mainDeletionQueue);
         
         // Suzanne mesh
         Mesh monkeyMesh;
         load_mesh_from_obj(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.obj");
-         Scene::GetInstance()->sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
+         Scene::GetInstance().sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
 
         // Sponza mesh
         Mesh sponzaMesh;
         load_mesh_from_obj(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza.obj");
-         Scene::GetInstance()->sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
+         Scene::GetInstance().sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
     }
 
     void init_scene() {
         RenderMesh sponzaObject;
-        sponzaObject.material = get_material("defaultMaterial",  Scene::GetInstance()->sceneMaterialMap);
-        sponzaObject.mesh = get_mesh("sponza",  Scene::GetInstance()->sceneMeshMap);
+        sponzaObject.material = get_material("defaultMaterial");
+        sponzaObject.mesh = get_mesh("sponza",  Scene::GetInstance().sceneMeshMap);
         glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
         glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
         sponzaObject.transformMatrix = translate * scale;
 
-        Scene::GetInstance()->sceneRenderMeshes.push_back(sponzaObject);
+        Scene::GetInstance().sceneRenderMeshes.push_back(sponzaObject);
 
         RenderMesh monkeyObject;
-        monkeyObject.material = get_material("defaultMaterial",  Scene::GetInstance()->sceneMaterialMap);
-        monkeyObject.mesh = get_mesh("suzanne",  Scene::GetInstance()->sceneMeshMap);
+        monkeyObject.material = get_material("defaultMaterial");
+        monkeyObject.mesh = get_mesh("suzanne",  Scene::GetInstance().sceneMeshMap);
         glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
         monkeyObject.transformMatrix = monkeyTranslate;
 
-         Scene::GetInstance()->sceneRenderMeshes.push_back(monkeyObject);
+         Scene::GetInstance().sceneRenderMeshes.push_back(monkeyObject);
 
         for (int x = -10; x < 10; x++) {
             for (int y = -10; y < 10; y++) {
                 RenderMesh triangleObject;
-                triangleObject.material = get_material("defaultMaterial",  Scene::GetInstance()->sceneMaterialMap);
-                triangleObject.mesh = get_mesh("triangle",  Scene::GetInstance()->sceneMeshMap);
+                triangleObject.material = get_material("defaultMaterial");
+                triangleObject.mesh = get_mesh("triangle",  Scene::GetInstance().sceneMeshMap);
                 glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(x, 0.0f, y));
                 glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.2, 0.2, 0.2));
                 triangleObject.transformMatrix = translate * scale;
                 
-                 Scene::GetInstance()->sceneRenderMeshes.push_back(triangleObject);
+                 Scene::GetInstance().sceneRenderMeshes.push_back(triangleObject);
             }
         }
     }
@@ -843,7 +843,7 @@ private:
         projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
 
 
-        for (RenderMesh renderObject :  Scene::GetInstance()->sceneRenderMeshes) {
+        for (RenderMesh renderObject :  Scene::GetInstance().sceneRenderMeshes) {
             
             vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, (*renderObject.material->pipeline).getPipeline());
 

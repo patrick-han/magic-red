@@ -2,7 +2,7 @@
 #include "vulkan/vulkan.h"
 #include <string>
 #include <unordered_map>
-#include "Pipeline/GraphicsPipeline.h"
+#include "Pipeline/GraphicsPipeline.h" // I don't understand why ths needs to be included
 
 class GraphicsPipeline;
 
@@ -13,7 +13,7 @@ struct Material {
 };
 
 /* Add a material to a scene material map */
-void create_material(GraphicsPipeline *graphicsPipeline, const std::string& materialName, std::unordered_map<std::string, Material>& materialMap);
+void create_material(GraphicsPipeline *graphicsPipeline, const std::string& materialName);
 
 /* Get a material from a scene material map */
-[[nodiscard]] Material* get_material(const std::string& materialName, std::unordered_map<std::string, Material>& materialMap);
+[[nodiscard]] Material* get_material(const std::string& materialName);
