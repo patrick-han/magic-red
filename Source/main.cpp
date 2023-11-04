@@ -36,6 +36,7 @@
 #include "Common/Config.h"
 #include "Scene/Scene.h"
 #include "Pipeline/GraphicsPipeline.h"
+#include "Mesh/MeshPushConstants.h"
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -535,21 +536,8 @@ private:
             vkDestroyRenderPass(device, renderPass, nullptr);
         });
     }
-    
-    //temp
-    struct MeshPushConstants {
-            glm::vec4 data;
-            glm::mat4 renderMatrix;
 
-            static VkPushConstantRange range() {
-                VkPushConstantRange defaultPushConstantRange = {};
-                defaultPushConstantRange.offset = 0;
-                defaultPushConstantRange.size = sizeof(MeshPushConstants);
-                defaultPushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-                return defaultPushConstantRange;
-            }
-     };
-
+    // temp
     std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
 
     void createPipelines() {
@@ -698,33 +686,10 @@ private:
         glm::mat4 view = camera.get_view_matrix();
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
         projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
-
+        glm::mat4 viewProjectionMatrix = projection * view;
 
         for (RenderMesh renderObject :  Scene::GetInstance().sceneRenderMeshes) {
-            
-            vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, (*renderObject.material).getPipeline());
-
-
-            VkDeviceSize offset = 0;
-            
-            vkCmdBindVertexBuffers(commandBuffers[currentFrame], 0, 1, &renderObject.mesh->vertexBuffer.buffer, &offset);
-
-            VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, 1.0f };
-            vkCmdSetViewport(commandBuffers[currentFrame], 0, 1, &viewport);
-
-            VkRect2D scissor = { {0, 0}, {WINDOW_WIDTH, WINDOW_HEIGHT}};
-            vkCmdSetScissor(commandBuffers[currentFrame], 0, 1, &scissor);
-
-            // Compute MVP matrix
-            glm::mat4 model = renderObject.transformMatrix;
-            // glm::mat4 rotate = glm::rotate(glm::mat4{ 1.0f }, glm::radians(frameNumber * 0.4f), glm::vec3(0, 1, 0));
-            // model = rotate * model;
-            glm::mat4 mvpMatrix = projection * view * model;
-
-            MeshPushConstants constants;
-            constants.renderMatrix = mvpMatrix;
-            vkCmdPushConstants(commandBuffers[currentFrame], (*renderObject.material).getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
-            vkCmdDraw(commandBuffers[currentFrame], renderObject.mesh->vertices.size(), 1, 0, 0);
+            renderObject.BindAndDraw(commandBuffers[currentFrame], viewProjectionMatrix);
         }
     }
 
@@ -739,11 +704,9 @@ private:
         createSwapchain();
         getSwapchainImages();
         createDepthImageAndView();
-        // createShaderModules();
         createSynchronizationStructures();
         createRenderPass();
         createPipelines();
-        // createGraphicsPipeline();
         createFramebuffers();
         createCommandPool();
         createCommandBuffers();
@@ -784,6 +747,10 @@ private:
             renderPassBeginInfo.pClearValues = clearValues;
 
             vkCmdBeginRenderPass(commandBuffers[currentFrame], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+            VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, 1.0f };
+            vkCmdSetViewport(commandBuffers[currentFrame], 0, 1, &viewport);
+            VkRect2D scissor = { {0, 0}, {WINDOW_WIDTH, WINDOW_HEIGHT}};
+            vkCmdSetScissor(commandBuffers[currentFrame], 0, 1, &scissor);
             draw_objects(imageIndex);
             vkCmdEndRenderPass(commandBuffers[currentFrame]);
             vkEndCommandBuffer(commandBuffers[currentFrame]);
@@ -832,7 +799,6 @@ private:
     }
 
     void cleanup() {
-        // device->waitIdle();
         vkDeviceWaitIdle(device);
 
         for (auto material : Scene::GetInstance().sceneMaterialMap) {
