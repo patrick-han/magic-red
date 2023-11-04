@@ -2,6 +2,7 @@
 
 #include <GLFW/glfw3.h>
 #include "Camera.h"
+#include "Common/Config.h"
 
 // Camera
 static glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -10,7 +11,7 @@ static glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 static Camera camera(cameraPos, cameraUp, cameraFront, -90.0f, 0.0f, 45.0f);
 static float cameraSpeed = 0.0f;
 static bool firstMouse = true;
-static float lastX = 400, lastY = 300; // Initial mouse positions
+static float lastX = WINDOW_WIDTH / 2, lastY = WINDOW_HEIGHT / 2; // Initial mouse positions
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {

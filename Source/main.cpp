@@ -33,23 +33,16 @@
 #include "Material.h"
 #include "Mesh/RenderMesh.h"
 #include "VertexDescriptors.h"
+#include "Common/Config.h"
+#include "Scene/Scene.h"
+#include "Pipeline/GraphicsPipeline.h"
 
-
-constexpr uint32_t WINDOW_WIDTH = 800;
-constexpr uint32_t WINDOW_HEIGHT = 600;
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-constexpr bool bDepthTest = true;
-constexpr bool bDepthWrite = true;
 
 // Frame data
 int frameNumber = 0;
 float deltaTime = 0.0f; // Time between current and last frame
 float lastFrame = 0.0f; // Time of last frame
-
-struct MeshPushConstants {
-    glm::vec4 data;
-    glm::mat4 renderMatrix;
-};
 
 class Engine {
 public:
@@ -99,8 +92,8 @@ private:
     std::vector<VkImageView> swapChainImageViews;
 
     // Shaders
-    VkShaderModule vertexShaderModule;
-    VkShaderModule fragmentShaderModule;
+    // VkShaderModule vertexShaderModule;
+    // VkShaderModule fragmentShaderModule;
 
     // Synchronization (per in-flight frame resources)
     std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -112,8 +105,8 @@ private:
     VkRenderPass renderPass;
 
     // Graphics Pipeline
-    VkPipelineLayout meshPipelineLayout;
-    VkPipeline meshPipeline;
+    // VkPipelineLayout meshPipelineLayout;
+    // VkPipeline meshPipeline;
 
     // Framebuffers
     std::vector<VkFramebuffer> framebuffers;
@@ -125,10 +118,10 @@ private:
     // Resources
     DeletionQueue mainDeletionQueue;
 
-    // Scene
-    std::vector<RenderMesh> sceneRenderMeshes;
-    std::unordered_map<std::string, Material> sceneMaterialMap;
-    std::unordered_map<std::string, Mesh> sceneMeshMap;
+    // // Scene
+    // std::vector<RenderMesh> sceneRenderMeshes;
+    // std::unordered_map<std::string, Material> sceneMaterialMap;
+    // std::unordered_map<std::string, Mesh> sceneMeshMap;
 
     void initWindow() {
         glfwInit();
@@ -457,20 +450,20 @@ private:
         });
     }
 
-    void createShaderModules() {
-        // TODO: Hardcoded for now
-        std::string vertexShaderSource = load_shader_source_to_string(ROOT_DIR "Shaders/triangle_mesh.vert");
-        std::string fragmentShaderSource = load_shader_source_to_string(ROOT_DIR "Shaders/triangle_mesh.frag");
+    // void createShaderModules() {
+    //     // TODO: Hardcoded for now
+    //     std::string vertexShaderSource = load_shader_source_to_string(ROOT_DIR "Shaders/triangle_mesh.vert");
+    //     std::string fragmentShaderSource = load_shader_source_to_string(ROOT_DIR "Shaders/triangle_mesh.frag");
 
-        compile_shader(device, vertexShaderModule, vertexShaderSource, shaderc_glsl_vertex_shader, "vertex shader");
-        compile_shader(device, fragmentShaderModule, fragmentShaderSource, shaderc_glsl_fragment_shader, "fragment shader");
+    //     compile_shader(device, vertexShaderModule, vertexShaderSource, shaderc_glsl_vertex_shader, "vertex shader");
+    //     compile_shader(device, fragmentShaderModule, fragmentShaderSource, shaderc_glsl_fragment_shader, "fragment shader");
 
-         mainDeletionQueue.push_function([=]() {
-            vkDestroyShaderModule(device, vertexShaderModule, nullptr);
-            vkDestroyShaderModule(device, fragmentShaderModule, nullptr);
-        });
+    //      mainDeletionQueue.push_function([=]() {
+    //         vkDestroyShaderModule(device, vertexShaderModule, nullptr);
+    //         vkDestroyShaderModule(device, fragmentShaderModule, nullptr);
+    //     });
 
-    }
+    // }
 
     void createSynchronizationStructures() {
         imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
@@ -572,105 +565,139 @@ private:
         });
     }
 
-    void createGraphicsPipeline() {
-        VkPipelineShaderStageCreateInfo vertShaderStageInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, VkPipelineShaderStageCreateFlags(), VK_SHADER_STAGE_VERTEX_BIT, vertexShaderModule, "main", nullptr};
-        VkPipelineShaderStageCreateInfo fragShaderStageInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, VkPipelineShaderStageCreateFlags(), VK_SHADER_STAGE_FRAGMENT_BIT, fragmentShaderModule, "main", nullptr};
+    // void createGraphicsPipeline() {
+    //     VkPipelineShaderStageCreateInfo vertShaderStageInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, VkPipelineShaderStageCreateFlags(), VK_SHADER_STAGE_VERTEX_BIT, vertexShaderModule, "main", nullptr};
+    //     VkPipelineShaderStageCreateInfo fragShaderStageInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, VkPipelineShaderStageCreateFlags(), VK_SHADER_STAGE_FRAGMENT_BIT, fragmentShaderModule, "main", nullptr};
 
-        std::vector<VkPipelineShaderStageCreateInfo> pipelineShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+    //     std::vector<VkPipelineShaderStageCreateInfo> pipelineShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
-        VkPipelineVertexInputStateCreateInfo vertexInputInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, VkPipelineVertexInputStateCreateFlags(), 0u, nullptr, 0u, nullptr };
-        VertexInputDescription vertexDescription = VertexInputDescription::get_default_vertex_description();
-        vertexInputInfo.vertexBindingDescriptionCount = vertexDescription.bindings.size();
-        vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
-        vertexInputInfo.vertexAttributeDescriptionCount = vertexDescription.attributes.size();
-        vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
+    //     VkPipelineVertexInputStateCreateInfo vertexInputInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, VkPipelineVertexInputStateCreateFlags(), 0u, nullptr, 0u, nullptr };
+    //     VertexInputDescription vertexDescription = VertexInputDescription::get_default_vertex_description();
+    //     vertexInputInfo.vertexBindingDescriptionCount = vertexDescription.bindings.size();
+    //     vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
+    //     vertexInputInfo.vertexAttributeDescriptionCount = vertexDescription.attributes.size();
+    //     vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
         
-        VkPipelineInputAssemblyStateCreateInfo inputAssembly = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, nullptr, VkPipelineInputAssemblyStateCreateFlags(), VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE };
-        VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, 1.0f };
-        VkRect2D scissor = { { 0, 0 }, swapChainExtent };
-        VkPipelineViewportStateCreateInfo viewportState = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO, nullptr, VkPipelineViewportStateCreateFlags(), 1, &viewport, 1, &scissor };
-        VkPipelineRasterizationStateCreateInfo rasterizer = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO, nullptr, VkPipelineRasterizationStateCreateFlags(), /*depthClamp*/ VK_FALSE,
-        /*rasterizeDiscard*/ VK_FALSE, VK_POLYGON_MODE_FILL, VkCullModeFlags(),
-        /*frontFace*/ VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, {}, {}, {}, 1.0f };
+    //     VkPipelineInputAssemblyStateCreateInfo inputAssembly = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, nullptr, VkPipelineInputAssemblyStateCreateFlags(), VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE };
+    //     VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, 1.0f };
+    //     VkRect2D scissor = { { 0, 0 }, swapChainExtent };
+    //     VkPipelineViewportStateCreateInfo viewportState = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO, nullptr, VkPipelineViewportStateCreateFlags(), 1, &viewport, 1, &scissor };
+    //     VkPipelineRasterizationStateCreateInfo rasterizer = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO, nullptr, VkPipelineRasterizationStateCreateFlags(), /*depthClamp*/ VK_FALSE,
+    //     /*rasterizeDiscard*/ VK_FALSE, VK_POLYGON_MODE_FILL, VkCullModeFlags(),
+    //     /*frontFace*/ VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, {}, {}, {}, 1.0f };
 
-        VkPipelineDepthStencilStateCreateInfo depthStencil = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO, nullptr, VkPipelineDepthStencilStateCreateFlags(),
-            bDepthTest ? VK_TRUE : VK_FALSE,
-            bDepthWrite ? VK_TRUE : VK_FALSE,
-            VK_COMPARE_OP_LESS_OR_EQUAL,
-            VK_FALSE, // depth bounds test
-            VK_FALSE, // stencil
-            {}, {}, {}, {}
-        };
+    //     VkPipelineDepthStencilStateCreateInfo depthStencil = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO, nullptr, VkPipelineDepthStencilStateCreateFlags(),
+    //         bDepthTest ? VK_TRUE : VK_FALSE,
+    //         bDepthWrite ? VK_TRUE : VK_FALSE,
+    //         VK_COMPARE_OP_LESS_OR_EQUAL,
+    //         VK_FALSE, // depth bounds test
+    //         VK_FALSE, // stencil
+    //         {}, {}, {}, {}
+    //     };
 
-        VkPipelineMultisampleStateCreateInfo multisampling = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO, nullptr, VkPipelineMultisampleStateCreateFlags(), VK_SAMPLE_COUNT_1_BIT, VK_FALSE, 1.0 , {}, {}, {}};
+    //     VkPipelineMultisampleStateCreateInfo multisampling = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO, nullptr, VkPipelineMultisampleStateCreateFlags(), VK_SAMPLE_COUNT_1_BIT, VK_FALSE, 1.0 , {}, {}, {}};
 
-        VkPipelineColorBlendAttachmentState colorBlendAttachment = { VK_FALSE, /*srcCol*/ VK_BLEND_FACTOR_ONE,
-        /*dstCol*/ VK_BLEND_FACTOR_ZERO, /*colBlend*/ VK_BLEND_OP_ADD,
-        /*srcAlpha*/ VK_BLEND_FACTOR_ONE, /*dstAlpha*/ VK_BLEND_FACTOR_ZERO,
-        /*alphaBlend*/ VK_BLEND_OP_ADD,
-        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-            VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT };
-        VkPipelineColorBlendStateCreateInfo colorBlending = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, nullptr, VkPipelineColorBlendStateCreateFlags(), /*logicOpEnable=*/false, VK_LOGIC_OP_COPY, /*attachmentCount=*/1, /*colourAttachments=*/&colorBlendAttachment, {}};
+    //     VkPipelineColorBlendAttachmentState colorBlendAttachment = { VK_FALSE, /*srcCol*/ VK_BLEND_FACTOR_ONE,
+    //     /*dstCol*/ VK_BLEND_FACTOR_ZERO, /*colBlend*/ VK_BLEND_OP_ADD,
+    //     /*srcAlpha*/ VK_BLEND_FACTOR_ONE, /*dstAlpha*/ VK_BLEND_FACTOR_ZERO,
+    //     /*alphaBlend*/ VK_BLEND_OP_ADD,
+    //     VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+    //         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT };
+    //     VkPipelineColorBlendStateCreateInfo colorBlending = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, nullptr, VkPipelineColorBlendStateCreateFlags(), /*logicOpEnable=*/false, VK_LOGIC_OP_COPY, /*attachmentCount=*/1, /*colourAttachments=*/&colorBlendAttachment, {}};
 
-        std::vector<VkDynamicState> dynamicStates = {
-            VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR
-        };
-        VkPipelineDynamicStateCreateInfo dynamicState = {};
-        dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-        dynamicState.pNext = nullptr;
-        dynamicState.flags = VkPipelineDynamicStateCreateFlags();
-        dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-        dynamicState.pDynamicStates = dynamicStates.data();
+    //     std::vector<VkDynamicState> dynamicStates = {
+    //         VK_DYNAMIC_STATE_VIEWPORT,
+    //         VK_DYNAMIC_STATE_SCISSOR
+    //     };
+    //     VkPipelineDynamicStateCreateInfo dynamicState = {};
+    //     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    //     dynamicState.pNext = nullptr;
+    //     dynamicState.flags = VkPipelineDynamicStateCreateFlags();
+    //     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+    //     dynamicState.pDynamicStates = dynamicStates.data();
 
-        // Push constants
-        VkPushConstantRange meshPushConstant = {};
-        meshPushConstant.offset = 0;
-        meshPushConstant.size = sizeof(MeshPushConstants);
-        meshPushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    //     // Push constants
+    //     VkPushConstantRange meshPushConstant = {};
+    //     meshPushConstant.offset = 0;
+    //     meshPushConstant.size = sizeof(MeshPushConstants);
+    //     meshPushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-        VkPipelineLayoutCreateInfo meshPipelineLayoutCreateInfo = {};
-        meshPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        meshPipelineLayoutCreateInfo.pNext = nullptr;
-        meshPipelineLayoutCreateInfo.flags = {};
-        meshPipelineLayoutCreateInfo.setLayoutCount = 0;
-        meshPipelineLayoutCreateInfo.pSetLayouts = nullptr;
-        meshPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-        meshPipelineLayoutCreateInfo.pPushConstantRanges = &meshPushConstant;
+    //     VkPipelineLayoutCreateInfo meshPipelineLayoutCreateInfo = {};
+    //     meshPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    //     meshPipelineLayoutCreateInfo.pNext = nullptr;
+    //     meshPipelineLayoutCreateInfo.flags = {};
+    //     meshPipelineLayoutCreateInfo.setLayoutCount = 0;
+    //     meshPipelineLayoutCreateInfo.pSetLayouts = nullptr;
+    //     meshPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+    //     meshPipelineLayoutCreateInfo.pPushConstantRanges = &meshPushConstant;
 
-        vkCreatePipelineLayout(device, &meshPipelineLayoutCreateInfo, nullptr, &meshPipelineLayout);
-        mainDeletionQueue.push_function([=]() {
-            vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
+    //     vkCreatePipelineLayout(device, &meshPipelineLayoutCreateInfo, nullptr, &meshPipelineLayout);
+    //     mainDeletionQueue.push_function([=]() {
+    //         vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
+    //     });
+
+    //     VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
+    //         VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+    //         nullptr,
+    //         VkPipelineCreateFlags(),
+    //         2, 
+    //         pipelineShaderStages.data(), 
+    //         &vertexInputInfo, 
+    //         &inputAssembly, 
+    //         nullptr, 
+    //         &viewportState, 
+    //         &rasterizer, 
+    //         &multisampling,
+    //         &depthStencil,
+    //         &colorBlending,
+    //         &dynamicState, // Dynamic State
+    //         meshPipelineLayout,
+    //         renderPass,
+    //         0,
+    //         {},
+    //         0
+    //     };
+
+    //     vkCreateGraphicsPipelines(device, {}, 1, &pipelineCreateInfo, nullptr, &meshPipeline);
+    //     mainDeletionQueue.push_function([=]() {
+    //         vkDestroyPipeline(device, meshPipeline, nullptr);
+    //     });
+
+    //     create_material(meshPipeline, meshPipelineLayout, "defaultMesh", sceneMaterialMap);
+    // }
+    
+    //temp
+    struct MeshPushConstants {
+            glm::vec4 data;
+            glm::mat4 renderMatrix;
+
+            static VkPushConstantRange range() {
+                VkPushConstantRange defaultPushConstantRange = {};
+                defaultPushConstantRange.offset = 0;
+                defaultPushConstantRange.size = sizeof(MeshPushConstants);
+                defaultPushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+                return defaultPushConstantRange;
+            }
+     };
+
+    std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
+
+    GraphicsPipeline defaultPipeline;
+    void createPipelines() {
+        
+        // std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
+        
+        // defaultPushConstanRanges.push_back(MeshPushConstants::range());
+
+        defaultPipeline = GraphicsPipeline(device, renderPass, std::string("Shaders/triangle_mesh.vert"), std::string("Shaders/triangle_mesh.frag"), defaultPushConstantRanges);
+        mainDeletionQueue.push_function([&]() {
+		    defaultPipeline.Destroy();
         });
 
-        VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
-            VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-            nullptr,
-            VkPipelineCreateFlags(),
-            2, 
-            pipelineShaderStages.data(), 
-            &vertexInputInfo, 
-            &inputAssembly, 
-            nullptr, 
-            &viewportState, 
-            &rasterizer, 
-            &multisampling,
-            &depthStencil,
-            &colorBlending,
-            &dynamicState, // Dynamic State
-            meshPipelineLayout,
-            renderPass,
-            0,
-            {},
-            0
-        };
+        Scene::GetInstance()->sceneGraphicsPipelines.push_back(defaultPipeline);
 
-        vkCreateGraphicsPipelines(device, {}, 1, &pipelineCreateInfo, nullptr, &meshPipeline);
-        mainDeletionQueue.push_function([=]() {
-            vkDestroyPipeline(device, meshPipeline, nullptr);
-        });
-
-        create_material(meshPipeline, meshPipelineLayout, "defaultMesh", sceneMaterialMap);
+        // create_material(&Scene::GetInstance()->sceneGraphicsPipelines[0], "defaultMaterial", Scene::GetInstance()->sceneMaterialMap);
+        create_material(&defaultPipeline, "defaultMaterial", Scene::GetInstance()->sceneMaterialMap);
     }
 
     void createFramebuffers() {
@@ -765,47 +792,47 @@ private:
         triangleMesh.indices.push_back(3);
         triangleMesh.indices.push_back(1);
 
-        sceneMeshMap["triangle"] = upload_mesh(triangleMesh, vmaAllocator, mainDeletionQueue);
+         Scene::GetInstance()->sceneMeshMap["triangle"] = upload_mesh(triangleMesh, vmaAllocator, mainDeletionQueue);
         
         // Suzanne mesh
         Mesh monkeyMesh;
         load_mesh_from_obj(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.obj");
-        sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
+         Scene::GetInstance()->sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
 
         // Sponza mesh
         Mesh sponzaMesh;
         load_mesh_from_obj(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza.obj");
-        sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
+         Scene::GetInstance()->sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
     }
 
     void init_scene() {
         RenderMesh sponzaObject;
-        sponzaObject.material = get_material("defaultMesh", sceneMaterialMap);
-        sponzaObject.mesh = get_mesh("sponza", sceneMeshMap);
+        sponzaObject.material = get_material("defaultMaterial",  Scene::GetInstance()->sceneMaterialMap);
+        sponzaObject.mesh = get_mesh("sponza",  Scene::GetInstance()->sceneMeshMap);
         glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
         glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
         sponzaObject.transformMatrix = translate * scale;
 
-        sceneRenderMeshes.push_back(sponzaObject);
+        Scene::GetInstance()->sceneRenderMeshes.push_back(sponzaObject);
 
         RenderMesh monkeyObject;
-        monkeyObject.material = get_material("defaultMesh", sceneMaterialMap);
-        monkeyObject.mesh = get_mesh("suzanne", sceneMeshMap);
+        monkeyObject.material = get_material("defaultMaterial",  Scene::GetInstance()->sceneMaterialMap);
+        monkeyObject.mesh = get_mesh("suzanne",  Scene::GetInstance()->sceneMeshMap);
         glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
         monkeyObject.transformMatrix = monkeyTranslate;
 
-        sceneRenderMeshes.push_back(monkeyObject);
+         Scene::GetInstance()->sceneRenderMeshes.push_back(monkeyObject);
 
         for (int x = -10; x < 10; x++) {
             for (int y = -10; y < 10; y++) {
                 RenderMesh triangleObject;
-                triangleObject.material = get_material("defaultMesh", sceneMaterialMap);
-                triangleObject.mesh = get_mesh("triangle", sceneMeshMap);
+                triangleObject.material = get_material("defaultMaterial",  Scene::GetInstance()->sceneMaterialMap);
+                triangleObject.mesh = get_mesh("triangle",  Scene::GetInstance()->sceneMeshMap);
                 glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(x, 0.0f, y));
                 glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.2, 0.2, 0.2));
                 triangleObject.transformMatrix = translate * scale;
                 
-                sceneRenderMeshes.push_back(triangleObject);
+                 Scene::GetInstance()->sceneRenderMeshes.push_back(triangleObject);
             }
         }
     }
@@ -815,16 +842,11 @@ private:
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
         projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
 
-        // Bind the first pipeline
-        VkPipeline previousPipeline = sceneRenderMeshes[0].material->pipeline;
-        vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, previousPipeline);
 
-        for (RenderMesh renderObject : sceneRenderMeshes) {
+        for (RenderMesh renderObject :  Scene::GetInstance()->sceneRenderMeshes) {
             
-            if (previousPipeline != renderObject.material->pipeline) {
-                vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, renderObject.material->pipeline);
-                previousPipeline = renderObject.material->pipeline;
-            }
+            vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, (*renderObject.material->pipeline).getPipeline());
+
 
             VkDeviceSize offset = 0;
             
@@ -844,7 +866,7 @@ private:
 
             MeshPushConstants constants;
             constants.renderMatrix = mvpMatrix;
-            vkCmdPushConstants(commandBuffers[currentFrame], meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
+            vkCmdPushConstants(commandBuffers[currentFrame], (*renderObject.material->pipeline).getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
             vkCmdDraw(commandBuffers[currentFrame], renderObject.mesh->vertices.size(), 1, 0, 0);
         }
     }
@@ -860,10 +882,11 @@ private:
         createSwapchain();
         getSwapchainImages();
         createDepthImageAndView();
-        createShaderModules();
+        // createShaderModules();
         createSynchronizationStructures();
         createRenderPass();
-        createGraphicsPipeline();
+        createPipelines();
+        // createGraphicsPipeline();
         createFramebuffers();
         createCommandPool();
         createCommandBuffers();
