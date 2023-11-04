@@ -2,9 +2,7 @@
 #include "Common/Log.h"
 #include <iostream>
 #include <fstream>
-#ifdef _WIN32
 #include <sstream>
-#endif
 
 
 std::string load_shader_source_to_string(std::string const& shaderPath) {
@@ -32,7 +30,7 @@ std::string load_shader_source_to_string(std::string const& shaderPath) {
     return shaderSource;
 }
 
-vk::UniqueShaderModule compile_shader(vk::Device device, std::string shaderSource, shaderc_shader_kind shaderKind, const char *inputFileName) {
+void compile_shader(VkDevice device, VkShaderModule& shaderModule, std::string shaderSource, shaderc_shader_kind shaderKind, const char *inputFileName) {
     // TODO: Not sure what the cost of doing this compiler init everytime is, fine for now
     shaderc::Compiler compiler;
     shaderc::CompileOptions options;
@@ -45,13 +43,13 @@ vk::UniqueShaderModule compile_shader(vk::Device device, std::string shaderSourc
     }
     std::vector<uint32_t> shaderCode = { shaderModuleCompile.cbegin(), shaderModuleCompile.cend() };
 
-    vk::ShaderModuleCreateInfo shaderCreateInfo = { 
-            {}, 
+    VkShaderModuleCreateInfo shaderCreateInfo = { 
+            VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            nullptr,
+            VkShaderModuleCreateFlags(),
             std::distance(shaderCode.begin(), shaderCode.end()) * sizeof(uint32_t),
             shaderCode.data() 
     };
 
-    vk::UniqueShaderModule shaderModule = device.createShaderModuleUnique(shaderCreateInfo);
-
-    return shaderModule;
+    vkCreateShaderModule(device, &shaderCreateInfo, nullptr, &shaderModule);
 }

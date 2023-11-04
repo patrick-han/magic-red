@@ -1,5 +1,5 @@
 #include <vector>
-#include "vulkan/vulkan.hpp"
+#include "vulkan/vulkan.h"
 
 /* 
  * A description that includes:
@@ -9,10 +9,10 @@
  * Attribute descriptions which define vertex attributes
  */
 struct VertexInputDescription {
-    std::vector<vk::VertexInputBindingDescription> bindings;
-    std::vector<vk::VertexInputAttributeDescription> attributes;
+    std::vector<VkVertexInputBindingDescription> bindings;
+    std::vector<VkVertexInputAttributeDescription> attributes;
 
-    vk::PipelineVertexInputStateCreateFlags flags = {};
+    VkPipelineVertexInputStateCreateFlags flags = {};
 
     /* Return VertexInputBinding and VertexInputAttribute descriptions for the Vertex type */
     static VertexInputDescription get_default_vertex_description();

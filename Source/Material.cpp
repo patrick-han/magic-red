@@ -1,7 +1,6 @@
 #include "Material.h"
 
-
-void create_material(vk::Pipeline pipeline, vk::PipelineLayout pipelineLayout, const std::string& materialName, std::unordered_map<std::string, Material>& materialMap) {
+void create_material(VkPipeline pipeline, VkPipelineLayout pipelineLayout, const std::string& materialName, std::unordered_map<std::string, Material>& materialMap) {
     Material mat = { pipeline, pipelineLayout };
     materialMap[materialName] = mat;
 }

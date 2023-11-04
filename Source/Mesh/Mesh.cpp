@@ -1,5 +1,5 @@
 #include "Mesh/Mesh.h"
-#include "vulkan/vulkan.hpp"
+#include "vulkan/vulkan.h"
 #include "Common/Log.h"
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "External/tiny_obj_loader.h"

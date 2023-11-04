@@ -1,5 +1,7 @@
 #include "Wrappers/Buffer.h"
 #include <vulkan/vk_enum_string_helper.h>
+#include <cassert>
+#include "Types.h"
 
 void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const void* bufferData, VkBufferUsageFlags bufferUsage, VmaAllocator allocator, DeletionQueue& deletionQueue) {
 
@@ -18,7 +20,7 @@ void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const vo
 
     // Allocate the buffer
     VkResult res = vmaCreateBuffer(allocator, &bufferCreateInfo, &vmaAllocInfo,
-        &reinterpret_cast<VkBuffer &>(allocatedBuffer.buffer), // bleck, but apparently "vulkan.hpp contains static_asserts that ensure that vk::Buffer and VkBuffer are the same size" so this is okay
+        &allocatedBuffer.buffer,
         &allocatedBuffer.allocation,
         nullptr
     );

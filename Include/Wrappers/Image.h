@@ -1,8 +1,8 @@
 #pragma once
-#include "vulkan/vulkan.hpp"
+#include "vulkan/vulkan.h"
 #include "vk_mem_alloc.h"
 
 struct AllocatedImage {
-    vk::Image image;
+    VkImage image;
     VmaAllocation allocation;
 };
