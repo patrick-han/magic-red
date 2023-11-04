@@ -1,8 +1,9 @@
 #pragma once
 
-#include "Mesh/Mesh.h"
-#include "Material.h"
 #include <glm/glm.hpp>
+
+class Mesh;
+class Material;
 
 struct RenderMesh {
     Mesh* mesh;
