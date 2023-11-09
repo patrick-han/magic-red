@@ -15,3 +15,6 @@
 
 #define MRCERR(msg) \
     std::cerr << "[CERR] " << __FILE__ << "(" << __LINE__ << "): " << msg << std::endl
+
+#define MRVAL(msg) \
+    std::cerr << "[VAL] " << __FILE__ << "(" << __LINE__ << "): " << msg << std::endl
