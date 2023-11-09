@@ -1,6 +1,9 @@
 #pragma once
+
+#include "vulkan/vulkan.h"
+#include "glm/glm.hpp"
+
 struct MeshPushConstants {
-    glm::vec4 data;
     glm::mat4 modelViewProjection;
 
     static VkPushConstantRange range() {
