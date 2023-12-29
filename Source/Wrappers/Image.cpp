@@ -1,7 +1,59 @@
 #include "Wrappers/Image.h"
+#include "DeletionQueue.h"
+#include "Common/Log.h"
+#include <vulkan/vk_enum_string_helper.h>
 
-VkImageCreateInfo image_create_info(VkFormat format, VkExtent3D extent, VkImageUsageFlags usageFlags)
-{
+void upload_gpu_only_image(AllocatedImage& allocatedImage, VkImageCreateInfo imageCreateInfo, VmaAllocator allocator, DeletionQueue& deletionQueue) {
+    VmaAllocationCreateInfo vmaAllocInfo = {};
+    vmaAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    vmaAllocInfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    VkResult res = vmaCreateImage(allocator, &imageCreateInfo, &vmaAllocInfo, &allocatedImage.image, &allocatedImage.allocation, nullptr);
+    if (res != VK_SUCCESS) {
+        MRCERR(string_VkResult(res));
+        throw std::runtime_error("Could not allocate image!");
+    }
+
+    // Add the destruction of mesh buffer to the deletion queue
+    deletionQueue.push_function([=]() {
+        vmaDestroyImage(allocator, allocatedImage.image, allocatedImage.allocation);
+    });
+}
+
+void copy_image_to_image(VkCommandBuffer commandBuffer, VkImage source, VkImage destination, VkExtent2D srcSize, VkExtent2D dstSize) {
+    VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
+
+	blitRegion.srcOffsets[1].x = srcSize.width;
+	blitRegion.srcOffsets[1].y = srcSize.height;
+	blitRegion.srcOffsets[1].z = 1;
+
+	blitRegion.dstOffsets[1].x = dstSize.width;
+	blitRegion.dstOffsets[1].y = dstSize.height;
+	blitRegion.dstOffsets[1].z = 1;
+
+	blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	blitRegion.srcSubresource.baseArrayLayer = 0;
+	blitRegion.srcSubresource.layerCount = 1;
+	blitRegion.srcSubresource.mipLevel = 0;
+
+	blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	blitRegion.dstSubresource.baseArrayLayer = 0;
+	blitRegion.dstSubresource.layerCount = 1;
+	blitRegion.dstSubresource.mipLevel = 0;
+
+	VkBlitImageInfo2 blitInfo{ .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2, .pNext = nullptr };
+	blitInfo.dstImage = destination;
+	blitInfo.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	blitInfo.srcImage = source;
+	blitInfo.srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	blitInfo.filter = VK_FILTER_LINEAR;
+	blitInfo.regionCount = 1;
+	blitInfo.pRegions = &blitRegion;
+
+	vkCmdBlitImage2(commandBuffer, &blitInfo);
+}
+
+VkImageCreateInfo image_create_info(VkFormat format, VkExtent3D extent, VkImageUsageFlags usageFlags) {
     VkImageCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     info.pNext = nullptr;
@@ -28,8 +80,7 @@ VkImageCreateInfo image_create_info(VkFormat format, VkExtent3D extent, VkImageU
     return info;
 }
 
-VkImageViewCreateInfo imageview_create_info(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
-{
+VkImageViewCreateInfo imageview_create_info(VkImage image, VkFormat format, VkComponentMapping componentMapping, VkImageAspectFlags aspectFlags) {
     VkImageViewCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     info.pNext = nullptr;
@@ -37,7 +88,7 @@ VkImageViewCreateInfo imageview_create_info(VkImage image, VkFormat format, VkIm
     info.image = image;
     info.viewType = VK_IMAGE_VIEW_TYPE_2D;
     info.format = format;
-    info.components = {};
+    info.components = componentMapping;
     info.subresourceRange.aspectMask = aspectFlags;
     info.subresourceRange.baseMipLevel = 0;
     info.subresourceRange.levelCount = 1;

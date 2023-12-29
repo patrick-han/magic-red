@@ -387,16 +387,7 @@ private:
         swapChainImageViews.resize(swapChainImages.size());
 
         for (int i = 0; i < swapChainImageViews.size(); i++) {
-            VkImageViewCreateInfo imageViewCreateInfo = {
-                VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                nullptr,
-                VkImageViewCreateFlags(),
-                swapChainImages[i],
-                VK_IMAGE_VIEW_TYPE_2D,
-                swapChainFormat,
-                VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A },
-                VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 } // No mips for swapchain imageviews
-            };
+            VkImageViewCreateInfo imageViewCreateInfo = imageview_create_info(swapChainImages[i], swapChainFormat, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
             VkResult res = vkCreateImageView(device, &imageViewCreateInfo, nullptr, &swapChainImageViews[i]);
             if (res != VK_SUCCESS) {
                 MRCERR(string_VkResult(res));
@@ -407,6 +398,37 @@ private:
             for (int k = 0; k < swapChainImageViews.size(); k++) {
                 vkDestroyImageView(device, swapChainImageViews[k], nullptr);
             }   
+        });
+    }
+
+    void createDrawImage() {
+        VkExtent3D drawImageExtent = {
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            1
+        };
+        drawImage.imageExtent = drawImageExtent;
+        drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+        
+        VkImageUsageFlags drawImageUsages = {};
+        drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
+        drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+        VkImageCreateInfo drawImageCreateInfo = image_create_info(drawImage.imageFormat, drawImage.imageExtent, drawImageUsages);
+
+        upload_gpu_only_image(drawImage, drawImageCreateInfo, vmaAllocator, mainDeletionQueue);
+
+        VkImageViewCreateInfo drawImageViewCreateInfo = imageview_create_info(drawImage.image, drawImage.imageFormat, {}, VK_IMAGE_ASPECT_COLOR_BIT);
+        VkResult res = vkCreateImageView(device, &drawImageViewCreateInfo, nullptr, &drawImage.imageView);
+        if(res != VK_SUCCESS) {
+            MRCERR(string_VkResult(res));
+            throw std::runtime_error("Could not create draw image view!");
+        }
+
+        mainDeletionQueue.push_function([=]() {
+            vkDestroyImageView(device, drawImage.imageView, nullptr);
         });
     }
 
@@ -426,7 +448,7 @@ private:
             throw std::runtime_error("Could not create depth image!");
         }
 
-        VkImageViewCreateInfo depthImageViewCreateInfo = imageview_create_info(depthImage.image, depthImage.imageFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+        VkImageViewCreateInfo depthImageViewCreateInfo = imageview_create_info(depthImage.image, depthImage.imageFormat, {},VK_IMAGE_ASPECT_DEPTH_BIT);
 
         vkCreateImageView(device, &depthImageViewCreateInfo, nullptr, &depthImage.imageView);
 
@@ -666,6 +688,7 @@ private:
         initVMA();
         createSwapchain();
         getSwapchainImages();
+        createDrawImage();
         createDepthImageAndView();
         createSynchronizationStructures();
         createRenderPass();
