@@ -81,6 +81,8 @@ private:
 
     // Images
     AllocatedImage depthImage;
+    AllocatedImage drawImage;
+    VkExtent2D drawExtent; // Allow for resizing
 
     // Swapchain
     VkSwapchainKHR swapChain;
@@ -412,22 +414,20 @@ private:
         depthImage.imageExtent = VkExtent3D{ WINDOW_WIDTH, WINDOW_HEIGHT, 1 };
         depthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
 
-        VkImageCreateInfo depthImageCreateInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, nullptr, VkImageCreateFlags(), VK_IMAGE_TYPE_2D, depthImage.imageFormat, depthImage.imageExtent, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED};
-
-        VkImageCreateInfo ci = static_cast<VkImageCreateInfo>(depthImageCreateInfo);
+        VkImageCreateInfo depthImageCreateInfo = image_create_info(depthImage.imageFormat, depthImage.imageExtent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
         VmaAllocationCreateInfo vmaAllocInfo = {};
         vmaAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
         vmaAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT; 
-        VkResult res = vmaCreateImage(vmaAllocator, &ci, &vmaAllocInfo, &reinterpret_cast<VkImage &>(depthImage.image), &depthImage.allocation, nullptr);
+        VkResult res = vmaCreateImage(vmaAllocator, &depthImageCreateInfo, &vmaAllocInfo, &reinterpret_cast<VkImage &>(depthImage.image), &depthImage.allocation, nullptr);
 
         if (res != VK_SUCCESS) {
             MRCERR(string_VkResult(res));
             throw std::runtime_error("Could not create depth image!");
         }
 
-        VkImageSubresourceRange depthSubresRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-        VkImageViewCreateInfo depthImageViewCreateInfo = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, nullptr, VkImageViewCreateFlags(), depthImage.image, VK_IMAGE_VIEW_TYPE_2D, depthImage.imageFormat, {}, depthSubresRange};
+        VkImageViewCreateInfo depthImageViewCreateInfo = imageview_create_info(depthImage.image, depthImage.imageFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+
         vkCreateImageView(device, &depthImageViewCreateInfo, nullptr, &depthImage.imageView);
 
         mainDeletionQueue.push_function([=]() {
