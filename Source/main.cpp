@@ -25,7 +25,7 @@
 
 #include "Control/Control.h"
 #include "Common/Log.h"
-#include "Shader/Shader.h"
+// #include "Shader/Shader.h"
 #include "DeletionQueue.h"
 #include "Mesh/Mesh.h"
 #include "Wrappers/Buffer.h"
@@ -541,8 +541,8 @@ private:
     std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
 
     void createMaterialPipelines() {
-        GraphicsPipeline defaultPipeline(device, renderPass, std::string("Shaders/triangle_mesh.vert"), std::string("Shaders/triangle_mesh.frag"), defaultPushConstantRanges, {WINDOW_WIDTH, WINDOW_HEIGHT});
-        create_material(defaultPipeline, "defaultMaterial");
+        // GraphicsPipeline defaultPipeline(device, renderPass, std::string("Shaders/triangle_mesh.vert"), std::string("Shaders/triangle_mesh.frag"), defaultPushConstantRanges, {WINDOW_WIDTH, WINDOW_HEIGHT});
+        // create_material(defaultPipeline, "defaultMaterial");
     }
 
     void createFramebuffers() {

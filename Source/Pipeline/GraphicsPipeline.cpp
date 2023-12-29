@@ -15,14 +15,14 @@ GraphicsPipeline::GraphicsPipeline(
     VkExtent2D extent
     ) : Pipeline(logicalDevice) {
 
-    std::string vertexShaderSource = load_shader_source_to_string(std::string(ROOT_DIR) + vertexShaderPath);
-    std::string fragmentShaderSource = load_shader_source_to_string(std::string(ROOT_DIR) + fragmentShaderPath);
+    // std::string vertexShaderSource = load_shader_source_to_string(std::string(ROOT_DIR) + vertexShaderPath);
+    // std::string fragmentShaderSource = load_shader_source_to_string(std::string(ROOT_DIR) + fragmentShaderPath);
 
     VkShaderModule vertexShaderModule;
     VkShaderModule fragmentShaderModule;
 
-    compile_shader(m_logicalDevice, vertexShaderModule, vertexShaderSource, shaderc_glsl_vertex_shader, "vertex shader");
-    compile_shader(m_logicalDevice, fragmentShaderModule, fragmentShaderSource, shaderc_glsl_fragment_shader, "fragment shader");
+    // compile_shader(m_logicalDevice, vertexShaderModule, vertexShaderSource, shaderc_glsl_vertex_shader, "vertex shader");
+    // compile_shader(m_logicalDevice, fragmentShaderModule, fragmentShaderSource, shaderc_glsl_fragment_shader, "fragment shader");
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, VkPipelineShaderStageCreateFlags(), VK_SHADER_STAGE_VERTEX_BIT, vertexShaderModule, "main", nullptr};
     VkPipelineShaderStageCreateInfo fragShaderStageInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, VkPipelineShaderStageCreateFlags(), VK_SHADER_STAGE_FRAGMENT_BIT, fragmentShaderModule, "main", nullptr};
