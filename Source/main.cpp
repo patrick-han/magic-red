@@ -543,6 +543,8 @@ private:
     void createMaterialPipelines() {
         // GraphicsPipeline defaultPipeline(device, renderPass, std::string("Shaders/triangle_mesh.vert"), std::string("Shaders/triangle_mesh.frag"), defaultPushConstantRanges, {WINDOW_WIDTH, WINDOW_HEIGHT});
         // create_material(defaultPipeline, "defaultMaterial");
+        GraphicsPipeline defaultPipeline(device, renderPass, std::string("Shaders/triangle_mesh.vert.spv"), std::string("Shaders/triangle_mesh.frag.spv"), defaultPushConstantRanges, {WINDOW_WIDTH, WINDOW_HEIGHT});
+        create_material(defaultPipeline, "defaultMaterial");
     }
 
     void createFramebuffers() {

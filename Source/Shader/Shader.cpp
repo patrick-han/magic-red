@@ -1,10 +1,50 @@
-// #include "Shader/Shader.h"
-// #include "Common/Log.h"
+#include "Shader/Shader.h"
+#include <string>
+#include <fstream>
+#include "Common/Log.h"
 // #include <iostream>
-// #include <fstream>
+
 // #include <sstream>
 
-// #include "Common/Log.h"
+
+bool load_shader_spirv_source_to_module(std::string const& shaderSpirvPath, VkDevice device, VkShaderModule& shaderModule) {
+    // Ppen the file. With cursor at the end
+    std::ifstream file(shaderSpirvPath, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open()) {
+        return false;
+    }
+
+    // Find what the size of the file is by looking up the location of the cursor
+    // Because the cursor is at the end, it gives the size directly in bytes
+    size_t fileSize = (size_t)file.tellg();
+
+    // Spirv expects the buffer to be on uint32, so make sure to reserve an int vector big enough for the entire file
+    std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
+
+    // Put file cursor at beginning
+    file.seekg(0);
+
+    // Load the entire file into the buffer
+    file.read((char*)buffer.data(), fileSize);
+
+    // Now that the file is loaded into the buffer, we can close it
+    file.close();
+
+    VkShaderModuleCreateInfo shaderCreateInfo = { 
+            VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            nullptr,
+            VkShaderModuleCreateFlags(),
+            std::distance(buffer.begin(), buffer.end()) * sizeof(uint32_t),
+            buffer.data() 
+    };
+    if (vkCreateShaderModule(device, &shaderCreateInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+        MRCERR("Could not compile shader: " << shaderSpirvPath);
+        return false;
+    };
+    return true;
+}
+
 // std::string load_shader_source_to_string(std::string const& shaderPath) {
 //     std::string shaderSource;
 //     std::ifstream shaderFile;

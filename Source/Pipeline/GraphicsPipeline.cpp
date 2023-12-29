@@ -24,6 +24,9 @@ GraphicsPipeline::GraphicsPipeline(
     // compile_shader(m_logicalDevice, vertexShaderModule, vertexShaderSource, shaderc_glsl_vertex_shader, "vertex shader");
     // compile_shader(m_logicalDevice, fragmentShaderModule, fragmentShaderSource, shaderc_glsl_fragment_shader, "fragment shader");
 
+    load_shader_spirv_source_to_module(std::string(ROOT_DIR) + vertexShaderPath, logicalDevice, vertexShaderModule);
+    load_shader_spirv_source_to_module(std::string(ROOT_DIR) + fragmentShaderPath, logicalDevice, fragmentShaderModule);
+
     VkPipelineShaderStageCreateInfo vertShaderStageInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, VkPipelineShaderStageCreateFlags(), VK_SHADER_STAGE_VERTEX_BIT, vertexShaderModule, "main", nullptr};
     VkPipelineShaderStageCreateInfo fragShaderStageInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, VkPipelineShaderStageCreateFlags(), VK_SHADER_STAGE_FRAGMENT_BIT, fragmentShaderModule, "main", nullptr};
 

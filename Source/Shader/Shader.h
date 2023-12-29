@@ -1,7 +1,11 @@
-// #pragma once
+#pragma once
 
 // #include <shaderc/shaderc.hpp>
-// #include "vulkan/vulkan.h"
+#include "vulkan/vulkan.h"
+#include <string>
+
+/* Given a string path to a precompiled spirv shader file, create the VkShaderModule */
+bool load_shader_spirv_source_to_module(std::string const& shaderSpirvPath, VkDevice device, VkShaderModule& shaderModule);
 
 // /* Given a string path to a shader file, return a string containing its source ready to be compiled */
 // std::string load_shader_source_to_string(std::string const& shaderPath);
