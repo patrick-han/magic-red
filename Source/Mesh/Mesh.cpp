@@ -72,6 +72,10 @@ void load_mesh_from_obj(Mesh& mesh, const char* fileName) {
 	}
 }
 
+void load_mesh(Mesh& mesh, const char* meshFileName) {
+	
+}
+
 [[nodiscard]] Mesh& upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue& deletionQueue) {
     upload_buffer(mesh.vertexBuffer, mesh.vertices.size() * sizeof(Vertex), mesh.vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, allocator, deletionQueue);
 

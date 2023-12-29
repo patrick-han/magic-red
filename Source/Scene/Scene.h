@@ -3,7 +3,7 @@
 #include <vector>
 #include <unordered_map>
 #include "Mesh/RenderObject.h"
-#include "Material.h"
+#include "Pipeline/MaterialFunctions.h"
 #include "Mesh/Mesh.h"
 
 // Singleton Scene

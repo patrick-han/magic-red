@@ -1,5 +1,5 @@
-#include "VertexDescriptors.h"
-#include "Mesh/Vertex.h"
+#include "Vertex/VertexDescriptors.h"
+#include "Vertex/Vertex.h"
 
 [[nodiscard]] VertexInputDescription VertexInputDescription::get_default_vertex_description() {
     VertexInputDescription description;

@@ -1,4 +1,4 @@
-#include "Material.h"
+#include "Pipeline/MaterialFunctions.h"
 #include "Common/Log.h"
 #include "Scene/Scene.h"
 
