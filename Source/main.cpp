@@ -482,60 +482,67 @@ private:
 
     void createRenderPass() {
         // Prepare attachment descriptions and references
-        VkAttachmentDescription colorAttachment = { VkAttachmentDescriptionFlags(), swapChainFormat, VK_SAMPLE_COUNT_1_BIT, 
-            VK_ATTACHMENT_LOAD_OP_CLEAR,
-            VK_ATTACHMENT_STORE_OP_STORE,
-            {}, // Stencil Load
-            {}, // Stencil Store
-            {}, // Initial Layout
-            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR // Final layout
-        };
-        VkAttachmentReference colorAttachmentRef = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
+        VkAttachmentDescription colorAttachment = {};
+        colorAttachment.flags = VkAttachmentDescriptionFlags(); 
+        colorAttachment.format = swapChainFormat; 
+        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        colorAttachment.stencilLoadOp = {};
+        colorAttachment.stencilStoreOp = {};
+        colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachment.finalLayout =  VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-        VkAttachmentDescription depthAttachment = { VkAttachmentDescriptionFlags(), depthImage.imageFormat, VK_SAMPLE_COUNT_1_BIT, 
-            VK_ATTACHMENT_LOAD_OP_CLEAR,      // Color/depth
-            VK_ATTACHMENT_STORE_OP_STORE,     // Color/depth
-            VK_ATTACHMENT_LOAD_OP_CLEAR,      // Stencil
-            VK_ATTACHMENT_STORE_OP_DONT_CARE, // Stencil
-            VK_IMAGE_LAYOUT_UNDEFINED,                       // Renderpass instance begin layout
-            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL // Renderpass instance end layout
-        };
-        VkAttachmentReference depthAttachmentRef = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL }; // Layout during the subpass
+        VkAttachmentReference colorAttachmentRef = {};
+        colorAttachmentRef.attachment = 0;
+        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-        VkSubpassDescription subpass = {
-            VkSubpassDescriptionFlags(), 
-            VK_PIPELINE_BIND_POINT_GRAPHICS, 
-            0,                  // Input attachment count
-            nullptr, 
-            1, 
-            &colorAttachmentRef, 
-            {},                 // Resolve attachments
-            &depthAttachmentRef, 
-            0,
-            nullptr,
-        };
+        VkAttachmentDescription depthAttachment = {};
+        depthAttachment.flags = VkAttachmentDescriptionFlags();
+        depthAttachment.format =  depthImage.imageFormat;
+        depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        depthAttachment.loadOp =  VK_ATTACHMENT_LOAD_OP_CLEAR;  // Color/depth
+        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE; // Color/depth
+        depthAttachment.stencilLoadOp =  VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.initialLayout =  VK_IMAGE_LAYOUT_UNDEFINED;                     // Renderpass instance begin layout
+        depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // Renderpass instance end layout
+
+        VkAttachmentReference depthAttachmentRef = {};
+        depthAttachmentRef.attachment =  1;
+        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // Layout during the subpass
+
+        VkSubpassDescription subpass = {};
+        subpass.flags = VkSubpassDescriptionFlags();
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS, 
+        subpass.inputAttachmentCount = 0,
+        subpass.pInputAttachments = nullptr; 
+        subpass.colorAttachmentCount = 1; 
+        subpass.pColorAttachments = &colorAttachmentRef;
+        subpass.pResolveAttachments = nullptr;
+        subpass.pDepthStencilAttachment = &depthAttachmentRef;
+        subpass.preserveAttachmentCount = 0;
+        subpass.pPreserveAttachments = nullptr;
 
         // Color attachment synchronization
-        VkSubpassDependency subpassDependencyColor = { // TODO: Understand
-            VK_SUBPASS_EXTERNAL,                               // srcSubpass
-            0,                                                 // dstSubpass
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, // srcStageMask This should wait for swapchain to finish reading from the image
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, // dstStageMask
-            {},                                                // srcAccessMask
-            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,         // dstAccessMask
-            {} // dependencyFlags
-        };
+        VkSubpassDependency subpassDependencyColor = {}; // TODO: Understand
+        subpassDependencyColor.srcSubpass = VK_SUBPASS_EXTERNAL;
+        subpassDependencyColor.dstSubpass = 0;
+        subpassDependencyColor.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT; // This should wait for swapchain to finish reading from the image
+        subpassDependencyColor.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        subpassDependencyColor.srcAccessMask = {};
+        subpassDependencyColor.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        subpassDependencyColor.dependencyFlags = {};
 
         // Depth attachment synchronization
-        VkSubpassDependency subpassDependencyDepth = { // TODO: Understand
-            VK_SUBPASS_EXTERNAL,
-            0,
-            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, // Potentially used in either
-            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-            {},
-            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-            {} // dependencyFlags
-        };
+        VkSubpassDependency subpassDependencyDepth = {}; // TODO: Understand
+        subpassDependencyDepth.srcSubpass = VK_SUBPASS_EXTERNAL;
+        subpassDependencyDepth.dstSubpass = 0;
+        subpassDependencyDepth.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT; // Potentially used in either
+        subpassDependencyDepth.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        subpassDependencyDepth.srcAccessMask = {};
+        subpassDependencyDepth.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        subpassDependencyDepth.dependencyFlags = {};
 
         VkAttachmentDescription attachments[2] = { colorAttachment, depthAttachment };
         VkSubpassDependency subpassDependencies[2] = { subpassDependencyColor, subpassDependencyDepth };
