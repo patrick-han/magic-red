@@ -5,15 +5,15 @@
 // Debug and platform build defines
 
 #ifdef NDEBUG
-    const bool enableValidationLayers = false;
+    constexpr bool enableValidationLayers = false;
 #else
-    const bool enableValidationLayers = true;
+    constexpr bool enableValidationLayers = true;
 #endif
 
 #ifdef __APPLE__
-    const bool appleBuild = true;
+    constexpr bool appleBuild = true;
 #else
-    const bool appleBuild = false;
+    constexpr bool appleBuild = false;
 #endif
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

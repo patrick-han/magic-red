@@ -1,7 +1,7 @@
 #include "Wrappers/Buffer.h"
 #include <vulkan/vk_enum_string_helper.h>
 #include <cassert>
-#include "Types.h"
+#include "DeletionQueue.h"
 
 void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const void* bufferData, VkBufferUsageFlags bufferUsage, VmaAllocator allocator, DeletionQueue& deletionQueue) {
 

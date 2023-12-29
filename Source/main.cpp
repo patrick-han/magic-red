@@ -26,7 +26,7 @@
 #include "Control/Control.h"
 #include "Common/Log.h"
 #include "Shader.h"
-#include "Types.h"
+#include "DeletionQueue.h"
 #include "Mesh/Mesh.h"
 #include "Wrappers/Buffer.h"
 #include "Wrappers/Image.h"
