@@ -6,7 +6,7 @@
 class Mesh;
 class GraphicsPipeline;
 
-struct RenderMesh {
+struct RenderObject {
     void BindAndDraw(VkCommandBuffer commandBuffer, glm::mat4 viewProjectionMatrix) const;
     Mesh* mesh;
     GraphicsPipeline* material;

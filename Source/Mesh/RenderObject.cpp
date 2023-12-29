@@ -1,10 +1,10 @@
-#include "Mesh/RenderMesh.h"
+#include "Mesh/RenderObject.h"
 #include "vulkan/vulkan.h"
 #include "Pipeline/GraphicsPipeline.h"
 #include "Mesh/Mesh.h"
 #include <glm/glm.hpp>
 
-void RenderMesh::BindAndDraw(VkCommandBuffer commandBuffer, glm::mat4 viewProjectionMatrix) const {
+void RenderObject::BindAndDraw(VkCommandBuffer commandBuffer, glm::mat4 viewProjectionMatrix) const {
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material->getPipeline());
 
     VkDeviceSize offset = 0;

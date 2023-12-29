@@ -31,7 +31,7 @@
 #include "Wrappers/Buffer.h"
 #include "Wrappers/Image.h"
 #include "Material.h"
-#include "Mesh/RenderMesh.h"
+#include "Mesh/RenderObject.h"
 #include "VertexDescriptors.h"
 #include "Common/Config.h"
 #include "Scene/Scene.h"
@@ -540,7 +540,7 @@ private:
     // temp
     std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
 
-    void createPipelines() {
+    void createMaterialPipelines() {
         GraphicsPipeline defaultPipeline(device, renderPass, std::string("Shaders/triangle_mesh.vert"), std::string("Shaders/triangle_mesh.frag"), defaultPushConstantRanges, {WINDOW_WIDTH, WINDOW_HEIGHT});
         create_material(defaultPipeline, "defaultMaterial");
     }
@@ -614,72 +614,34 @@ private:
         });
     }
 
-    void load_meshes() {
-        Mesh triangleMesh;
-        triangleMesh.vertices.resize(4);
-        triangleMesh.vertices[0].position = { 1.f, 1.f, 0.0f }; // Lower right
-        triangleMesh.vertices[1].position = {-1.f, 1.f, 0.0f }; // Lower left
-        triangleMesh.vertices[2].position = { 1.f,-1.f, 0.0f }; // Upper right
-        triangleMesh.vertices[3].position = {-1.f,-1.f, 0.0f }; // Upper left
-
-        // Don't care about normals for now
-
-        triangleMesh.vertices[0].color = { 1.f, 0.f, 0.f}; // Red
-        triangleMesh.vertices[1].color = { 0.f, 1.f, 0.f}; // Green
-        triangleMesh.vertices[2].color = { 0.f, 0.f, 1.f}; // Blue
-        triangleMesh.vertices[3].color = { 1.f, 1.f, 0.f}; // Yellow
-
-        triangleMesh.indices.resize(6);
-        triangleMesh.indices.push_back(3);
-        triangleMesh.indices.push_back(2);
-        triangleMesh.indices.push_back(0);
-        triangleMesh.indices.push_back(0);
-        triangleMesh.indices.push_back(3);
-        triangleMesh.indices.push_back(1);
-
-         Scene::GetInstance().sceneMeshMap["triangle"] = upload_mesh(triangleMesh, vmaAllocator, mainDeletionQueue);
-        
-        // Suzanne mesh
-        Mesh monkeyMesh;
-        load_mesh_from_obj(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.obj");
-         Scene::GetInstance().sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
-
+    void init_scene() {
         // Sponza mesh
         Mesh sponzaMesh;
         load_mesh_from_obj(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza.obj");
-         Scene::GetInstance().sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
-    }
+        Scene::GetInstance().sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
 
-    void init_scene() {
-        RenderMesh sponzaObject;
+        RenderObject sponzaObject;
         sponzaObject.material = get_material("defaultMaterial");
         sponzaObject.mesh = get_mesh("sponza",  Scene::GetInstance().sceneMeshMap);
         glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
         glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
         sponzaObject.transformMatrix = translate * scale;
 
-        Scene::GetInstance().sceneRenderMeshes.push_back(sponzaObject);
+        Scene::GetInstance().sceneRenderObjects.push_back(sponzaObject);
 
-        RenderMesh monkeyObject;
+
+        // Suzanne mesh
+        Mesh monkeyMesh;
+        load_mesh_from_obj(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.obj");
+        Scene::GetInstance().sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
+
+        RenderObject monkeyObject;
         monkeyObject.material = get_material("defaultMaterial");
         monkeyObject.mesh = get_mesh("suzanne",  Scene::GetInstance().sceneMeshMap);
         glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
         monkeyObject.transformMatrix = monkeyTranslate;
 
-         Scene::GetInstance().sceneRenderMeshes.push_back(monkeyObject);
-
-        for (int x = -10; x < 10; x++) {
-            for (int y = -10; y < 10; y++) {
-                RenderMesh triangleObject;
-                triangleObject.material = get_material("defaultMaterial");
-                triangleObject.mesh = get_mesh("triangle",  Scene::GetInstance().sceneMeshMap);
-                glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(x, 0.0f, y));
-                glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.2, 0.2, 0.2));
-                triangleObject.transformMatrix = translate * scale;
-                
-                 Scene::GetInstance().sceneRenderMeshes.push_back(triangleObject);
-            }
-        }
+        Scene::GetInstance().sceneRenderObjects.push_back(monkeyObject);
     }
 
     void draw_objects(uint32_t imageIndex) {
@@ -688,7 +650,7 @@ private:
         projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
         glm::mat4 viewProjectionMatrix = projection * view;
 
-        for (RenderMesh renderObject :  Scene::GetInstance().sceneRenderMeshes) {
+        for (RenderObject renderObject :  Scene::GetInstance().sceneRenderObjects) {
             renderObject.BindAndDraw(commandBuffers[currentFrame], viewProjectionMatrix);
         }
     }
@@ -706,12 +668,11 @@ private:
         createDepthImageAndView();
         createSynchronizationStructures();
         createRenderPass();
-        createPipelines();
+        createMaterialPipelines();
         createFramebuffers();
         createCommandPool();
         createCommandBuffers();
         retrieveQueues();
-        load_meshes();
         init_scene();
 
     }
