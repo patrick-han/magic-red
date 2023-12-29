@@ -80,9 +80,7 @@ private:
     VkQueue presentQueue;
 
     // Images
-    VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
     AllocatedImage depthImage;
-    VkImageView depthImageView;
 
     // Swapchain
     VkSwapchainKHR swapChain;
@@ -411,9 +409,10 @@ private:
     }
 
     void createDepthImageAndView() {
-        VkExtent3D depthExtent = VkExtent3D{ WINDOW_WIDTH, WINDOW_HEIGHT, 1 };
+        depthImage.imageExtent = VkExtent3D{ WINDOW_WIDTH, WINDOW_HEIGHT, 1 };
+        depthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
 
-        VkImageCreateInfo depthImageCreateInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, nullptr, VkImageCreateFlags(), VK_IMAGE_TYPE_2D, depthFormat, depthExtent, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED};
+        VkImageCreateInfo depthImageCreateInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, nullptr, VkImageCreateFlags(), VK_IMAGE_TYPE_2D, depthImage.imageFormat, depthImage.imageExtent, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED};
 
         VkImageCreateInfo ci = static_cast<VkImageCreateInfo>(depthImageCreateInfo);
 
@@ -428,11 +427,11 @@ private:
         }
 
         VkImageSubresourceRange depthSubresRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-        VkImageViewCreateInfo depthImageViewCreateInfo = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, nullptr, VkImageViewCreateFlags(), depthImage.image, VK_IMAGE_VIEW_TYPE_2D, depthFormat, {}, depthSubresRange};
-        vkCreateImageView(device, &depthImageViewCreateInfo, nullptr, &depthImageView);
+        VkImageViewCreateInfo depthImageViewCreateInfo = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, nullptr, VkImageViewCreateFlags(), depthImage.image, VK_IMAGE_VIEW_TYPE_2D, depthImage.imageFormat, {}, depthSubresRange};
+        vkCreateImageView(device, &depthImageViewCreateInfo, nullptr, &depthImage.imageView);
 
         mainDeletionQueue.push_function([=]() {
-            vkDestroyImageView(device, depthImageView, nullptr);
+            vkDestroyImageView(device, depthImage.imageView, nullptr);
             vmaDestroyImage(vmaAllocator, depthImage.image, depthImage.allocation);
         });
     }
@@ -471,7 +470,7 @@ private:
         };
         VkAttachmentReference colorAttachmentRef = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
 
-        VkAttachmentDescription depthAttachment = { VkAttachmentDescriptionFlags(), depthFormat, VK_SAMPLE_COUNT_1_BIT, 
+        VkAttachmentDescription depthAttachment = { VkAttachmentDescriptionFlags(), depthImage.imageFormat, VK_SAMPLE_COUNT_1_BIT, 
             VK_ATTACHMENT_LOAD_OP_CLEAR,      // Color/depth
             VK_ATTACHMENT_STORE_OP_STORE,     // Color/depth
             VK_ATTACHMENT_LOAD_OP_CLEAR,      // Stencil
@@ -551,7 +550,7 @@ private:
         framebuffers.resize(swapChainImageCount);
 
         for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-            VkImageView attachments[2] = { swapChainImageViews[i], depthImageView};
+            VkImageView attachments[2] = { swapChainImageViews[i], depthImage.imageView};
             VkFramebufferCreateInfo framebufferCreateInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO, nullptr, VkFramebufferCreateFlags(), renderPass, 2, attachments, WINDOW_WIDTH, WINDOW_HEIGHT, 1 };
 
             VkResult res = vkCreateFramebuffer(device, &framebufferCreateInfo, nullptr, &framebuffers[i]);
