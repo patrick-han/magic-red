@@ -82,7 +82,7 @@ private:
     // Images
     AllocatedImage depthImage;
     AllocatedImage drawImage;
-    VkExtent2D drawExtent; // Allow for resizing
+    // VkExtent2D drawExtent; // Allow for resizing
 
     // Swapchain
     VkSwapchainKHR swapChain;
@@ -96,12 +96,6 @@ private:
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> renderFences;
     uint32_t currentFrame = 0;
-
-    // Renderpass
-    VkRenderPass renderPass;
-
-    // Framebuffers
-    std::vector<VkFramebuffer> framebuffers;
 
     // Command Pools and Buffers
     VkCommandPool commandPool;
@@ -293,15 +287,20 @@ private:
         }
 
         // Device extensions
-        std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+        std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_KHR_dynamic_rendering" };
         if (appleBuild) {
             deviceExtensions.push_back("VK_KHR_portability_subset");
         }
         
+        // Needed to enable dynamic rendering extension
+        constexpr VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+            .dynamicRendering = VK_TRUE,
+        };
 
         VkDeviceCreateInfo deviceCreateInfo = {
             VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-            nullptr,
+            &dynamic_rendering_feature,
             VkDeviceCreateFlags(),
             static_cast<uint32_t>(queueCreateInfos.size()),
             queueCreateInfos.data(),
@@ -480,126 +479,22 @@ private:
         }
     }
 
-    void createRenderPass() {
-        // Prepare attachment descriptions and references
-        VkAttachmentDescription colorAttachment = {};
-        colorAttachment.flags = VkAttachmentDescriptionFlags(); 
-        colorAttachment.format = swapChainFormat; 
-        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-        colorAttachment.stencilLoadOp = {};
-        colorAttachment.stencilStoreOp = {};
-        colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachment.finalLayout =  VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-        VkAttachmentReference colorAttachmentRef = {};
-        colorAttachmentRef.attachment = 0;
-        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-        VkAttachmentDescription depthAttachment = {};
-        depthAttachment.flags = VkAttachmentDescriptionFlags();
-        depthAttachment.format =  depthImage.imageFormat;
-        depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        depthAttachment.loadOp =  VK_ATTACHMENT_LOAD_OP_CLEAR;  // Color/depth
-        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE; // Color/depth
-        depthAttachment.stencilLoadOp =  VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.initialLayout =  VK_IMAGE_LAYOUT_UNDEFINED;                     // Renderpass instance begin layout
-        depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // Renderpass instance end layout
-
-        VkAttachmentReference depthAttachmentRef = {};
-        depthAttachmentRef.attachment =  1;
-        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // Layout during the subpass
-
-        VkSubpassDescription subpass = {};
-        subpass.flags = VkSubpassDescriptionFlags();
-        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS, 
-        subpass.inputAttachmentCount = 0,
-        subpass.pInputAttachments = nullptr; 
-        subpass.colorAttachmentCount = 1; 
-        subpass.pColorAttachments = &colorAttachmentRef;
-        subpass.pResolveAttachments = nullptr;
-        subpass.pDepthStencilAttachment = &depthAttachmentRef;
-        subpass.preserveAttachmentCount = 0;
-        subpass.pPreserveAttachments = nullptr;
-
-        // Color attachment synchronization
-        VkSubpassDependency subpassDependencyColor = {}; // TODO: Understand
-        subpassDependencyColor.srcSubpass = VK_SUBPASS_EXTERNAL;
-        subpassDependencyColor.dstSubpass = 0;
-        subpassDependencyColor.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT; // This should wait for swapchain to finish reading from the image
-        subpassDependencyColor.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        subpassDependencyColor.srcAccessMask = {};
-        subpassDependencyColor.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        subpassDependencyColor.dependencyFlags = {};
-
-        // Depth attachment synchronization
-        VkSubpassDependency subpassDependencyDepth = {}; // TODO: Understand
-        subpassDependencyDepth.srcSubpass = VK_SUBPASS_EXTERNAL;
-        subpassDependencyDepth.dstSubpass = 0;
-        subpassDependencyDepth.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT; // Potentially used in either
-        subpassDependencyDepth.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-        subpassDependencyDepth.srcAccessMask = {};
-        subpassDependencyDepth.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        subpassDependencyDepth.dependencyFlags = {};
-
-        VkAttachmentDescription attachments[2] = { colorAttachment, depthAttachment };
-        VkSubpassDependency subpassDependencies[2] = { subpassDependencyColor, subpassDependencyDepth };
-
-        VkRenderPassCreateInfo rpCreateInfo = {};
-        rpCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        rpCreateInfo.pNext = nullptr;
-        rpCreateInfo.flags = {};
-        rpCreateInfo.attachmentCount = 2;
-        rpCreateInfo.pAttachments = attachments;
-        rpCreateInfo.subpassCount = 1;
-        rpCreateInfo.pSubpasses = &subpass;
-        rpCreateInfo.dependencyCount = 2;
-        rpCreateInfo.pDependencies = subpassDependencies;
-
-
-        vkCreateRenderPass(device, &rpCreateInfo, nullptr, &renderPass);
-        mainDeletionQueue.push_function([=]() {
-            vkDestroyRenderPass(device, renderPass, nullptr);
-        });
-    }
-
     // temp
     std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
 
     void createMaterialPipelines() {
-        // GraphicsPipeline defaultPipeline(device, renderPass, std::string("Shaders/triangle_mesh.vert"), std::string("Shaders/triangle_mesh.frag"), defaultPushConstantRanges, {WINDOW_WIDTH, WINDOW_HEIGHT});
-        // create_material(defaultPipeline, "defaultMaterial");
-        GraphicsPipeline defaultPipeline(device, renderPass, std::string("Shaders/triangle_mesh.vert.spv"), std::string("Shaders/triangle_mesh.frag.spv"), defaultPushConstantRanges, {WINDOW_WIDTH, WINDOW_HEIGHT});
+        VkPipelineRenderingCreateInfoKHR pipelineRenderingCI = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+            .pNext = nullptr,
+            .viewMask = 0,
+            .colorAttachmentCount = 1,
+            .pColorAttachmentFormats = &swapChainFormat,
+            .depthAttachmentFormat = depthImage.imageFormat,
+            .stencilAttachmentFormat = {}
+        };
+
+        GraphicsPipeline defaultPipeline(device, &pipelineRenderingCI, std::string("Shaders/triangle_mesh.vert.spv"), std::string("Shaders/triangle_mesh.frag.spv"), defaultPushConstantRanges, {WINDOW_WIDTH, WINDOW_HEIGHT});
         create_material(defaultPipeline, "defaultMaterial");
-    }
-
-    void createFramebuffers() {
-        framebuffers.resize(swapChainImageCount);
-
-        for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-            VkImageView attachments[2] = { swapChainImageViews[i], depthImage.imageView};
-            VkFramebufferCreateInfo framebufferCreateInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO, nullptr, VkFramebufferCreateFlags(), renderPass, 2, attachments, WINDOW_WIDTH, WINDOW_HEIGHT, 1 };
-
-            VkResult res = vkCreateFramebuffer(device, &framebufferCreateInfo, nullptr, &framebuffers[i]);
-            if (res != VK_SUCCESS) {
-                MRCERR(string_VkResult(res));
-                throw std::runtime_error("Framebuffer creation unccessful!");
-            }
-            mainDeletionQueue.push_function([=]() {
-                vkDestroyFramebuffer(device, framebuffers[i], nullptr);
-            });
-        }
-        MRLOG("Framebuffers size: " << framebuffers.size());
-        MRLOG("Framebuffers capacity: " << framebuffers.capacity());
-        // for (auto fb : framebuffers) {
-        //     if (fb == VK_NULL_HANDLE) {
-        //         MRLOG("NULL HANDLE FRAMEBUFFER!");
-        //     } else {
-        //         MRLOG("ALL GOOD");
-        //     }
-        // }
     }
 
     void createCommandPool() {
@@ -698,9 +593,7 @@ private:
         createDrawImage();
         createDepthImageAndView();
         createSynchronizationStructures();
-        createRenderPass();
         createMaterialPipelines();
-        createFramebuffers();
         createCommandPool();
         createCommandBuffers();
         retrieveQueues();
@@ -730,21 +623,120 @@ private:
             beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
             vkBeginCommandBuffer(commandBuffers[currentFrame], &beginInfo);
 
-            VkRenderPassBeginInfo renderPassBeginInfo = {};
-            renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            renderPassBeginInfo.renderPass = renderPass;
-            renderPassBeginInfo.framebuffer = framebuffers[imageIndex];
-            renderPassBeginInfo.renderArea = VkRect2D{ {0, 0}, {WINDOW_WIDTH, WINDOW_HEIGHT}};
-            renderPassBeginInfo.clearValueCount = 2;
-            renderPassBeginInfo.pClearValues = clearValues;
+            {
+                // Transition swapchain to color attachemnt write
+                VkImageMemoryBarrier imb = {
+                    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                    .pNext = nullptr,
+                    .srcAccessMask = {},
+                    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                    .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .image = swapChainImages[imageIndex],
+                    .subresourceRange = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1,
+                    }
+                };
+                vkCmdPipelineBarrier(
+                    commandBuffers[currentFrame], 
+                    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                    {},
+                    0, nullptr,
+                    0, nullptr,
+                    1, &imb
+                );
+            }
 
-            vkCmdBeginRenderPass(commandBuffers[currentFrame], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+            VkRenderingAttachmentInfoKHR colorAttachmentInfo {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
+                .pNext = nullptr,
+                .imageView = swapChainImageViews[imageIndex],
+                .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                .resolveMode = {},
+                .resolveImageView {},
+                .resolveImageLayout = {},
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .clearValue = clearValue
+            };
+
+            VkRenderingAttachmentInfoKHR depthAttachmentInfo {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
+                .pNext = nullptr,
+                .imageView = depthImage.imageView,
+                .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                .resolveMode = {},
+                .resolveImageView {},
+                .resolveImageLayout = {},
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .clearValue = clearValueDepth
+            };
+
+            VkRenderingInfoKHR renderingInfo = {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
+                .pNext = nullptr,
+                .flags = {},
+                .renderArea = VkRect2D{ {0, 0}, {WINDOW_WIDTH, WINDOW_HEIGHT}},
+                .layerCount = 1,
+                .viewMask = 0,
+                .colorAttachmentCount = 1,
+                .pColorAttachments = &colorAttachmentInfo,
+                .pDepthAttachment = &depthAttachmentInfo,
+                .pStencilAttachment = nullptr,
+                // .pStencilAttachment = &stencilAttachmentInfo
+            };
+            PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdBeginRenderingKHR"));
+            vkCmdBeginRenderingKHR(commandBuffers[currentFrame], &renderingInfo);
+
             VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, 1.0f };
             vkCmdSetViewport(commandBuffers[currentFrame], 0, 1, &viewport);
             VkRect2D scissor = { {0, 0}, {WINDOW_WIDTH, WINDOW_HEIGHT}};
             vkCmdSetScissor(commandBuffers[currentFrame], 0, 1, &scissor);
             draw_objects(imageIndex);
-            vkCmdEndRenderPass(commandBuffers[currentFrame]);
+
+            PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR"));
+            vkCmdEndRenderingKHR(commandBuffers[currentFrame]);
+            // vkCmdEndRenderPass(commandBuffers[currentFrame]);
+
+            {
+                // Transition swapchain to correct presentation layout
+                VkImageMemoryBarrier imb = {
+                    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                    .pNext = nullptr,
+                    .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                    .dstAccessMask = {},
+                    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                    .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .image = swapChainImages[imageIndex],
+                    .subresourceRange = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1,
+                    }
+                };
+                vkCmdPipelineBarrier(
+                    commandBuffers[currentFrame], 
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                    {},
+                    0, nullptr,
+                    0, nullptr,
+                    1,&imb
+                );
+            }
+
             vkEndCommandBuffer(commandBuffers[currentFrame]);
 
 
@@ -770,7 +762,8 @@ private:
             presentInfo.swapchainCount = 1;
             presentInfo.pSwapchains = &swapChain;
             presentInfo.pImageIndices = &imageIndex;
-            res = vkQueuePresentKHR(presentQueue, &presentInfo);
+            // res = vkQueuePresentKHR(presentQueue, &presentInfo);
+            res = vkQueuePresentKHR(graphicsQueue, &presentInfo);
 
 
             currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;

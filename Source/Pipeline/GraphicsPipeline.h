@@ -6,8 +6,8 @@ public:
     GraphicsPipeline();
     GraphicsPipeline(
         const VkDevice logicalDevice,
-        const VkRenderPass renderPass, 
-        const std::string& vertexShaderPath, // std::string or something else?
+        const VkPipelineRenderingCreateInfoKHR* pipelineRenderingCreateInfo,
+        const std::string& vertexShaderPath,
         const std::string& fragmentShaderPath, 
         const std::vector<VkPushConstantRange>& pushConstantRanges,
         VkExtent2D extent

@@ -8,7 +8,7 @@ GraphicsPipeline::GraphicsPipeline() {
 
 GraphicsPipeline::GraphicsPipeline(
     const VkDevice logicalDevice, 
-    const VkRenderPass renderPass, 
+    const VkPipelineRenderingCreateInfoKHR* pipelineRenderingCreateInfo,
     const std::string& vertexShaderPath, 
     const std::string& fragmentShaderPath, 
     const std::vector<VkPushConstantRange>& pushConstantRanges, 
@@ -83,7 +83,7 @@ GraphicsPipeline::GraphicsPipeline(
 
     VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
         VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-        nullptr,
+        pipelineRenderingCreateInfo,
         VkPipelineCreateFlags(),
         2, 
         pipelineShaderStages.data(), 
@@ -97,7 +97,7 @@ GraphicsPipeline::GraphicsPipeline(
         &colorBlending,
         &dynamicState,
         m_pipelineLayout,
-        renderPass,
+        nullptr,
         0,
         {},
         0
