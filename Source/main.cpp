@@ -38,8 +38,6 @@
 #include "Pipeline/GraphicsPipeline.h"
 #include "Mesh/MeshPushConstants.h"
 
-constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-
 // Frame data
 int frameNumber = 0;
 float deltaTime = 0.0f; // Time between current and last frame
@@ -545,9 +543,7 @@ private:
         load_mesh_from_obj(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza.obj");
         Scene::GetInstance().sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
 
-        RenderObject sponzaObject;
-        sponzaObject.material = get_material("defaultMaterial");
-        sponzaObject.mesh = get_mesh("sponza",  Scene::GetInstance().sceneMeshMap);
+        RenderObject sponzaObject("defaultMaterial", "sponza");
         glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
         glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
         sponzaObject.transformMatrix = translate * scale;
@@ -560,9 +556,7 @@ private:
         load_mesh_from_obj(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.obj");
         Scene::GetInstance().sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
 
-        RenderObject monkeyObject;
-        monkeyObject.material = get_material("defaultMaterial");
-        monkeyObject.mesh = get_mesh("suzanne",  Scene::GetInstance().sceneMeshMap);
+        RenderObject monkeyObject("defaultMaterial", "suzanne");
         glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
         monkeyObject.transformMatrix = monkeyTranslate;
 
@@ -603,7 +597,6 @@ private:
 
     void drawFrame() {
             // Wait for previous frame to finish rendering before allowing us to acquire another image
-            
             VkResult res = vkWaitForFences(device, 1, &renderFences[currentFrame], true, (std::numeric_limits<uint64_t>::max)());
             vkResetFences(device, 1, &renderFences[currentFrame]);
 
@@ -615,9 +608,8 @@ private:
             }
             vkResetCommandBuffer(commandBuffers[currentFrame], {});
 
-            VkClearValue clearValue = {{0.0f, 0.0f, 0.5f, 1.0f}};
+            VkClearValue clearValue = {{0.5f, 0.5f, 0.7f, 1.0f}};
             VkClearValue clearValueDepth = {{1.0f, 0}};
-            VkClearValue clearValues[2] = { clearValue, clearValueDepth };
 
             VkCommandBufferBeginInfo beginInfo = {};
             beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;

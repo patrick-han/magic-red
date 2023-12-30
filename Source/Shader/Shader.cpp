@@ -7,7 +7,7 @@
 // #include <sstream>
 
 
-bool load_shader_spirv_source_to_module(std::string const& shaderSpirvPath, VkDevice device, VkShaderModule& shaderModule) {
+bool load_shader_spirv_source_to_module(const std::string& shaderSpirvPath, VkDevice device, VkShaderModule& shaderModule) {
     // Ppen the file. With cursor at the end
     std::ifstream file(shaderSpirvPath, std::ios::ate | std::ios::binary);
 

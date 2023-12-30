@@ -3,6 +3,13 @@
 #include "Pipeline/GraphicsPipeline.h"
 #include "Mesh/Mesh.h"
 #include <glm/glm.hpp>
+#include "Pipeline/MaterialFunctions.h"
+#include "Scene/Scene.h"
+
+RenderObject::RenderObject(const char* materialName, const char* meshName) {
+    material = get_material(materialName);
+    mesh = get_mesh(meshName, Scene::GetInstance().sceneMeshMap);
+}
 
 void RenderObject::BindAndDraw(VkCommandBuffer commandBuffer, glm::mat4 viewProjectionMatrix) const {
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material->getPipeline());

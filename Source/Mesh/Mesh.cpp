@@ -89,6 +89,7 @@ void load_mesh(Mesh& mesh, const char* meshFileName) {
     // Search for the mesh, and return nullptr if not found
     auto it = meshMap.find(meshName);
     if (it == meshMap.end()) {
+		MRCERR("Could not find mesh: " << meshName);
         return nullptr;
     }
     else {
