@@ -704,7 +704,6 @@ private:
 
             PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR"));
             vkCmdEndRenderingKHR(commandBuffers[currentFrame]);
-            // vkCmdEndRenderPass(commandBuffers[currentFrame]);
 
             {
                 // Transition swapchain to correct presentation layout
