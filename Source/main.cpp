@@ -70,8 +70,8 @@ private:
     VkDevice device;
 
     // Queues
-    size_t graphicsQueueFamilyIndex;
-    size_t presentQueueFamilyIndex;
+    uint32_t graphicsQueueFamilyIndex;
+    uint32_t presentQueueFamilyIndex;
     std::set<uint32_t> uniqueQueueFamilyIndices;
     std::vector<uint32_t> FamilyIndices;
     VkQueue graphicsQueue;
@@ -263,8 +263,8 @@ private:
         MRLOG("Graphics and Present queue family indices, respectively: " << graphicsQueueFamilyIndex << ", " << presentQueueFamilyIndex);
 
         uniqueQueueFamilyIndices = {
-            static_cast<uint32_t>(graphicsQueueFamilyIndex),
-            static_cast<uint32_t>(presentQueueFamilyIndex)
+            graphicsQueueFamilyIndex,
+            presentQueueFamilyIndex
         };
 
         FamilyIndices = {
@@ -498,7 +498,7 @@ private:
     void createCommandPool() {
         VkCommandPoolCreateInfo commandPoolCreateInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO, nullptr,
         VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, // allows any command buffer allocated from a pool to be individually reset to the initial state; either by calling vkResetCommandBuffer, or via the implicit reset when calling vkBeginCommandBuffer.
-        static_cast<uint32_t>(graphicsQueueFamilyIndex)};
+        graphicsQueueFamilyIndex};
         vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &commandPool);
 
         mainDeletionQueue.push_function([=]() {
@@ -518,8 +518,8 @@ private:
     }
 
     void retrieveQueues() {
-        vkGetDeviceQueue(device, static_cast<uint32_t>(graphicsQueueFamilyIndex), 0, &graphicsQueue);
-        vkGetDeviceQueue(device, static_cast<uint32_t>(presentQueueFamilyIndex), 0, &presentQueue);
+        vkGetDeviceQueue(device, graphicsQueueFamilyIndex, 0, &graphicsQueue);
+        vkGetDeviceQueue(device, presentQueueFamilyIndex, 0, &presentQueue);
     }
 
     void initVMA() {
@@ -540,7 +540,7 @@ private:
     void init_scene() {
         // Sponza mesh
         Mesh sponzaMesh;
-        load_mesh_from_obj(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza.obj");
+        load_mesh_from_obj(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza.obj", MeshColor::Blue);
         Scene::GetInstance().sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
 
         RenderObject sponzaObject("defaultMaterial", "sponza");
@@ -553,7 +553,7 @@ private:
 
         // Suzanne mesh
         Mesh monkeyMesh;
-        load_mesh_from_obj(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.obj");
+        load_mesh_from_obj(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.obj", MeshColor::Red);
         Scene::GetInstance().sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
 
         RenderObject monkeyObject("defaultMaterial", "suzanne");

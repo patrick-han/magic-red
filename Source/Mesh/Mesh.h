@@ -6,7 +6,11 @@
 
 
 
-
+enum class MeshColor {
+    Red,
+    Green,
+    Blue
+};
 
 
 struct Mesh {
@@ -17,7 +21,7 @@ struct Mesh {
 };
 
 /* Load Mesh data from an .obj file */
-void load_mesh_from_obj(Mesh& mesh, const char* objFileName);
+void load_mesh_from_obj(Mesh& mesh, const char* objFileName, MeshColor overrideColor);
 
 /* Load Mesh data using ASSIMP */
 void load_mesh(Mesh& mesh, const char* meshFileName);

@@ -4,7 +4,7 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "External/tiny_obj_loader.h"
 
-void load_mesh_from_obj(Mesh& mesh, const char* fileName) {
+void load_mesh_from_obj(Mesh& mesh, const char* fileName, MeshColor overrideColor) {
     // Attrib will contain the vertex arrays of the file
 	tinyobj::attrib_t attrib;
     // Shapes contains the info for each separate object in the file
@@ -61,8 +61,24 @@ void load_mesh_from_obj(Mesh& mesh, const char* fileName) {
 				new_vert.normal.y = ny;
                 new_vert.normal.z = nz;
 
-                //we are setting the vertex color as the vertex normal. This is just for display purposes
-                new_vert.color = new_vert.normal;
+                // Override vertex colors for debug
+				switch(overrideColor) {
+					case MeshColor::Red:
+						new_vert.color.x = 1.0f;
+						new_vert.color.y = 0.2f;
+						new_vert.color.z = 0.2f;
+					break;
+					case MeshColor::Green:
+						new_vert.color.x = 0.2f;
+						new_vert.color.y = 1.0f;
+						new_vert.color.z = 0.2f;
+					break;
+					case MeshColor::Blue:
+						new_vert.color.x = 0.2f;
+						new_vert.color.y = 0.2f;
+						new_vert.color.z = 1.0f;
+					break;
+				}
 
 
 				mesh.vertices.push_back(new_vert);
