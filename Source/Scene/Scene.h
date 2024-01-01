@@ -13,21 +13,22 @@ public:
     static Scene& GetInstance()
     {
         static Scene instance; // Guaranteed to be destroyed.
-                               // Instantiated on first use.
+                               // Instantiated on first use (also known as lazy initialization).
         return instance;
     }
 private:
-    Scene() {}                 // Constructor? (the {} brackets) are needed here.
+    Scene() {}                 // Constructor.
+                               // Obviously, we don't want users creating another SINGLEton.
 
 
 
     // C++ 11
     // =======
-    // We can use the better technique of deleting the methods
+    // We can use this technique of deleting the methods
     // we don't want.
 public:
-    Scene(Scene const&)          = delete;
-    void operator=(Scene const&) = delete;
+    Scene(Scene const&)          = delete; // Copy constructor
+    void operator=(Scene const&) = delete; // Copy assignment
 
     // Note: Scott Meyers mentions in his Effective Modern
     //       C++ book, that deleted functions should generally
