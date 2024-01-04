@@ -11,7 +11,8 @@ GraphicsPipeline::GraphicsPipeline(
     const VkPipelineRenderingCreateInfoKHR* pipelineRenderingCreateInfo,
     const std::string& vertexShaderPath, 
     const std::string& fragmentShaderPath, 
-    const std::vector<VkPushConstantRange>& pushConstantRanges, 
+    std::span<VkPushConstantRange const> pushConstantRanges,
+    std::span<VkDescriptorSetLayout const> descriptorSetLayouts,
     VkExtent2D extent
     ) : Pipeline(logicalDevice) {
 
@@ -79,7 +80,7 @@ GraphicsPipeline::GraphicsPipeline(
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
-    CreatePipelineLayout(pushConstantRanges);
+    CreatePipelineLayout(pushConstantRanges, descriptorSetLayouts);
 
     VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
         VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,

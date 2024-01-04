@@ -9,7 +9,8 @@ public:
         const VkPipelineRenderingCreateInfoKHR* pipelineRenderingCreateInfo,
         const std::string& vertexShaderPath,
         const std::string& fragmentShaderPath, 
-        const std::vector<VkPushConstantRange>& pushConstantRanges,
+        std::span<VkPushConstantRange const> pushConstantRanges,
+        std::span<VkDescriptorSetLayout const> descriptorSetLayouts,
         VkExtent2D extent
         );
     ~GraphicsPipeline();

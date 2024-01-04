@@ -11,7 +11,7 @@ RenderObject::RenderObject(const char* materialName, const char* meshName) {
     mesh = get_mesh(meshName, Scene::GetInstance().sceneMeshMap);
 }
 
-void RenderObject::BindAndDraw(VkCommandBuffer commandBuffer, glm::mat4 viewProjectionMatrix) const {
+void RenderObject::BindAndDraw(VkCommandBuffer commandBuffer, const glm::mat4& viewProjectionMatrix, std::span<VkDescriptorSet const> descriptorSets) const {
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material->getPipeline());
 
     VkDeviceSize offset = 0;
@@ -20,8 +20,11 @@ void RenderObject::BindAndDraw(VkCommandBuffer commandBuffer, glm::mat4 viewProj
     // Compute MVP matrix
     MeshPushConstants meshPushConstants;
     meshPushConstants.modelViewProjection = viewProjectionMatrix * transformMatrix;
+    meshPushConstants.model = transformMatrix;
 
     vkCmdPushConstants(commandBuffer, material->getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(meshPushConstants), &meshPushConstants);
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material->getPipelineLayout(), 0, descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 
     vkCmdDraw(commandBuffer, mesh->vertices.size(), 1, 0, 0);
 }

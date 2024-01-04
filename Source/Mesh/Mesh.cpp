@@ -6,90 +6,90 @@
 
 void load_mesh_from_obj(Mesh& mesh, const char* fileName, MeshColor overrideColor) {
     // Attrib will contain the vertex arrays of the file
-	tinyobj::attrib_t attrib;
+    tinyobj::attrib_t attrib;
     // Shapes contains the info for each separate object in the file
-	std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::shape_t> shapes;
     // Materials contains the information about the material of each shape, but we won't use it.
     std::vector<tinyobj::material_t> materials;
 
     // Error and warning output from the load function
-	std::string warn;
-	std::string err;
+    std::string warn;
+    std::string err;
 
     // Load the OBJ file
-	tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, fileName, nullptr);
+    tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, fileName, nullptr);
     // Make sure to output the warnings to the console, in case there are issues with the file
-	if (!warn.empty()) {
-		MRWARN(warn);
-	}
+    if (!warn.empty()) {
+        MRWARN(warn);
+    }
     // If we have any error, print it to the console, and break the mesh loading.
     // This happens if the file can't be found or is malformed
-	if (!err.empty()) {
-		MRCERR("Failed to load mesh: " <<  fileName);
-	}
+    if (!err.empty()) {
+        MRCERR("Failed to load mesh: " <<  fileName);
+    }
 
     // Loop over shapes
-	for (size_t s = 0; s < shapes.size(); s++) {
-		// Loop over faces(polygon)
-		size_t index_offset = 0;
-		for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+    for (size_t s = 0; s < shapes.size(); s++) {
+        // Loop over faces(polygon)
+        size_t index_offset = 0;
+        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
 
             //hardcode loading to triangles
-			int fv = 3;
+            int fv = 3;
 
-			// Loop over vertices in the face.
-			for (size_t v = 0; v < fv; v++) {
-				// access to vertex
-				tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+            // Loop over vertices in the face.
+            for (size_t v = 0; v < fv; v++) {
+                // access to vertex
+                tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
 
                 //vertex position
-				tinyobj::real_t vx = attrib.vertices[3 * idx.vertex_index + 0];
-				tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1];
-				tinyobj::real_t vz = attrib.vertices[3 * idx.vertex_index + 2];
+                tinyobj::real_t vx = attrib.vertices[3 * idx.vertex_index + 0];
+                tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1];
+                tinyobj::real_t vz = attrib.vertices[3 * idx.vertex_index + 2];
                 //vertex normal
-            	tinyobj::real_t nx = attrib.normals[3 * idx.normal_index + 0];
-				tinyobj::real_t ny = attrib.normals[3 * idx.normal_index + 1];
-				tinyobj::real_t nz = attrib.normals[3 * idx.normal_index + 2];
+                tinyobj::real_t nx = attrib.normals[3 * idx.normal_index + 0];
+                tinyobj::real_t ny = attrib.normals[3 * idx.normal_index + 1];
+                tinyobj::real_t nz = attrib.normals[3 * idx.normal_index + 2];
 
                 //copy it into our vertex
-				Vertex new_vert;
-				new_vert.position.x = vx;
-				new_vert.position.y = vy;
-				new_vert.position.z = vz;
+                Vertex new_vert;
+                new_vert.position.x = vx;
+                new_vert.position.y = vy;
+                new_vert.position.z = vz;
 
-				new_vert.normal.x = nx;
-				new_vert.normal.y = ny;
+                new_vert.normal.x = nx;
+                new_vert.normal.y = ny;
                 new_vert.normal.z = nz;
 
                 // Override vertex colors for debug
-				switch(overrideColor) {
-					case MeshColor::Red:
-						new_vert.color.x = 1.0f;
-						new_vert.color.y = 0.2f;
-						new_vert.color.z = 0.2f;
-					break;
-					case MeshColor::Green:
-						new_vert.color.x = 0.2f;
-						new_vert.color.y = 1.0f;
-						new_vert.color.z = 0.2f;
-					break;
-					case MeshColor::Blue:
-						new_vert.color.x = 0.2f;
-						new_vert.color.y = 0.2f;
-						new_vert.color.z = 1.0f;
-					break;
-				}
+                switch(overrideColor) {
+                    case MeshColor::Red:
+                        new_vert.color.x = 1.0f;
+                        new_vert.color.y = 0.2f;
+                        new_vert.color.z = 0.2f;
+                    break;
+                    case MeshColor::Green:
+                        new_vert.color.x = 0.2f;
+                        new_vert.color.y = 1.0f;
+                        new_vert.color.z = 0.2f;
+                    break;
+                    case MeshColor::Blue:
+                        new_vert.color.x = 0.2f;
+                        new_vert.color.y = 0.2f;
+                        new_vert.color.z = 1.0f;
+                    break;
+                }
 
 
-				mesh.vertices.push_back(new_vert);
-			}
-			index_offset += fv;
-		}
-	}
+                mesh.vertices.push_back(new_vert);
+            }
+            index_offset += fv;
+        }
+    }
 }
 
 void load_mesh(Mesh& mesh, const char* meshFileName) {
-	
+    
 }
 
 [[nodiscard]] Mesh& upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue& deletionQueue) {
@@ -105,7 +105,7 @@ void load_mesh(Mesh& mesh, const char* meshFileName) {
     // Search for the mesh, and return nullptr if not found
     auto it = meshMap.find(meshName);
     if (it == meshMap.end()) {
-		MRCERR("Could not find mesh: " << meshName);
+        MRCERR("Could not find mesh: " << meshName);
         return nullptr;
     }
     else {

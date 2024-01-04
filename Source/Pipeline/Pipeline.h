@@ -1,6 +1,6 @@
 #pragma once
 #include "vulkan/vulkan.h"
-#include <vector>
+#include <span>
 
 class Pipeline {
 public:
@@ -13,7 +13,10 @@ public:
 
 protected:
 
-    void CreatePipelineLayout(const std::vector<VkPushConstantRange>& pushConstantRanges);
+    void CreatePipelineLayout(
+        std::span<VkPushConstantRange const> pushConstantRanges, 
+        std::span<VkDescriptorSetLayout const> descriptorSetLayouts
+        );
 
     VkDevice m_logicalDevice;
     VkPipeline m_pipeline;

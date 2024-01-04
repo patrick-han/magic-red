@@ -5,6 +5,7 @@
 
 struct MeshPushConstants {
     glm::mat4 modelViewProjection;
+    glm::mat4 model;
 
     static VkPushConstantRange range() {
         VkPushConstantRange defaultPushConstantRange = {};

@@ -5,14 +5,19 @@ layout (location = 1) in vec3 vNormal;
 layout (location = 2) in vec3 vColor;
 
 layout (location = 0) out vec3 outColor;
+layout (location = 1) out vec3 fragWorldPos;
+layout (location = 2) out vec3 fragWorldNormal;
 
 // Push constants block
-layout (push_constant) uniform constants
+layout (push_constant) uniform PushConstants
 {
-    mat4 renderMatrix;
-} PushConstants;
+    mat4 mvpMatrix;
+    mat4 modelMatrix;
+} pushConstants;
 
 void main() {
-    gl_Position = PushConstants.renderMatrix * vec4(vPosition, 1.0f);
+    fragWorldPos = vec3(pushConstants.modelMatrix * vec4(vPosition, 1.0));
+    fragWorldNormal = mat3(transpose(inverse(pushConstants.modelMatrix))) * vNormal;
+    gl_Position = pushConstants.mvpMatrix * vec4(vPosition, 1.0);
     outColor = vColor;
 }

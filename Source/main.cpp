@@ -6,8 +6,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 
-#include <shaderc/shaderc.hpp>
-
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
@@ -25,7 +23,6 @@
 
 #include "Control/Control.h"
 #include "Common/Log.h"
-// #include "Shader/Shader.h"
 #include "DeletionQueue.h"
 #include "Mesh/Mesh.h"
 #include "Wrappers/Buffer.h"
@@ -37,6 +34,7 @@
 #include "Scene/Scene.h"
 #include "Pipeline/GraphicsPipeline.h"
 #include "Mesh/MeshPushConstants.h"
+#include "Descriptor/Descriptor.h"
 
 // Frame data
 int frameNumber = 0;
@@ -99,7 +97,17 @@ private:
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers; // (per in-flight frame resource)
 
-    // Resources
+    // Descriptors
+    DescriptorAllocator globalDescriptorAllocator;
+    VkDescriptorSet mainDescriptorSet;
+    VkDescriptorSetLayout mainDescriptorSetLayout;
+    std::vector<VkDescriptorSetLayout> mainDescriptorSetLayouts;
+    std::vector<VkDescriptorSet> mainDescriptorSets;
+
+    // Lights
+    AllocatedBuffer PointLightsBuffer;
+
+    // Cleanup
     DeletionQueue mainDeletionQueue; // Contains all deletable vulkan resources except pipelines/pipeline layouts
 
     void initWindow() {
@@ -477,24 +485,6 @@ private:
         }
     }
 
-    // temp
-    std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
-
-    void createMaterialPipelines() {
-        VkPipelineRenderingCreateInfoKHR pipelineRenderingCI = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
-            .pNext = nullptr,
-            .viewMask = 0,
-            .colorAttachmentCount = 1,
-            .pColorAttachmentFormats = &swapChainFormat,
-            .depthAttachmentFormat = depthImage.imageFormat,
-            .stencilAttachmentFormat = {}
-        };
-
-        GraphicsPipeline defaultPipeline(device, &pipelineRenderingCI, std::string("Shaders/triangle_mesh.vert.spv"), std::string("Shaders/triangle_mesh.frag.spv"), defaultPushConstantRanges, {WINDOW_WIDTH, WINDOW_HEIGHT});
-        create_material(defaultPipeline, "defaultMaterial");
-    }
-
     void createCommandPool() {
         VkCommandPoolCreateInfo commandPoolCreateInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO, nullptr,
         VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, // allows any command buffer allocated from a pool to be individually reset to the initial state; either by calling vkResetCommandBuffer, or via the implicit reset when calling vkBeginCommandBuffer.
@@ -537,7 +527,7 @@ private:
         });
     }
 
-    void init_scene() {
+    void init_scene_meshes() {
         // Sponza mesh
         Mesh sponzaMesh;
         load_mesh_from_obj(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza.obj", MeshColor::Blue);
@@ -563,6 +553,83 @@ private:
         Scene::GetInstance().sceneRenderObjects.push_back(monkeyObject);
     }
 
+    void init_scene_lights() {
+        Scene::GetInstance().scenePointLights.push_back(PointLight(glm::vec3(0.0f, 0.5f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f)));
+        
+
+
+        upload_buffer(
+            PointLightsBuffer, 
+            Scene::GetInstance().scenePointLights.size() * sizeof(PointLight),
+            Scene::GetInstance().scenePointLights.data(),
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            vmaAllocator,
+            mainDeletionQueue
+        );
+    }
+    
+    void init_descriptors() {
+        // Describe what and how many descriptors we want and create our pool
+        std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }
+        };
+        globalDescriptorAllocator.init_pool(device, 10, sizes); // We can allocate up to 10 uniform buffers
+
+        // Create a descriptor set
+        {
+            DescriptorLayoutBuilder layoutBuilder;
+            layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+
+            mainDescriptorSetLayout = layoutBuilder.buildLayout(device, VK_SHADER_STAGE_FRAGMENT_BIT);
+            mainDescriptorSetLayouts.push_back(mainDescriptorSetLayout);
+            
+            mainDeletionQueue.push_function([&]() {
+                vkDestroyDescriptorSetLayout(device, mainDescriptorSetLayout, nullptr);
+            });
+        }
+        mainDescriptorSet = globalDescriptorAllocator.allocate(device, mainDescriptorSetLayout);
+        mainDescriptorSets.push_back(mainDescriptorSet);
+
+        // Update descriptor set(s)
+        VkDescriptorBufferInfo pointLightBufferInfo = {
+            .buffer = PointLightsBuffer.buffer,
+            .offset = 0,
+            .range = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight) // VK_WHOLE_SIZE?
+        };
+
+        VkWriteDescriptorSet pointLightDescriptorWrite = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .pNext = nullptr,
+            .dstSet = mainDescriptorSet,
+            .dstBinding = 0,
+            .dstArrayElement = {},
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .pImageInfo = nullptr,
+            .pBufferInfo = &pointLightBufferInfo,
+            .pTexelBufferView = nullptr // ???
+        };
+        vkUpdateDescriptorSets(device, 1, &pointLightDescriptorWrite, 0, nullptr);
+    }
+
+    // temp
+    std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
+
+    void createMaterialPipelines() {
+        VkPipelineRenderingCreateInfoKHR pipelineRenderingCI = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+            .pNext = nullptr,
+            .viewMask = 0,
+            .colorAttachmentCount = 1,
+            .pColorAttachmentFormats = &swapChainFormat,
+            .depthAttachmentFormat = depthImage.imageFormat,
+            .stencilAttachmentFormat = {}
+        };
+
+        GraphicsPipeline defaultPipeline(device, &pipelineRenderingCI, std::string("Shaders/triangle_mesh.vert.spv"), std::string("Shaders/triangle_mesh.frag.spv"), defaultPushConstantRanges, mainDescriptorSetLayouts, {WINDOW_WIDTH, WINDOW_HEIGHT});
+        create_material(defaultPipeline, "defaultMaterial");
+    }
+
     void draw_objects(uint32_t imageIndex) {
         glm::mat4 view = camera.get_view_matrix();
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
@@ -570,7 +637,7 @@ private:
         glm::mat4 viewProjectionMatrix = projection * view;
 
         for (RenderObject renderObject :  Scene::GetInstance().sceneRenderObjects) {
-            renderObject.BindAndDraw(commandBuffers[currentFrame], viewProjectionMatrix);
+            renderObject.BindAndDraw(commandBuffers[currentFrame], viewProjectionMatrix, mainDescriptorSets);
         }
     }
 
@@ -584,15 +651,16 @@ private:
         initVMA();
         createSwapchain();
         getSwapchainImages();
-        createDrawImage();
+        // createDrawImage();
         createDepthImageAndView();
         createSynchronizationStructures();
-        createMaterialPipelines();
         createCommandPool();
         createCommandBuffers();
         retrieveQueues();
-        init_scene();
-
+        init_scene_lights();
+        init_descriptors();
+        createMaterialPipelines();
+        init_scene_meshes();
     }
 
     void drawFrame() {
@@ -776,6 +844,8 @@ private:
 
     void cleanup() {
         vkDeviceWaitIdle(device);
+
+        globalDescriptorAllocator.destroy_pool(device);
 
         for (auto material : Scene::GetInstance().sceneMaterialMap) {
             vkDestroyPipeline(device, material.second.getPipeline(), nullptr);

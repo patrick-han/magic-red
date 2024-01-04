@@ -22,13 +22,16 @@ const VkPipelineLayout& Pipeline::getPipelineLayout() const {
     return m_pipelineLayout;
 }
 
-void Pipeline::CreatePipelineLayout(const std::vector<VkPushConstantRange>& pushConstantRanges) {
+void Pipeline::CreatePipelineLayout(
+    std::span<VkPushConstantRange const> pushConstantRanges, 
+    std::span<VkDescriptorSetLayout const> descriptorSetLayouts
+    ) {
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutCreateInfo.pNext = nullptr;
     pipelineLayoutCreateInfo.flags = {};
-    pipelineLayoutCreateInfo.setLayoutCount = 0; // TODO
-    pipelineLayoutCreateInfo.pSetLayouts = nullptr;
+    pipelineLayoutCreateInfo.setLayoutCount = descriptorSetLayouts.size();
+    pipelineLayoutCreateInfo.pSetLayouts = descriptorSetLayouts.data();
     pipelineLayoutCreateInfo.pushConstantRangeCount = pushConstantRanges.size();
     pipelineLayoutCreateInfo.pPushConstantRanges = pushConstantRanges.data();
 

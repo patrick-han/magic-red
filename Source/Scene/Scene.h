@@ -5,6 +5,7 @@
 #include "Mesh/RenderObject.h"
 #include "Pipeline/MaterialFunctions.h"
 #include "Mesh/Mesh.h"
+#include "Light/PointLight.h"
 
 // Singleton Scene
 class Scene
@@ -42,4 +43,7 @@ public:
 
     // A material is a pipeline
     std::unordered_map<std::string, GraphicsPipeline> sceneMaterialMap;
+
+    // Lights
+    std::vector<PointLight> scenePointLights;
 };
