@@ -5,8 +5,6 @@
 #include <functional>
 #endif
 
-// Useful engine types that don't deserve their own category
-
 struct DeletionQueue
 {
     std::deque<std::function<void()>> deletors;
