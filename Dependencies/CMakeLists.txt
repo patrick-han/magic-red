@@ -40,6 +40,25 @@ add_subdirectory(glm)
 target_link_libraries(Dependencies INTERFACE glm)
 target_include_directories(Dependencies INTERFACE glm)
 
+# ========== IMGUI ========== #
+add_library(IMGUI STATIC)
+target_sources(IMGUI PRIVATE 
+    imgui/imgui.h
+    imgui/imgui.cpp 
+    
+
+    imgui/imgui_demo.cpp 
+    imgui/imgui_draw.cpp 
+    imgui/imgui_widgets.cpp 
+    imgui/imgui_tables.cpp 
+    imgui/imgui_impl_vulkan.cpp 
+    imgui/imgui_impl_glfw.cpp 
+    )
+target_include_directories(IMGUI PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/glfw/include/" "${Vulkan_INCLUDE_DIR}")
+target_link_libraries(Dependencies INTERFACE IMGUI)
+target_include_directories(Dependencies INTERFACE imgui)
+    
+
 # ========== ASSIMP ========== #
 # set(ASSIMP_NO_EXPORT ON)
 # set(ASSIMP_BUILD_TESTS OFF)

@@ -53,7 +53,7 @@ void copy_image_to_image(VkCommandBuffer commandBuffer, VkImage source, VkImage 
 	vkCmdBlitImage2(commandBuffer, &blitInfo);
 }
 
-VkImageCreateInfo image_create_info(VkFormat format, VkExtent3D extent, VkImageUsageFlags usageFlags) {
+[[nodiscard]] VkImageCreateInfo image_create_info(VkFormat format, VkExtent3D extent, VkImageUsageFlags usageFlags) {
     VkImageCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     info.pNext = nullptr;
@@ -80,7 +80,7 @@ VkImageCreateInfo image_create_info(VkFormat format, VkExtent3D extent, VkImageU
     return info;
 }
 
-VkImageViewCreateInfo imageview_create_info(VkImage image, VkFormat format, VkComponentMapping componentMapping, VkImageAspectFlags aspectFlags) {
+[[nodiscard]] VkImageViewCreateInfo imageview_create_info(VkImage image, VkFormat format, VkComponentMapping componentMapping, VkImageAspectFlags aspectFlags) {
     VkImageViewCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     info.pNext = nullptr;

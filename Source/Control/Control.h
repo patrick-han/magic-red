@@ -12,34 +12,7 @@ static Camera camera(cameraPos, cameraUp, cameraFront, -90.0f, 0.0f, 45.0f);
 static float cameraSpeed = 0.0f;
 static bool firstMouse = true;
 static float lastX = WINDOW_WIDTH / 2, lastY = WINDOW_HEIGHT / 2; // Initial mouse positions
-
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-    }
-
-}
-
-static void process_input(GLFWwindow* window, float deltaTime) {
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-        cameraSpeed = 20.0f * deltaTime;
-    } else {
-        cameraSpeed = 10.0f * deltaTime;
-    }
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        camera.process_keyboard_input(CameraMovementDirection::FORWARD, cameraSpeed);
-    }
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        camera.process_keyboard_input(CameraMovementDirection::BACKWARD, cameraSpeed);
-    }
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-        camera.process_keyboard_input(CameraMovementDirection::LEFT, cameraSpeed);
-    }
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        camera.process_keyboard_input(CameraMovementDirection::RIGHT, cameraSpeed);
-    }
-}
-
+static bool freeMouse = false;
 static void mouse_callback(GLFWwindow* window, double xpos, double ypos) // Input current mouse positions
 {
 	float xposf = static_cast<float>(xpos);
@@ -67,4 +40,40 @@ static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
 	float yoffsetf = static_cast<float>(yoffset);
 	camera.adjust_fov(yoffsetf);
+}
+
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
+    if (key == GLFW_KEY_GRAVE_ACCENT && action == GLFW_PRESS) { // Hide/show cursor to control UI
+        freeMouse = !freeMouse;
+        if (!freeMouse) {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            glfwSetCursorPosCallback(window, nullptr);
+        } else {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            glfwSetCursorPosCallback(window, mouse_callback);
+        }
+    }
+}
+
+static void process_input(GLFWwindow* window, float deltaTime) {
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+        cameraSpeed = 20.0f * deltaTime;
+    } else {
+        cameraSpeed = 10.0f * deltaTime;
+    }
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+        camera.process_keyboard_input(CameraMovementDirection::FORWARD, cameraSpeed);
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+        camera.process_keyboard_input(CameraMovementDirection::BACKWARD, cameraSpeed);
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+        camera.process_keyboard_input(CameraMovementDirection::LEFT, cameraSpeed);
+    }
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+        camera.process_keyboard_input(CameraMovementDirection::RIGHT, cameraSpeed);
+    }
 }

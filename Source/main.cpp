@@ -25,16 +25,25 @@
 #include "Common/Log.h"
 #include "DeletionQueue.h"
 #include "Mesh/Mesh.h"
+
 #include "Wrappers/Buffer.h"
 #include "Wrappers/Image.h"
+#include "Wrappers/ImageMemoryBarrier.h"
+#include "Wrappers/DynamicRendering.h"
+
 #include "Pipeline/MaterialFunctions.h"
 #include "Mesh/RenderObject.h"
 #include "Vertex/VertexDescriptors.h"
 #include "Common/Config.h"
+#include "Common/Defaults.h"
 #include "Scene/Scene.h"
 #include "Pipeline/GraphicsPipeline.h"
 #include "Mesh/MeshPushConstants.h"
 #include "Descriptor/Descriptor.h"
+
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
 
 // Frame data
 int frameNumber = 0;
@@ -83,7 +92,7 @@ private:
     // Swapchain
     VkSwapchainKHR swapChain;
     VkFormat swapChainFormat;
-    uint32_t swapChainImageCount = 2; // Should probably request support for this, but it's probably fine
+    uint32_t swapChainImageCount = 3; // Should probably request support for this, but it's probably fine
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;
 
@@ -106,6 +115,11 @@ private:
 
     // Lights
     AllocatedBuffer PointLightsBuffer;
+
+    // Immediate rendering resources
+    VkFence immediateFence;
+    VkCommandBuffer immediateCommandBuffer;
+    VkCommandPool immediateCommandPool;
 
     // Cleanup
     DeletionQueue mainDeletionQueue; // Contains all deletable vulkan resources except pipelines/pipeline layouts
@@ -389,6 +403,8 @@ private:
         vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, nullptr); // We only specified a minimum during creation, need to query for the real number
         swapChainImages.resize(swapChainImageCount); 
         vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, swapChainImages.data());
+        MRLOG("Final number of swapchain images: " << swapChainImageCount);
+        assert(swapChainImageCount >= MAX_FRAMES_IN_FLIGHT); // Need at least as many swapchain images as FiFs or the extra FiFs are useless
         swapChainImageViews.resize(swapChainImages.size());
 
         for (int i = 0; i < swapChainImageViews.size(); i++) {
@@ -483,6 +499,15 @@ private:
                 vkDestroyFence(device, renderFences[i], nullptr);
             });
         }
+
+        // Immediate submission synchronization structures
+        {
+            VkFenceCreateInfo fenceCreateInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
+            vkCreateFence(device, &fenceCreateInfo, nullptr, &immediateFence);
+            mainDeletionQueue.push_function([=]() {
+                vkDestroyFence(device, immediateFence, nullptr);
+            });
+        }
     }
 
     void createCommandPool() {
@@ -490,14 +515,17 @@ private:
         VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, // allows any command buffer allocated from a pool to be individually reset to the initial state; either by calling vkResetCommandBuffer, or via the implicit reset when calling vkBeginCommandBuffer.
         graphicsQueueFamilyIndex};
         vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &commandPool);
+        vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &immediateCommandPool);
 
         mainDeletionQueue.push_function([=]() {
             vkDestroyCommandPool(device, commandPool, nullptr);
+            vkDestroyCommandPool(device, immediateCommandPool, nullptr);
         });
     }
     
 
     void createCommandBuffers() {
+        // Main per FiF command buffers
         commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
         VkCommandBufferAllocateInfo cmdBufferAllocInfo = {};
         cmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -505,6 +533,14 @@ private:
         cmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         cmdBufferAllocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
         vkAllocateCommandBuffers(device, &cmdBufferAllocInfo, commandBuffers.data());
+
+        // Immediate command buffer
+        VkCommandBufferAllocateInfo immCmdBufferAllocInfo = {};
+        immCmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        immCmdBufferAllocInfo.commandPool = immediateCommandPool;
+        immCmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        immCmdBufferAllocInfo.commandBufferCount = 1;
+        vkAllocateCommandBuffers(device, &immCmdBufferAllocInfo, &immediateCommandBuffer);
     }
 
     void retrieveQueues() {
@@ -525,32 +561,6 @@ private:
         mainDeletionQueue.push_function([&]() {
 		    vmaDestroyAllocator(vmaAllocator);
         });
-    }
-
-    void init_scene_meshes() {
-        // Sponza mesh
-        Mesh sponzaMesh;
-        load_mesh_from_obj(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza.obj", MeshColor::Blue);
-        Scene::GetInstance().sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
-
-        RenderObject sponzaObject("defaultMaterial", "sponza");
-        glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
-        glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
-        sponzaObject.transformMatrix = translate * scale;
-
-        Scene::GetInstance().sceneRenderObjects.push_back(sponzaObject);
-
-
-        // Suzanne mesh
-        Mesh monkeyMesh;
-        load_mesh_from_obj(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.obj", MeshColor::Red);
-        Scene::GetInstance().sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
-
-        RenderObject monkeyObject("defaultMaterial", "suzanne");
-        glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
-        monkeyObject.transformMatrix = monkeyTranslate;
-
-        Scene::GetInstance().sceneRenderObjects.push_back(monkeyObject);
     }
 
     void init_scene_lights() {
@@ -630,7 +640,131 @@ private:
         create_material(defaultPipeline, "defaultMaterial");
     }
 
-    void draw_objects(uint32_t imageIndex) {
+    void init_scene_meshes() {
+        // Sponza mesh
+        Mesh sponzaMesh;
+        load_mesh_from_obj(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza.obj", MeshColor::Blue);
+        Scene::GetInstance().sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
+
+        RenderObject sponzaObject("defaultMaterial", "sponza");
+        glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
+        glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
+        sponzaObject.transformMatrix = translate * scale;
+
+        Scene::GetInstance().sceneRenderObjects.push_back(sponzaObject);
+
+
+        // Suzanne mesh
+        Mesh monkeyMesh;
+        load_mesh_from_obj(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.obj", MeshColor::Red);
+        Scene::GetInstance().sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
+
+        RenderObject monkeyObject("defaultMaterial", "suzanne");
+        glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
+        monkeyObject.transformMatrix = monkeyTranslate;
+
+        Scene::GetInstance().sceneRenderObjects.push_back(monkeyObject);
+    }
+
+    void init_imgui() {
+        // Create a descriptor pool for IMGUI
+        // The size of the pool is very oversized, but it's copied from imgui demo
+
+        VkDescriptorPoolSize poolSizes[] = { 
+            { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+        };
+
+        VkDescriptorPoolCreateInfo poolInfo = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+            .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+            .maxSets = 1000,
+            .poolSizeCount = (uint32_t)std::size(poolSizes),
+            .pPoolSizes = poolSizes
+        };
+
+        VkDescriptorPool imguiPool;
+        vkCreateDescriptorPool(device, &poolInfo, nullptr, &imguiPool);
+
+        // Initialize core structures of imgui library
+        ImGui::CreateContext();
+
+        // Initialize imgui for GLFW
+        ImGui_ImplGlfw_InitForVulkan(window, true);
+
+        // Initialize imgui for Vulkan
+        ImGui_ImplVulkan_InitInfo initInfo = {
+            .Instance = instance,
+            .PhysicalDevice = physicalDevice,
+            .Device = device,
+            .Queue = graphicsQueue,
+            .DescriptorPool = imguiPool,
+            .MinImageCount = 3,
+            .ImageCount = 3,
+            .UseDynamicRendering = true,
+            .ColorAttachmentFormat = swapChainFormat,
+        };
+
+        initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+        ImGui_ImplVulkan_Init(&initInfo, VK_NULL_HANDLE);
+
+        // Execute a gpu command to upload imgui font textures
+        // Update: No longer requires passing a command buffer (builds own pool + buffer internally), also no longer require destroy DestroyFontUploadObjects()
+        // immediate_submit([=]() { 
+            ImGui_ImplVulkan_CreateFontsTexture(); 
+        // });
+
+        // add the destroy the imgui created structures
+        mainDeletionQueue.push_function([=]() {
+            vkDestroyDescriptorPool(device, imguiPool, nullptr);
+        });
+    }
+
+    // Used for data uploads and other "instant operations" not synced with the swapchain
+    void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function) { // Lambda should take a command buffer and return nothing
+        
+        vkResetFences(device, 1, &immediateFence);
+        vkResetCommandBuffer(immediateCommandBuffer, {});
+
+        VkCommandBufferBeginInfo beginInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .pNext = nullptr,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+            .pInheritanceInfo = {}
+        };
+        vkBeginCommandBuffer(immediateCommandBuffer, &beginInfo);
+
+        function(immediateCommandBuffer);
+
+        vkEndCommandBuffer(immediateCommandBuffer);
+
+        // Submit immediate workload
+        VkSubmitInfo submitInfo = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .waitSemaphoreCount = 0,
+            .pWaitSemaphores = nullptr,
+            .pWaitDstStageMask = nullptr,
+            .commandBufferCount = 1,
+            .pCommandBuffers = &immediateCommandBuffer,
+            .signalSemaphoreCount = 0,
+            .pSignalSemaphores = nullptr
+        };
+        vkQueueSubmit(graphicsQueue, 1, &submitInfo, immediateFence);
+
+        vkWaitForFences(device, 1, &immediateFence, true, (std::numeric_limits<uint64_t>::max)());
+    }
+
+    void draw_objects() {
         glm::mat4 view = camera.get_view_matrix();
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
         projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
@@ -661,6 +795,23 @@ private:
         init_descriptors();
         createMaterialPipelines();
         init_scene_meshes();
+        init_imgui();
+    }
+
+    void draw_imgui(VkImageView targetImageView) {
+        //VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+        VkRenderingAttachmentInfoKHR colorAttachment = rendering_attachment_info(
+            targetImageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, nullptr
+        );
+        VkRenderingInfoKHR renderingInfo = rendering_info_fullscreen(1, &colorAttachment, nullptr);
+
+        PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdBeginRenderingKHR"));
+        vkCmdBeginRenderingKHR(commandBuffers[currentFrame], &renderingInfo);
+
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffers[currentFrame]);
+
+        PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR"));
+        vkCmdEndRenderingKHR(commandBuffers[currentFrame]);
     }
 
     void drawFrame() {
@@ -676,33 +827,19 @@ private:
             }
             vkResetCommandBuffer(commandBuffers[currentFrame], {});
 
-            VkClearValue clearValue = {{0.5f, 0.5f, 0.7f, 1.0f}};
-            VkClearValue clearValueDepth = {{1.0f, 0}};
-
             VkCommandBufferBeginInfo beginInfo = {};
             beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
             vkBeginCommandBuffer(commandBuffers[currentFrame], &beginInfo);
 
             {
-                // Transition swapchain to color attachemnt write
-                VkImageMemoryBarrier imb = {
-                    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                    .pNext = nullptr,
-                    .srcAccessMask = {},
-                    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                    .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .image = swapChainImages[imageIndex],
-                    .subresourceRange = {
-                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                        .baseMipLevel = 0,
-                        .levelCount = 1,
-                        .baseArrayLayer = 0,
-                        .layerCount = 1,
-                    }
-                };
+                // Transition swapchain to color attachment write
+                VkImageMemoryBarrier imb = image_memory_barrier(
+                    swapChainImages[imageIndex], 
+                    {}, 
+                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                    VK_IMAGE_LAYOUT_UNDEFINED,
+                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+                );
                 vkCmdPipelineBarrier(
                     commandBuffers[currentFrame], 
                     VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
@@ -714,77 +851,46 @@ private:
                 );
             }
 
-            VkRenderingAttachmentInfoKHR colorAttachmentInfo {
-                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
-                .pNext = nullptr,
-                .imageView = swapChainImageViews[imageIndex],
-                .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                .resolveMode = {},
-                .resolveImageView {},
-                .resolveImageLayout = {},
-                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                .clearValue = clearValue
-            };
+            VkRenderingAttachmentInfoKHR colorAttachmentInfo = rendering_attachment_info(
+                swapChainImageViews[imageIndex],
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                &DEFAULT_CLEAR_VALUE_COLOR
+            );
 
-            VkRenderingAttachmentInfoKHR depthAttachmentInfo {
-                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
-                .pNext = nullptr,
-                .imageView = depthImage.imageView,
-                .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                .resolveMode = {},
-                .resolveImageView {},
-                .resolveImageLayout = {},
-                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                .clearValue = clearValueDepth
-            };
+            VkRenderingAttachmentInfoKHR depthAttachmentInfo  = rendering_attachment_info(
+                depthImage.imageView,
+                VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                &DEFAULT_CLEAR_VALUE_DEPTH
+            );
 
-            VkRenderingInfoKHR renderingInfo = {
-                .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
-                .pNext = nullptr,
-                .flags = {},
-                .renderArea = VkRect2D{ {0, 0}, {WINDOW_WIDTH, WINDOW_HEIGHT}},
-                .layerCount = 1,
-                .viewMask = 0,
-                .colorAttachmentCount = 1,
-                .pColorAttachments = &colorAttachmentInfo,
-                .pDepthAttachment = &depthAttachmentInfo,
-                .pStencilAttachment = nullptr,
-                // .pStencilAttachment = &stencilAttachmentInfo
-            };
+            VkRenderingInfoKHR renderingInfo = rendering_info_fullscreen(
+                1, &colorAttachmentInfo, &depthAttachmentInfo
+            );
+
             PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdBeginRenderingKHR"));
             vkCmdBeginRenderingKHR(commandBuffers[currentFrame], &renderingInfo);
 
-            VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(WINDOW_WIDTH), static_cast<float>(WINDOW_HEIGHT), 0.0f, 1.0f };
-            vkCmdSetViewport(commandBuffers[currentFrame], 0, 1, &viewport);
-            VkRect2D scissor = { {0, 0}, {WINDOW_WIDTH, WINDOW_HEIGHT}};
-            vkCmdSetScissor(commandBuffers[currentFrame], 0, 1, &scissor);
-            draw_objects(imageIndex);
+            vkCmdSetViewport(commandBuffers[currentFrame], 0, 1, &DEFAULT_VIEWPORT_FULLSCREEN);
+            vkCmdSetScissor(commandBuffers[currentFrame], 0, 1, &DEFAULT_SCISSOR_FULLSCREEN);
+            draw_objects();
 
             PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR"));
             vkCmdEndRenderingKHR(commandBuffers[currentFrame]);
 
+
+
+            // Draw imgui
+            draw_imgui(swapChainImageViews[imageIndex]);
+
             {
                 // Transition swapchain to correct presentation layout
-                VkImageMemoryBarrier imb = {
-                    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                    .pNext = nullptr,
-                    .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                    .dstAccessMask = {},
-                    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                    .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .image = swapChainImages[imageIndex],
-                    .subresourceRange = {
-                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                        .baseMipLevel = 0,
-                        .levelCount = 1,
-                        .baseArrayLayer = 0,
-                        .layerCount = 1,
-                    }
-                };
+                VkImageMemoryBarrier imb = image_memory_barrier(
+                    swapChainImages[imageIndex], 
+                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                    {},
+                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+                );
                 vkCmdPipelineBarrier(
                     commandBuffers[currentFrame], 
                     VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -838,12 +944,21 @@ private:
             lastFrame = currentFrame;
             process_input(window, deltaTime);
 
+            ImGui_ImplVulkan_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+            ImGui::ShowDemoWindow();
+            ImGui::Render();
             drawFrame();
         }
     }
 
     void cleanup() {
         vkDeviceWaitIdle(device);
+
+        ImGui_ImplVulkan_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
 
         globalDescriptorAllocator.destroy_pool(device);
 
