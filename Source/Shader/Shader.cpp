@@ -2,6 +2,7 @@
 #include <string>
 #include <fstream>
 #include "Common/Log.h"
+#include <vector>
 // #include <iostream>
 
 // #include <sstream>
