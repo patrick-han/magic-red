@@ -9,7 +9,7 @@
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
-#include <vulkan/vk_enum_string_helper.h>
+#include <vulkan/vk_enum_string_helper.h> // Doesn't work on linux?
 #include "Common/Debug.h"
 
 #include <iostream>

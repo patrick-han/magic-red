@@ -1,7 +1,8 @@
 #include "Wrappers/Buffer.h"
-#include <vulkan/vk_enum_string_helper.h>
+#include <vulkan/vk_enum_string_helper.h> // Doesn't work on linux?
 #include <cassert>
 #include "DeletionQueue.h"
+#include <cstring>
 
 void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const void* bufferData, VkBufferUsageFlags bufferUsage, VmaAllocator allocator, DeletionQueue& deletionQueue) {
 

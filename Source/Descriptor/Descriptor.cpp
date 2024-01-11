@@ -38,8 +38,8 @@ void DescriptorAllocator::init_pool(VkDevice device, uint32_t maxSets, std::span
     std::vector<VkDescriptorPoolSize> poolSizes;
     for (PoolSizeRatio poolRatio : poolRatios) {
         poolSizes.push_back(VkDescriptorPoolSize {
-            .descriptorCount = static_cast<uint32_t>(poolRatio.ratio * maxSets),
-            .type = poolRatio.type
+            .type = poolRatio.type,
+            .descriptorCount = static_cast<uint32_t>(poolRatio.ratio * maxSets)
         });
     }
 

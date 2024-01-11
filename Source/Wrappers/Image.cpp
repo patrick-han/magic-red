@@ -1,7 +1,7 @@
 #include "Wrappers/Image.h"
 #include "DeletionQueue.h"
 #include "Common/Log.h"
-#include <vulkan/vk_enum_string_helper.h>
+#include <vulkan/vk_enum_string_helper.h> // Doesn't work on linux?
 
 void upload_gpu_only_image(AllocatedImage& allocatedImage, VkImageCreateInfo imageCreateInfo, VmaAllocator allocator, DeletionQueue& deletionQueue) {
     VmaAllocationCreateInfo vmaAllocInfo = {};

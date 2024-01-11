@@ -31,9 +31,9 @@ set(GLFW_BUILD_EXAMPLES, OFF)
 set(GLFW_BUILD_TESTS, OFF)
 set(GLFW_BUILD_DOCS, OFF)
 
-add_subdirectory(GLFW)
+add_subdirectory(glfw)
 target_link_libraries(Dependencies INTERFACE glfw)
-target_include_directories(Dependencies INTERFACE GLFW/include/)
+target_include_directories(Dependencies INTERFACE glfw/include/)
 
 # ========== GLM ========== #
 add_subdirectory(glm)

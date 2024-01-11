@@ -2,13 +2,14 @@
 #include <string>
 #include <fstream>
 #include "Common/Log.h"
+#include <vector>
 // #include <iostream>
 
 // #include <sstream>
 
 
 bool load_shader_spirv_source_to_module(const std::string& shaderSpirvPath, VkDevice device, VkShaderModule& shaderModule) {
-    // Ppen the file. With cursor at the end
+    // Open the file. With cursor at the end
     std::ifstream file(shaderSpirvPath, std::ios::ate | std::ios::binary);
 
     if (!file.is_open()) {

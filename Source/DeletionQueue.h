@@ -1,9 +1,7 @@
 #pragma once
 #include <deque>
 #include "Common/Log.h"
-#ifdef _WIN32
 #include <functional>
-#endif
 
 struct DeletionQueue
 {
