@@ -26,14 +26,10 @@ target_include_directories(Dependencies SYSTEM INTERFACE VulkanMemoryAllocator/i
 # add_subdirectory(shaderc)
 # target_link_libraries(Dependencies INTERFACE shaderc)
 
-# ========== GLFW ========== #
-set(GLFW_BUILD_EXAMPLES, OFF)
-set(GLFW_BUILD_TESTS, OFF)
-set(GLFW_BUILD_DOCS, OFF)
-
-add_subdirectory(glfw)
-target_link_libraries(Dependencies INTERFACE glfw)
-target_include_directories(Dependencies INTERFACE glfw/include/)
+# ========== SDL ========== #
+set(SDL_TESTS OFF CACHE BOOL "Build SDL tests" FORCE)
+add_subdirectory(SDL)
+target_link_libraries(Dependencies INTERFACE SDL3::SDL3)
 
 # ========== GLM ========== #
 add_subdirectory(glm)
@@ -52,9 +48,9 @@ target_sources(IMGUI PRIVATE
     imgui/imgui_widgets.cpp 
     imgui/imgui_tables.cpp 
     imgui/imgui_impl_vulkan.cpp 
-    imgui/imgui_impl_glfw.cpp 
+    imgui/imgui_impl_sdl3.cpp 
     )
-target_include_directories(IMGUI PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/glfw/include/" "${Vulkan_INCLUDE_DIR}")
+target_include_directories(IMGUI PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/SDL/include/" "${Vulkan_INCLUDE_DIR}")
 target_link_libraries(Dependencies INTERFACE IMGUI)
 target_include_directories(Dependencies INTERFACE imgui)
     

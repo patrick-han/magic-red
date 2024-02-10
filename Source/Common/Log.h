@@ -2,13 +2,11 @@
 
 #include <iostream>
 
-// Logging
-
 #define MRLOG(msg) \
-    std::cout << "[MRLOG] " << msg << std::endl
+    std::cout << "[LOG] " << msg << std::endl
 
 #define MRWARN(msg) \
-    std::cout << "[WARN] " << msg << std::endl
+    std::cout << "[WARNING] " << msg << std::endl
 
 #define DEBUG(msg) \
     std::cout << "[DEBUG] " << __FILE__ << "(" << __LINE__ << "): " << msg << std::endl
@@ -17,4 +15,4 @@
     std::cerr << "[CERR] " << __FILE__ << "(" << __LINE__ << "): " << msg << std::endl
 
 #define MRVAL(msg) \
-    std::cerr << "[VAL] " << __FILE__ << "(" << __LINE__ << "): " << msg << std::endl
+    std::cerr << "[VULKAN] " << __FILE__ << "(" << __LINE__ << "): " << msg << std::endl

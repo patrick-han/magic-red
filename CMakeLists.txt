@@ -26,9 +26,10 @@ include_directories(${CMAKE_BINARY_DIR}/Source/External)
 
 # Add SOURCE_FILES and HEADER_FILES variables, will traverse all subdirectories
 file(GLOB_RECURSE SOURCE_FILES ${CMAKE_SOURCE_DIR}/Source/*.cpp)
+file(GLOB_RECURSE HEADER_FILES ${CMAKE_SOURCE_DIR}/Source/*.h)
 
 # Define the executable
-add_executable(${PROJECT_NAME} ${SOURCE_FILES})
+add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${HEADER_FILES})
 
 # Dependencies
 find_package(Vulkan REQUIRED)

@@ -1,5 +1,6 @@
 #include "vulkan/vulkan.h"
-#include <GLFW/glfw3.h>
+#include "SDL3/SDL.h"
+#include "SDL3/SDL_vulkan.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -10,18 +11,16 @@
 #include "vk_mem_alloc.h"
 
 #include <vulkan/vk_enum_string_helper.h> // Doesn't work on linux?
-#include "Common/Debug.h"
+#include <Common/Debug.h>
 
-#include <iostream>
 #include <vector>
 #include <set>
-#include <unordered_map>
 #include <stdexcept>
 #include <cstdlib>
 
 #include "RootDir.h"
 
-#include "Control/Control.h"
+#include "Control/Camera.h"
 #include "Common/Log.h"
 #include "DeletionQueue.h"
 #include "Mesh/Mesh.h"
@@ -41,14 +40,23 @@
 #include "Mesh/MeshPushConstants.h"
 #include "Descriptor/Descriptor.h"
 
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_vulkan.h"
+#include <IncludeHelpers/ImguiIncludes.h>
 
 // Frame data
 int frameNumber = 0;
 float deltaTime = 0.0f; // Time between current and last frame
-float lastFrame = 0.0f; // Time of last frame
+uint64_t lastFrameTick = 0;
+uint64_t currentFrameTick = 0;
+bool interactableUI = false;
+
+// Camera
+glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, -2.0f);
+glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+Camera camera(cameraPos, cameraUp, cameraFront, -90.0f, 0.0f, 45.0f, true);
+float cameraSpeed = 0.0f;
+bool firstMouse = true;
+float lastX = WINDOW_WIDTH / 2, lastY = WINDOW_HEIGHT / 2; // Initial mouse positions
 
 class Engine {
 public:
@@ -60,13 +68,14 @@ public:
     }
 
 private:
-    GLFWwindow* window;
+    SDL_Window *window;
+    bool stop_rendering{ false };
 
     // VulkanMemoryAllocator (VMA)
     VmaAllocator vmaAllocator;
 
     // Instance
-    std::vector<const char*> glfwExtensionsVector;
+    std::vector<const char*> extensionsVector;
     std::vector<const char*> layers;
     VkInstance instance;
     VkDebugUtilsMessengerEXT debugMessenger;
@@ -125,37 +134,39 @@ private:
     DeletionQueue mainDeletionQueue; // Contains all deletable vulkan resources except pipelines/pipeline layouts
 
     void initWindow() {
-        glfwInit();
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-        window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Vulkan Engine", nullptr, nullptr);
-        glfwSetKeyCallback(window, key_callback);
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Hide cursor and capture it
-	    glfwSetCursorPosCallback(window, mouse_callback);
-        glfwSetScrollCallback(window, scroll_callback);
+        // We initialize SDL and create a window with it.
+        SDL_Init(SDL_INIT_VIDEO);
+
+        window = SDL_CreateWindow("Vulkan Engine", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_VULKAN);
+        SDL_SetRelativeMouseMode(SDL_TRUE);
     }
 
     void createInstance() {
         // Specify application and engine info
         VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO, nullptr, "Hello Triangle", VK_MAKE_API_VERSION(1, 0, 0, 0), "Magic Red", VK_MAKE_API_VERSION(1, 0, 0, 0), VK_API_VERSION_1_2};
 
-        // Get extensions required by GLFW for VK surface rendering. Should contain atleast VK_KHR_surface
-        uint32_t glfwExtensionCount = 0;
-        auto glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-        glfwExtensionsVector = std::vector<const char*>(glfwExtensions, glfwExtensions + glfwExtensionCount);
+        // Get extensions required for SDL VK surface rendering
+        uint32_t sdlExtensionCount = 0;
+        SDL_Vulkan_GetInstanceExtensions(&sdlExtensionCount);
+        extensionsVector.resize(sdlExtensionCount);
+        const char* const* sdlVulkanExtensions = SDL_Vulkan_GetInstanceExtensions(&sdlExtensionCount);
+        for (int i = 0; i < sdlExtensionCount; i++) {
+            extensionsVector[i] = sdlVulkanExtensions[i];
+        }
+        
 
         // MoltenVK requires
         VkInstanceCreateFlagBits instanceCreateFlagBits = {};
         if (appleBuild) {
-            std::cout << "Running on an Apple device, adding appropriate extension and instance creation flag bits" << std::endl;
-            glfwExtensionsVector.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+            MRLOG("Running on an Apple device, adding appropriate extension and instance creation flag bits");
+            extensionsVector.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
             instanceCreateFlagBits = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
         }
 
         // Enable validation layers and creation of debug messenger if building debug
         if (enableValidationLayers) {
             MRLOG("Debug build");
-            glfwExtensionsVector.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            extensionsVector.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
             layers.push_back("VK_LAYER_KHRONOS_validation");
         } else {
             MRLOG("Release build");
@@ -169,8 +180,8 @@ private:
             &appInfo,
             static_cast<uint32_t>(layers.size()),
             layers.data(),
-            static_cast<uint32_t>(glfwExtensionsVector.size()),
-            glfwExtensionsVector.data()
+            static_cast<uint32_t>(extensionsVector.size()),
+            extensionsVector.data()
         };
         VkResult res = vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
         if (res != VK_SUCCESS) {
@@ -211,9 +222,8 @@ private:
     }
 
     void createSurface() {
-        VkResult res = glfwCreateWindowSurface(instance, window, nullptr, &surface);
-        if (res != VK_SUCCESS) {
-            MRCERR(string_VkResult(res));
+        SDL_bool res = SDL_Vulkan_CreateSurface(window, instance, nullptr, &surface);
+        if (res != SDL_TRUE) {
             throw std::runtime_error("Could not create surface!");
         }
         mainDeletionQueue.push_function([=]() {
@@ -698,8 +708,8 @@ private:
         // Initialize core structures of imgui library
         ImGui::CreateContext();
 
-        // Initialize imgui for GLFW
-        ImGui_ImplGlfw_InitForVulkan(window, true);
+        // Initialize imgui for SDL
+        ImGui_ImplSDL3_InitForVulkan(window);
 
         // Initialize imgui for Vulkan
         ImGui_ImplVulkan_InitInfo initInfo = {
@@ -937,19 +947,87 @@ private:
     }
 
     void mainLoop() {
-        while(!glfwWindowShouldClose(window)) {
-            glfwPollEvents();
-            float currentFrame = static_cast<float>(glfwGetTime());
-            deltaTime = currentFrame - lastFrame;
-            lastFrame = currentFrame;
-            process_input(window, deltaTime);
-
+        SDL_Event sdlEvent;
+        bool bQuit = false;
+        ImGuiIO& io = ImGui::GetIO();
+        while (!bQuit) {
+            // Handle events on queue
+            while (SDL_PollEvent(&sdlEvent) != 0) {
+                ImGui_ImplSDL3_ProcessEvent(&sdlEvent);      
+                if (sdlEvent.window.type == SDL_EVENT_WINDOW_MINIMIZED) {
+                    stop_rendering = true;
+                }
+                if (sdlEvent.window.type == SDL_EVENT_WINDOW_RESTORED) {
+                    stop_rendering = false;
+                }
+                if (sdlEvent.type == SDL_EVENT_QUIT) { // Built in Alt+F4 or hitting the 'x' button
+                    SDL_SetRelativeMouseMode(SDL_FALSE); // Needed or else mouse freeze persists until clicking after closing app
+                    bQuit = true;
+                }
+                // For single key presses
+                if (sdlEvent.type == SDL_EVENT_KEY_DOWN) {
+                    if (sdlEvent.key.keysym.sym == SDLK_TAB) {
+                        interactableUI = !interactableUI;
+                        if (!interactableUI) {
+                            SDL_SetRelativeMouseMode(SDL_FALSE);
+                            camera.freezeCamera();
+                        } else {
+                            SDL_SetRelativeMouseMode(SDL_TRUE);
+                            camera.unfreezeCamera();
+                        }
+                    }
+                }
+                
+                // Mouse motion
+                if (sdlEvent.type == SDL_EVENT_MOUSE_MOTION) {
+                    float xoffset = sdlEvent.motion.xrel;
+                    float yoffset =  -sdlEvent.motion.yrel;
+                    const float sensitivity = 0.1f;
+                    xoffset *= sensitivity;
+                    yoffset *= sensitivity;
+                    camera.process_mouse_movement(xoffset, yoffset, true);
+                }
+            }
             ImGui_ImplVulkan_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
+            ImGui_ImplSDL3_NewFrame();
             ImGui::NewFrame();
             ImGui::ShowDemoWindow();
             ImGui::Render();
             drawFrame();
+
+            lastFrameTick = currentFrameTick;
+            currentFrameTick = SDL_GetTicks();
+            deltaTime = (currentFrameTick - lastFrameTick) / 1000.f;
+
+            // For multi-press/holding down keys
+            const Uint8* state = SDL_GetKeyboardState(nullptr);
+            if (state[SDL_SCANCODE_LSHIFT]) {
+                cameraSpeed = 20.0f;
+            } else {
+                cameraSpeed = 10.0f;
+            }
+            if (state[SDL_SCANCODE_ESCAPE]) {
+                SDL_SetRelativeMouseMode(SDL_FALSE); // Needed or else mouse freeze persists until clicking after closing app
+                bQuit = true;
+            }
+            if (state[SDL_SCANCODE_W]) {
+                camera.process_keyboard_input(CameraMovementDirection::FORWARD, cameraSpeed * deltaTime);
+            }
+            if (state[SDL_SCANCODE_S]) {
+                camera.process_keyboard_input(CameraMovementDirection::BACKWARD, cameraSpeed * deltaTime);
+            }
+            if (state[SDL_SCANCODE_A]) {
+                camera.process_keyboard_input(CameraMovementDirection::LEFT, cameraSpeed * deltaTime);
+            }
+            if (state[SDL_SCANCODE_D]) {
+                camera.process_keyboard_input(CameraMovementDirection::RIGHT, cameraSpeed * deltaTime);
+            }
+            if (state[SDL_SCANCODE_SPACE]) {
+                camera.process_keyboard_input(CameraMovementDirection::UP, cameraSpeed * deltaTime);
+            }
+            if (state[SDL_SCANCODE_LCTRL]) {
+                camera.process_keyboard_input(CameraMovementDirection::DOWN, cameraSpeed * deltaTime);
+            }
         }
     }
 
@@ -957,7 +1035,7 @@ private:
         vkDeviceWaitIdle(device);
 
         ImGui_ImplVulkan_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
+        ImGui_ImplSDL3_Shutdown();
         ImGui::DestroyContext();
 
         globalDescriptorAllocator.destroy_pool(device);
@@ -968,8 +1046,7 @@ private:
         }
         mainDeletionQueue.flush();
 
-        glfwDestroyWindow(window);
-        glfwTerminate();
+        SDL_DestroyWindow(window);
     }
 };
 

@@ -13,9 +13,6 @@
 [submodule "Dependencies/glslang"]
 	path = Dependencies/glslang
 	url = https://github.com/KhronosGroup/glslang
-[submodule "Dependencies/glfw"]
-	path = Dependencies/glfw
-	url = https://github.com/glfw/glfw
 [submodule "Dependencies/glm"]
 	path = Dependencies/glm
 	url = https://github.com/g-truc/glm
@@ -25,3 +22,6 @@
 [submodule "Dependencies/assimp"]
 	path = Dependencies/assimp
 	url = https://github.com/assimp/assimp
+[submodule "Dependencies/SDL"]
+	path = Dependencies/SDL
+	url = git@github.com:libsdl-org/SDL.git
