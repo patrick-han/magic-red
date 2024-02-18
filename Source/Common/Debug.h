@@ -1,6 +1,7 @@
 #pragma once
 #include <vulkan/vulkan.h>
 #include "Common/Log.h"
+#include <Common/Compiler/Unused.h>
 
 // Debug and platform build defines
 
@@ -15,7 +16,9 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* pUserData) {
     MRVAL("validation layer: " << pCallbackData->pMessage);
-    // std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+    UNUSED(messageSeverity);
+    UNUSED(messageType);
+    UNUSED(pUserData);
     return VK_FALSE;
 }
 

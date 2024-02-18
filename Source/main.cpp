@@ -18,8 +18,8 @@
 #include <stdexcept>
 #include <cstdlib>
 
-#include "Generated/RootDir.h"
-#include "Generated/Platform.h"
+#include <Common/RootDir.h>
+#include <Common/Platform.h>
 
 #include "Control/Camera.h"
 #include "Common/Log.h"
@@ -151,17 +151,17 @@ private:
         SDL_Vulkan_GetInstanceExtensions(&sdlExtensionCount);
         extensionsVector.resize(sdlExtensionCount);
         const char* const* sdlVulkanExtensions = SDL_Vulkan_GetInstanceExtensions(&sdlExtensionCount);
-        for (int i = 0; i < sdlExtensionCount; i++) {
+        for (uint32_t i = 0; i < sdlExtensionCount; i++) {
             extensionsVector[i] = sdlVulkanExtensions[i];
         }
         
 
         // MoltenVK requires
-        VkInstanceCreateFlagBits instanceCreateFlagBits = {};
+        VkInstanceCreateFlags instanceCreateFlagBits = {};
 #if PLATFORM_MACOS
             MRLOG("Running on an Apple device, adding appropriate extension and instance creation flag bits");
             extensionsVector.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-            instanceCreateFlagBits = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+            instanceCreateFlagBits |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
 
         // Enable validation layers and creation of debug messenger if building debug
@@ -273,13 +273,13 @@ private:
         std::vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertyCount, queueFamilyProperties.data());
 
-        graphicsQueueFamilyIndex = std::distance(queueFamilyProperties.begin(),
+        graphicsQueueFamilyIndex = static_cast<uint32_t>(std::distance(queueFamilyProperties.begin(),
             std::find_if(queueFamilyProperties.begin(), queueFamilyProperties.end(),
                 [](VkQueueFamilyProperties const& qfp) {
                     return qfp.queueFlags & VK_QUEUE_GRAPHICS_BIT;
                 }
             )
-        );
+        ));
         presentQueueFamilyIndex = 0u;
         for (unsigned long queueFamilyIndex = 0ul; queueFamilyIndex < queueFamilyProperties.size(); queueFamilyIndex++) {
             // Check if a given queue family on our device supports presentation to the surface that was created
@@ -950,6 +950,7 @@ private:
         SDL_Event sdlEvent;
         bool bQuit = false;
         ImGuiIO& io = ImGui::GetIO();
+        UNUSED(io);
         while (!bQuit) {
             // Handle events on queue
             while (SDL_PollEvent(&sdlEvent) != 0) {

@@ -35,9 +35,9 @@ GraphicsPipeline::GraphicsPipeline(
     
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, VkPipelineVertexInputStateCreateFlags(), 0u, nullptr, 0u, nullptr };
     VertexInputDescription vertexDescription = VertexInputDescription::get_default_vertex_description();
-    vertexInputInfo.vertexBindingDescriptionCount = vertexDescription.bindings.size();
+    vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexDescription.bindings.size());
     vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
-    vertexInputInfo.vertexAttributeDescriptionCount = vertexDescription.attributes.size();
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexDescription.attributes.size());
     vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
     
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, nullptr, VkPipelineInputAssemblyStateCreateFlags(), VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE };

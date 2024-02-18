@@ -4,7 +4,7 @@
 #include "MeshPushConstants.h"
 #include <span>
 
-class Mesh;
+struct Mesh;
 class GraphicsPipeline;
 
 struct RenderObject {

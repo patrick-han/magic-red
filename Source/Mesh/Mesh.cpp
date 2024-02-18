@@ -3,6 +3,7 @@
 #include "Common/Log.h"
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "External/tiny_obj_loader.h"
+#include <Common/Compiler/Unused.h>
 
 void load_mesh_from_obj(Mesh& mesh, const char* fileName, MeshColor overrideColor) {
     // Attrib will contain the vertex arrays of the file
@@ -89,7 +90,8 @@ void load_mesh_from_obj(Mesh& mesh, const char* fileName, MeshColor overrideColo
 }
 
 void load_mesh(Mesh& mesh, const char* meshFileName) {
-    
+    UNUSED(mesh);
+    UNUSED(meshFileName);
 }
 
 [[nodiscard]] Mesh& upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue& deletionQueue) {

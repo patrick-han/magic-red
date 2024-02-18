@@ -17,7 +17,7 @@ ADD_CUSTOM_TARGET(release
   COMMENT "Creating the executable in the release mode.")
 
 # Configure assets header file to help us find resources
-configure_file(Source/Generated/RootDir.h.in ${CMAKE_SOURCE_DIR}/Source/Generated/RootDir.h)
+configure_file(Source/Common/Generators/RootDir.h.in ${CMAKE_SOURCE_DIR}/Source/Common/RootDir.h)
 
 
 # Configure platform file
@@ -28,11 +28,11 @@ elseif(APPLE)
   set(PLATFORM_WINDOWS 0)
   set(PLATFORM_MACOS 1)
 endif ()
-configure_file(Source/Generated/Platform.h.in ${CMAKE_SOURCE_DIR}/Source/Generated/Platform.h)
+configure_file(Source/Common/Generators/Platform.h.in ${CMAKE_SOURCE_DIR}/Source/Common/Platform.h)
 
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/Source)
-include_directories(${CMAKE_BINARY_DIR}/Source/Generated)
+# include_directories(${CMAKE_BINARY_DIR}/Source/Common)
 include_directories(${CMAKE_BINARY_DIR}/Source/External)
 
 # Add SOURCE_FILES and HEADER_FILES variables, will traverse all subdirectories
@@ -41,6 +41,14 @@ file(GLOB_RECURSE HEADER_FILES ${CMAKE_SOURCE_DIR}/Source/*.h)
 
 # Define the executable
 add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${HEADER_FILES})
+
+# Warnings as errors
+if(MSVC)
+  target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)
+else()
+  target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror)
+endif()
+
 
 # Dependencies
 find_package(Vulkan REQUIRED)
