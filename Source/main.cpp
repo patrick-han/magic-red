@@ -18,7 +18,8 @@
 #include <stdexcept>
 #include <cstdlib>
 
-#include "RootDir.h"
+#include "Generated/RootDir.h"
+#include "Generated/Platform.h"
 
 #include "Control/Camera.h"
 #include "Common/Log.h"
@@ -157,11 +158,11 @@ private:
 
         // MoltenVK requires
         VkInstanceCreateFlagBits instanceCreateFlagBits = {};
-        if (appleBuild) {
+#if PLATFORM_MACOS
             MRLOG("Running on an Apple device, adding appropriate extension and instance creation flag bits");
             extensionsVector.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
             instanceCreateFlagBits = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-        }
+#endif
 
         // Enable validation layers and creation of debug messenger if building debug
         if (enableValidationLayers) {
@@ -246,24 +247,23 @@ private:
             vkGetPhysicalDeviceProperties(d, &physDeviceProps);
             MRLOG("Physical device enumerated: " << physDeviceProps.deviceName);
         }
-
+#if PLATFORM_MACOS
         // Find Apple device if Apple build, otherwise just choose the first device in the list
         std::vector<VkPhysicalDevice>::iterator findIfIterator;
-        if (appleBuild) {
-            findIfIterator = std::find_if(physicalDevices.begin(), physicalDevices.end(), 
-                [](const VkPhysicalDevice& physicalDevice) -> char* {
-                    VkPhysicalDeviceProperties physDeviceProps;
-                    vkGetPhysicalDeviceProperties(physicalDevice, &physDeviceProps);
-                    return strstr(physDeviceProps.deviceName, "Apple"); // Returns null pointer if not found
-                }
-            );
-            physicalDevice = physicalDevices[std::distance(physicalDevices.begin(), findIfIterator)];
-            VkPhysicalDeviceProperties chosenPhysDeviceProps;
-            vkGetPhysicalDeviceProperties(physicalDevice, &chosenPhysDeviceProps);
-            MRLOG("Chosen deviceName: " << chosenPhysDeviceProps.deviceName);
-        } else {
+        findIfIterator = std::find_if(physicalDevices.begin(), physicalDevices.end(), 
+            [](const VkPhysicalDevice& physicalDevice) -> char* {
+                VkPhysicalDeviceProperties physDeviceProps;
+                vkGetPhysicalDeviceProperties(physicalDevice, &physDeviceProps);
+                return strstr(physDeviceProps.deviceName, "Apple"); // Returns null pointer if not found
+            }
+        );
+        physicalDevice = physicalDevices[std::distance(physicalDevices.begin(), findIfIterator)];
+        VkPhysicalDeviceProperties chosenPhysDeviceProps;
+        vkGetPhysicalDeviceProperties(physicalDevice, &chosenPhysDeviceProps);
+        MRLOG("Chosen deviceName: " << chosenPhysDeviceProps.deviceName);
+#else
             physicalDevice = physicalDevices[0]; // TODO: By Default, just select the first physical device, could be bad if there are both integrated and discrete GPUs in the system
-        }
+#endif
     }
 
     void findQueueFamilyIndices() {
@@ -318,9 +318,9 @@ private:
 
         // Device extensions
         std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_KHR_dynamic_rendering" };
-        if (appleBuild) {
-            deviceExtensions.push_back("VK_KHR_portability_subset");
-        }
+#if PLATFORM_MACOS
+        deviceExtensions.push_back("VK_KHR_portability_subset");
+#endif
         
         // Needed to enable dynamic rendering extension
         constexpr VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature {

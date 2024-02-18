@@ -17,11 +17,22 @@ ADD_CUSTOM_TARGET(release
   COMMENT "Creating the executable in the release mode.")
 
 # Configure assets header file to help us find resources
-configure_file(Source/Helpers/RootDir.h.in ${CMAKE_BINARY_DIR}/Source/Helpers/RootDir.h)
+configure_file(Source/Generated/RootDir.h.in ${CMAKE_SOURCE_DIR}/Source/Generated/RootDir.h)
+
+
+# Configure platform file
+if(MSVC)
+  set(PLATFORM_WINDOWS 1)
+  set(PLATFORM_MACOS 0)
+elseif(APPLE)
+  set(PLATFORM_WINDOWS 0)
+  set(PLATFORM_MACOS 1)
+endif ()
+configure_file(Source/Generated/Platform.h.in ${CMAKE_SOURCE_DIR}/Source/Generated/Platform.h)
 
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/Source)
-include_directories(${CMAKE_BINARY_DIR}/Source/Helpers)
+include_directories(${CMAKE_BINARY_DIR}/Source/Generated)
 include_directories(${CMAKE_BINARY_DIR}/Source/External)
 
 # Add SOURCE_FILES and HEADER_FILES variables, will traverse all subdirectories

@@ -10,12 +10,6 @@
     constexpr bool enableValidationLayers = true;
 #endif
 
-#ifdef __APPLE__
-    constexpr bool appleBuild = true;
-#else
-    constexpr bool appleBuild = false;
-#endif
-
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,

@@ -2,3 +2,6 @@
 .vscode
 .DS_Store
 Shaders/*.spv
+
+# Generated CMake files like Platform.h
+Source/Generated/*.h
