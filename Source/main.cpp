@@ -418,7 +418,7 @@ private:
         assert(swapChainImageCount >= MAX_FRAMES_IN_FLIGHT); // Need at least as many swapchain images as FiFs or the extra FiFs are useless
         swapChainImageViews.resize(swapChainImages.size());
 
-        for (uid_t i = 0; i < swapChainImageViews.size(); i++) {
+        for (uint32_t i = 0; i < swapChainImageViews.size(); i++) {
             VkImageViewCreateInfo imageViewCreateInfo = imageview_create_info(swapChainImages[i], swapChainFormat, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
             VkResult res = vkCreateImageView(device, &imageViewCreateInfo, nullptr, &swapChainImageViews[i]);
             if (res != VK_SUCCESS) {
