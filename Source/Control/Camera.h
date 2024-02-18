@@ -17,22 +17,23 @@ class Camera
 {
 	glm::vec3 position;
 	glm::vec3 worldUp;
-	glm::vec3 up;
 	glm::vec3 front;
 	glm::vec3 right;
+	glm::vec3 up;
 	float yaw;
 	float pitch;
 	float fov;
 	bool allowMovement;
 public:
-	Camera(glm::vec3 _position, glm::vec3 _up, glm::vec3 _front, float _yaw, float _pitch, float _fov, bool _allowMovement) :
+	Camera(glm::vec3 _position, glm::vec3 _worldUp, glm::vec3 _front, float _yaw, float _pitch, float _fov, bool _allowMovement) :
 		position(_position),
-		worldUp(glm::normalize(_up)),
+		worldUp(glm::normalize(_worldUp)),
+		front(glm::normalize(_front)),
+		right(glm::normalize(glm::cross(front, up))),
+		up(glm::normalize(glm::cross(right, front))),
 		yaw(_yaw),
 		pitch(_pitch),
 		fov(_fov),
-		front(glm::normalize(_front)),
-		right(glm::normalize(glm::cross(front, up))),
 		allowMovement(_allowMovement)
 	{
 	}

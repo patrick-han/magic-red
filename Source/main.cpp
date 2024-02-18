@@ -52,9 +52,9 @@ bool interactableUI = false;
 
 // Camera
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, -2.0f);
-glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-Camera camera(cameraPos, cameraUp, cameraFront, -90.0f, 0.0f, 45.0f, true);
+Camera camera(cameraPos, worldUp, cameraFront, -90.0f, 0.0f, 45.0f, true);
 float cameraSpeed = 0.0f;
 bool firstMouse = true;
 float lastX = WINDOW_WIDTH / 2, lastY = WINDOW_HEIGHT / 2; // Initial mouse positions
@@ -337,7 +337,8 @@ private:
             0u,
             nullptr,
             static_cast<uint32_t>(deviceExtensions.size()),
-            deviceExtensions.data()
+            deviceExtensions.data(),
+            nullptr
         };
         vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
         mainDeletionQueue.push_function([=]() {
@@ -417,7 +418,7 @@ private:
         assert(swapChainImageCount >= MAX_FRAMES_IN_FLIGHT); // Need at least as many swapchain images as FiFs or the extra FiFs are useless
         swapChainImageViews.resize(swapChainImages.size());
 
-        for (int i = 0; i < swapChainImageViews.size(); i++) {
+        for (uid_t i = 0; i < swapChainImageViews.size(); i++) {
             VkImageViewCreateInfo imageViewCreateInfo = imageview_create_info(swapChainImages[i], swapChainFormat, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
             VkResult res = vkCreateImageView(device, &imageViewCreateInfo, nullptr, &swapChainImageViews[i]);
             if (res != VK_SUCCESS) {
@@ -426,7 +427,7 @@ private:
             }
         }
         mainDeletionQueue.push_function([=]() {
-            for (int k = 0; k < swapChainImageViews.size(); k++) {
+            for (uint32_t k = 0; k < swapChainImageViews.size(); k++) {
                 vkDestroyImageView(device, swapChainImageViews[k], nullptr);
             }   
         });
@@ -574,7 +575,7 @@ private:
     }
 
     void init_scene_lights() {
-        Scene::GetInstance().scenePointLights.push_back(PointLight(glm::vec3(0.0f, 0.5f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f)));
+        Scene::GetInstance().scenePointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), glm::vec3(1.0f, 1.0f, 1.0f)));
         
 
 

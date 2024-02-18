@@ -1,2 +1,2 @@
 #pragma once
-#define ROOT_DIR "C:/Users/patri/Documents/Vulkan Projects/magic-red/"
+#define ROOT_DIR "/Users/patrick/graphics-projects/magic-red/"
