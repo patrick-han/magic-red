@@ -1,7 +1,7 @@
 #pragma once
-#include "vulkan/vulkan.h"
-#include "vk_mem_alloc.h"
-#include "DeletionQueue.h"
+#include <vulkan/vulkan.h>
+#include <vk_mem_alloc.h>
+#include <DeletionQueue.h>
 
 struct AllocatedImage {
     VkImage image;

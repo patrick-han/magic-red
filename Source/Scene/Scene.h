@@ -2,10 +2,10 @@
 
 #include <vector>
 #include <unordered_map>
-#include "Mesh/RenderObject.h"
-#include "Pipeline/MaterialFunctions.h"
-#include "Mesh/Mesh.h"
-#include "Light/PointLight.h"
+#include <Mesh/RenderObject.h>
+#include <Pipeline/MaterialFunctions.h>
+#include <Mesh/Mesh.h>
+#include <Light/PointLight.h>
 
 // Singleton Scene
 class Scene

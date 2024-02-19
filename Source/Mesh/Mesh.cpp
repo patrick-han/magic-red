@@ -1,8 +1,8 @@
-#include "Mesh/Mesh.h"
-#include "vulkan/vulkan.h"
-#include "Common/Log.h"
+#include <Mesh/Mesh.h>
+#include <vulkan/vulkan.h>
+#include <Common/Log.h>
 #define TINYOBJLOADER_IMPLEMENTATION
-#include "External/tiny_obj_loader.h"
+#include <External/tiny_obj_loader.h>
 #include <Common/Compiler/Unused.h>
 
 void load_mesh_from_obj(Mesh& mesh, const char* fileName, MeshColor overrideColor) {

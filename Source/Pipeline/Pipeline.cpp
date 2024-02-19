@@ -1,4 +1,4 @@
-#include "Pipeline/Pipeline.h"
+#include <Pipeline/Pipeline.h>
 
 Pipeline::Pipeline() {
 }

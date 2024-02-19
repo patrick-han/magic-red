@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <span>
-#include "vulkan/vulkan.h"
+#include <vulkan/vulkan.h>
 
 struct DescriptorLayoutBuilder {
     std::vector<VkDescriptorSetLayoutBinding> bindings;

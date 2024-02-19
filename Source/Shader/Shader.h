@@ -1,7 +1,7 @@
 #pragma once
 
 // #include <shaderc/shaderc.hpp>
-#include "vulkan/vulkan.h"
+#include <vulkan/vulkan.h>
 #include <string>
 
 /* Given a string path to a precompiled spirv shader file, create the VkShaderModule */

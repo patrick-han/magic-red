@@ -1,6 +1,6 @@
 #pragma once
 #include <deque>
-#include "Common/Log.h"
+#include <Common/Log.h>
 #include <functional>
 
 struct DeletionQueue

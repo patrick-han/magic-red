@@ -54,7 +54,7 @@ THE SOFTWARE.
 //
 // Use this in *one* .cc
 //   #define TINYOBJLOADER_IMPLEMENTATION
-//   #include "tiny_obj_loader.h"
+//   #include <tiny_obj_loader.h>
 //
 
 #ifndef TINY_OBJ_LOADER_H_
@@ -676,7 +676,7 @@ bool ParseTextureNameAndOption(std::string *texname, texture_option_t *texopt,
 #endif
 
 #include <array>
-#include "mapbox/earcut.hpp"
+#include <mapbox/earcut.hpp"
 
 #ifdef __clang__
 #pragma clang diagnostic pop

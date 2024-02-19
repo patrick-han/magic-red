@@ -1,6 +1,6 @@
-#include "vulkan/vulkan.h"
-#include "SDL3/SDL.h"
-#include "SDL3/SDL_vulkan.h"
+#include <vulkan/vulkan.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_vulkan.h>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -8,7 +8,7 @@
 #include <glm/gtx/transform.hpp>
 
 #define VMA_IMPLEMENTATION
-#include "vk_mem_alloc.h"
+#include <vk_mem_alloc.h>
 
 #include <vulkan/vk_enum_string_helper.h> // Doesn't work on linux?
 #include <Common/Debug.h>
@@ -21,25 +21,25 @@
 #include <Common/RootDir.h>
 #include <Common/Platform.h>
 
-#include "Control/Camera.h"
-#include "Common/Log.h"
-#include "DeletionQueue.h"
-#include "Mesh/Mesh.h"
+#include <Control/Camera.h>
+#include <Common/Log.h>
+#include <DeletionQueue.h>
+#include <Mesh/Mesh.h>
 
-#include "Wrappers/Buffer.h"
-#include "Wrappers/Image.h"
-#include "Wrappers/ImageMemoryBarrier.h"
-#include "Wrappers/DynamicRendering.h"
+#include <Wrappers/Buffer.h>
+#include <Wrappers/Image.h>
+#include <Wrappers/ImageMemoryBarrier.h>
+#include <Wrappers/DynamicRendering.h>
 
-#include "Pipeline/MaterialFunctions.h"
-#include "Mesh/RenderObject.h"
-#include "Vertex/VertexDescriptors.h"
-#include "Common/Config.h"
-#include "Common/Defaults.h"
-#include "Scene/Scene.h"
-#include "Pipeline/GraphicsPipeline.h"
-#include "Mesh/MeshPushConstants.h"
-#include "Descriptor/Descriptor.h"
+#include <Pipeline/MaterialFunctions.h>
+#include <Mesh/RenderObject.h>
+#include <Vertex/VertexDescriptors.h>
+#include <Common/Config.h>
+#include <Common/Defaults.h>
+#include <Scene/Scene.h>
+#include <Pipeline/GraphicsPipeline.h>
+#include <Mesh/MeshPushConstants.h>
+#include <Descriptor/Descriptor.h>
 
 #include <IncludeHelpers/ImguiIncludes.h>
 

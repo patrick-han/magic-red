@@ -1,5 +1,5 @@
 #pragma once
-#include "Pipeline/Pipeline.h"
+#include <Pipeline/Pipeline.h>
 #include <string>
 
 class GraphicsPipeline : public Pipeline {

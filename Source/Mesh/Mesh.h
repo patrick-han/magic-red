@@ -1,7 +1,7 @@
 #pragma once
-#include "Vertex/Vertex.h"
-#include "Wrappers/Buffer.h"
-#include "DeletionQueue.h"
+#include <Vertex/Vertex.h>
+#include <Wrappers/Buffer.h>
+#include <DeletionQueue.h>
 #include <vector>
 #include <unordered_map>
 

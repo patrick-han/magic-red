@@ -1,5 +1,5 @@
 #pragma once
-#include "vulkan/vulkan.h"
+#include <vulkan/vulkan.h>
 
 [[nodiscard]] VkImageMemoryBarrier image_memory_barrier(
     VkImage image,

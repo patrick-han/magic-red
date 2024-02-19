@@ -1,8 +1,8 @@
 #pragma once
-#include "vulkan/vulkan.h"
+#include <vulkan/vulkan.h>
 #include <string>
 #include <unordered_map>
-#include "Pipeline/GraphicsPipeline.h"
+#include <Pipeline/GraphicsPipeline.h>
 
 /* Add a material to a scene material map */
 void create_material(GraphicsPipeline graphicsPipeline, const std::string& materialName);

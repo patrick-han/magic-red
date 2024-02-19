@@ -1,10 +1,10 @@
-#include "Mesh/RenderObject.h"
-#include "vulkan/vulkan.h"
-#include "Pipeline/GraphicsPipeline.h"
-#include "Mesh/Mesh.h"
+#include <Mesh/RenderObject.h>
+#include <vulkan/vulkan.h>
+#include <Pipeline/GraphicsPipeline.h>
+#include <Mesh/Mesh.h>
 #include <glm/glm.hpp>
-#include "Pipeline/MaterialFunctions.h"
-#include "Scene/Scene.h"
+#include <Pipeline/MaterialFunctions.h>
+#include <Scene/Scene.h>
 
 RenderObject::RenderObject(const char* materialName, const char* meshName) {
     material = get_material(materialName);

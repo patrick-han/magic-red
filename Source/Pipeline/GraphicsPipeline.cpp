@@ -1,7 +1,7 @@
-#include "Pipeline/GraphicsPipeline.h"
-#include "Shader/Shader.h"
-#include "Vertex/VertexDescriptors.h" // Temp
-#include "Generated/RootDir.h"
+#include <Pipeline/GraphicsPipeline.h>
+#include <Shader/Shader.h>
+#include <Vertex/VertexDescriptors.h> // Temp
+#include <Common/RootDir.h>
 
 GraphicsPipeline::GraphicsPipeline() {
 }

@@ -1,6 +1,6 @@
-#include "Pipeline/MaterialFunctions.h"
-#include "Common/Log.h"
-#include "Scene/Scene.h"
+#include <Pipeline/MaterialFunctions.h>
+#include <Common/Log.h>
+#include <Scene/Scene.h>
 
 void create_material(GraphicsPipeline graphicsPipeline, const std::string& materialName) {
     Scene::GetInstance().sceneMaterialMap[materialName] = graphicsPipeline;
