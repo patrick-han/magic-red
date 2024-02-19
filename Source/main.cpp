@@ -106,23 +106,23 @@ private:
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;
 
-    // Synchronization (per in-flight frame resources)
-    std::vector<VkSemaphore> imageAvailableSemaphores;
-    std::vector<VkSemaphore> renderFinishedSemaphores;
-    std::vector<VkFence> renderFences;
+    // Synchronization
+    std::vector<VkSemaphore> imageAvailableSemaphores_F;
+    std::vector<VkSemaphore> renderFinishedSemaphores_F;
+    std::vector<VkFence> renderFences_F;
     uint32_t currentFrame = 0;
 
     // Command Pools and Buffers
     VkCommandPool commandPool;
-    std::vector<VkCommandBuffer> commandBuffers; // (per in-flight frame resource)
+    std::vector<VkCommandBuffer> commandBuffers_F;
 
     // Descriptors
     DescriptorAllocator globalDescriptorAllocator;
     std::vector<VkDescriptorSetLayout> sceneDescriptorSetLayouts;
-    std::vector<VkDescriptorSet> sceneDescriptorSets;
+    std::vector<VkDescriptorSet> sceneDescriptorSets_F;
 
     // Lights
-    std::vector<AllocatedBuffer> PointLightsBuffers;
+    std::vector<AllocatedBuffer> PointLightsBuffers_F;
 
     // Immediate rendering resources
     VkFence immediateFence;
@@ -489,23 +489,23 @@ private:
     }
 
     void createSynchronizationStructures() {
-        imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        renderFences.resize(MAX_FRAMES_IN_FLIGHT);
+        imageAvailableSemaphores_F.resize(MAX_FRAMES_IN_FLIGHT);
+        renderFinishedSemaphores_F.resize(MAX_FRAMES_IN_FLIGHT);
+        renderFences_F.resize(MAX_FRAMES_IN_FLIGHT);
 
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             VkSemaphoreCreateInfo semaphoreCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, {}, {}};
-            vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &imageAvailableSemaphores[i]);
-            vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &renderFinishedSemaphores[i]);
+            vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &imageAvailableSemaphores_F[i]);
+            vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &renderFinishedSemaphores_F[i]);
             mainDeletionQueue.push_function([=]() {
-                vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
-                vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
+                vkDestroySemaphore(device, imageAvailableSemaphores_F[i], nullptr);
+                vkDestroySemaphore(device, renderFinishedSemaphores_F[i], nullptr);
             });
 
             VkFenceCreateInfo fenceCreateInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
-            vkCreateFence(device, &fenceCreateInfo, nullptr, &renderFences[i]);
+            vkCreateFence(device, &fenceCreateInfo, nullptr, &renderFences_F[i]);
             mainDeletionQueue.push_function([=]() {
-                vkDestroyFence(device, renderFences[i], nullptr);
+                vkDestroyFence(device, renderFences_F[i], nullptr);
             });
         }
 
@@ -535,13 +535,13 @@ private:
 
     void createCommandBuffers() {
         // Main per FiF command buffers
-        commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+        commandBuffers_F.resize(MAX_FRAMES_IN_FLIGHT);
         VkCommandBufferAllocateInfo cmdBufferAllocInfo = {};
         cmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         cmdBufferAllocInfo.commandPool = commandPool;
         cmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        cmdBufferAllocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
-        vkAllocateCommandBuffers(device, &cmdBufferAllocInfo, commandBuffers.data());
+        cmdBufferAllocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers_F.size());
+        vkAllocateCommandBuffers(device, &cmdBufferAllocInfo, commandBuffers_F.data());
 
         // Immediate command buffer
         VkCommandBufferAllocateInfo immCmdBufferAllocInfo = {};
@@ -578,9 +578,9 @@ private:
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
             AllocatedBuffer pointLightBuffer;
-            PointLightsBuffers.push_back(pointLightBuffer);
+            PointLightsBuffers_F.push_back(pointLightBuffer);
             upload_buffer(
-                PointLightsBuffers[i],
+                PointLightsBuffers_F[i],
                 Scene::GetInstance().scenePointLights.size() * sizeof(PointLight),
                 Scene::GetInstance().scenePointLights.data(),
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -608,20 +608,20 @@ private:
         });
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
-            sceneDescriptorSets.push_back(
+            sceneDescriptorSets_F.push_back(
                 globalDescriptorAllocator.allocate(device, sceneDescriptorSetLayouts[0])
             );
 
             // Update descriptor set(s)
             VkDescriptorBufferInfo pointLightBufferInfo = {
-                .buffer = PointLightsBuffers[i].buffer,
+                .buffer = PointLightsBuffers_F[i].buffer,
                 .offset = 0,
                 .range = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight) // VK_WHOLE_SIZE?
             };
             VkWriteDescriptorSet pointLightDescriptorWrite = {
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 .pNext = nullptr,
-                .dstSet = sceneDescriptorSets[i],
+                .dstSet = sceneDescriptorSets_F[i],
                 .dstBinding = 0,
                 .dstArrayElement = {},
                 .descriptorCount = static_cast<uint32_t>(Scene::GetInstance().scenePointLights.size()),
@@ -790,7 +790,7 @@ private:
         glm::mat4 viewProjectionMatrix = projection * view;
 
         for (RenderObject renderObject :  Scene::GetInstance().sceneRenderObjects) {
-            renderObject.BindAndDraw(commandBuffers[currentFrame], viewProjectionMatrix, std::span<const VkDescriptorSet>(sceneDescriptorSets.data() + currentFrame, 1));
+            renderObject.BindAndDraw(commandBuffers_F[currentFrame], viewProjectionMatrix, std::span<const VkDescriptorSet>(sceneDescriptorSets_F.data() + currentFrame, 1));
         }
     }
 
@@ -825,12 +825,12 @@ private:
         VkRenderingInfoKHR renderingInfo = rendering_info_fullscreen(1, &colorAttachment, nullptr);
 
         PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdBeginRenderingKHR"));
-        vkCmdBeginRenderingKHR(commandBuffers[currentFrame], &renderingInfo);
+        vkCmdBeginRenderingKHR(commandBuffers_F[currentFrame], &renderingInfo);
 
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffers[currentFrame]);
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffers_F[currentFrame]);
 
         PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR"));
-        vkCmdEndRenderingKHR(commandBuffers[currentFrame]);
+        vkCmdEndRenderingKHR(commandBuffers_F[currentFrame]);
     }
 
     void update_scene_descriptors(uint32_t frameInFlightIndex) {
@@ -844,7 +844,7 @@ private:
         
 
         update_buffer(
-            PointLightsBuffers[frameInFlightIndex], 
+            PointLightsBuffers_F[frameInFlightIndex], 
             Scene::GetInstance().scenePointLights.size() * sizeof(PointLight),
             Scene::GetInstance().scenePointLights.data(),
             vmaAllocator
@@ -852,7 +852,7 @@ private:
 
         // Update descriptor set(s)
         VkDescriptorBufferInfo pointLightBufferInfo = {
-            .buffer = PointLightsBuffers[frameInFlightIndex].buffer,
+            .buffer = PointLightsBuffers_F[frameInFlightIndex].buffer,
             .offset = 0,
             .range = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight) // VK_WHOLE_SIZE?
         };
@@ -860,7 +860,7 @@ private:
         VkWriteDescriptorSet pointLightDescriptorWrite = {
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = nullptr,
-            .dstSet = sceneDescriptorSets[frameInFlightIndex],
+            .dstSet = sceneDescriptorSets_F[frameInFlightIndex],
             .dstBinding = 0,
             .dstArrayElement = {},
             .descriptorCount = static_cast<uint32_t>(Scene::GetInstance().scenePointLights.size()),
@@ -876,21 +876,21 @@ private:
     void drawFrame() {
             
             // Wait for previous frame to finish rendering before allowing us to acquire another image
-            VkResult res = vkWaitForFences(device, 1, &renderFences[currentFrame], true, (std::numeric_limits<uint64_t>::max)());
-            vkResetFences(device, 1, &renderFences[currentFrame]);
+            VkResult res = vkWaitForFences(device, 1, &renderFences_F[currentFrame], true, (std::numeric_limits<uint64_t>::max)());
+            vkResetFences(device, 1, &renderFences_F[currentFrame]);
             update_scene_descriptors(currentFrame); // Executes immediately
 
             uint32_t imageIndex;
-            res = vkAcquireNextImageKHR(device, swapChain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+            res = vkAcquireNextImageKHR(device, swapChain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphores_F[currentFrame], VK_NULL_HANDLE, &imageIndex);
             if (!((res == VK_SUCCESS) || (res == VK_SUBOPTIMAL_KHR))) {
                 MRCERR(string_VkResult(res));
                 throw std::runtime_error("Failed to acquire image from Swap Chain!");
             }
-            vkResetCommandBuffer(commandBuffers[currentFrame], {});
+            vkResetCommandBuffer(commandBuffers_F[currentFrame], {});
 
             VkCommandBufferBeginInfo beginInfo = {};
             beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-            vkBeginCommandBuffer(commandBuffers[currentFrame], &beginInfo);
+            vkBeginCommandBuffer(commandBuffers_F[currentFrame], &beginInfo);
 
             {
                 // Transition swapchain to color attachment write
@@ -902,7 +902,7 @@ private:
                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
                 );
                 vkCmdPipelineBarrier(
-                    commandBuffers[currentFrame], 
+                    commandBuffers_F[currentFrame], 
                     VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                     VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                     {},
@@ -929,14 +929,14 @@ private:
             );
 
             PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdBeginRenderingKHR"));
-            vkCmdBeginRenderingKHR(commandBuffers[currentFrame], &renderingInfo);
+            vkCmdBeginRenderingKHR(commandBuffers_F[currentFrame], &renderingInfo);
 
-            vkCmdSetViewport(commandBuffers[currentFrame], 0, 1, &DEFAULT_VIEWPORT_FULLSCREEN);
-            vkCmdSetScissor(commandBuffers[currentFrame], 0, 1, &DEFAULT_SCISSOR_FULLSCREEN);
+            vkCmdSetViewport(commandBuffers_F[currentFrame], 0, 1, &DEFAULT_VIEWPORT_FULLSCREEN);
+            vkCmdSetScissor(commandBuffers_F[currentFrame], 0, 1, &DEFAULT_SCISSOR_FULLSCREEN);
             draw_objects();
 
             PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR"));
-            vkCmdEndRenderingKHR(commandBuffers[currentFrame]);
+            vkCmdEndRenderingKHR(commandBuffers_F[currentFrame]);
 
 
 
@@ -953,7 +953,7 @@ private:
                     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
                 );
                 vkCmdPipelineBarrier(
-                    commandBuffers[currentFrame], 
+                    commandBuffers_F[currentFrame], 
                     VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                     VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                     {},
@@ -963,7 +963,7 @@ private:
                 );
             }
 
-            vkEndCommandBuffer(commandBuffers[currentFrame]);
+            vkEndCommandBuffer(commandBuffers_F[currentFrame]);
 
 
             // Submit graphics workload
@@ -971,20 +971,20 @@ private:
             VkSubmitInfo submitInfo = {};
             submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
             submitInfo.waitSemaphoreCount = 1;
-            submitInfo.pWaitSemaphores = &imageAvailableSemaphores[currentFrame];
+            submitInfo.pWaitSemaphores = &imageAvailableSemaphores_F[currentFrame];
             submitInfo.pWaitDstStageMask = &waitStageMask;
             submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &commandBuffers[currentFrame];
+            submitInfo.pCommandBuffers = &commandBuffers_F[currentFrame];
             submitInfo.signalSemaphoreCount = 1;
-            submitInfo.pSignalSemaphores = &renderFinishedSemaphores[currentFrame];
-            vkQueueSubmit(graphicsQueue, 1, &submitInfo, renderFences[currentFrame]);
+            submitInfo.pSignalSemaphores = &renderFinishedSemaphores_F[currentFrame];
+            vkQueueSubmit(graphicsQueue, 1, &submitInfo, renderFences_F[currentFrame]);
 
 
             // Present frame
             VkPresentInfoKHR presentInfo = {};
             presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
             presentInfo.waitSemaphoreCount = 1;
-            presentInfo.pWaitSemaphores = &renderFinishedSemaphores[currentFrame];
+            presentInfo.pWaitSemaphores = &renderFinishedSemaphores_F[currentFrame];
             presentInfo.swapchainCount = 1;
             presentInfo.pSwapchains = &swapChain;
             presentInfo.pImageIndices = &imageIndex;
