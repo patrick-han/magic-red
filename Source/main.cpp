@@ -70,7 +70,6 @@ public:
 
 private:
     SDL_Window *window;
-    bool stop_rendering{ false };
 
     // VulkanMemoryAllocator (VMA)
     VmaAllocator vmaAllocator;
@@ -136,13 +135,13 @@ private:
         // We initialize SDL and create a window with it.
         SDL_Init(SDL_INIT_VIDEO);
 
-        window = SDL_CreateWindow("Vulkan Engine", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_VULKAN);
+        window = SDL_CreateWindow("Magic Red", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_VULKAN);
         SDL_SetRelativeMouseMode(SDL_TRUE);
     }
 
     void createInstance() {
         // Specify application and engine info
-        VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO, nullptr, "Hello Triangle", VK_MAKE_API_VERSION(1, 0, 0, 0), "Magic Red", VK_MAKE_API_VERSION(1, 0, 0, 0), VK_API_VERSION_1_2};
+        VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO, nullptr, "Magic Red", VK_MAKE_API_VERSION(1, 0, 0, 0), "Magic Red", VK_MAKE_API_VERSION(1, 0, 0, 0), VK_API_VERSION_1_2};
 
         // Get extensions required for SDL VK surface rendering
         uint32_t sdlExtensionCount = 0;
@@ -1006,12 +1005,6 @@ private:
             // Handle events on queue
             while (SDL_PollEvent(&sdlEvent) != 0) {
                 ImGui_ImplSDL3_ProcessEvent(&sdlEvent);      
-                if (sdlEvent.window.type == SDL_EVENT_WINDOW_MINIMIZED) {
-                    stop_rendering = true;
-                }
-                if (sdlEvent.window.type == SDL_EVENT_WINDOW_RESTORED) {
-                    stop_rendering = false;
-                }
                 if (sdlEvent.type == SDL_EVENT_QUIT) { // Built in Alt+F4 or hitting the 'x' button
                     SDL_SetRelativeMouseMode(SDL_FALSE); // Needed or else mouse freeze persists until clicking after closing app
                     bQuit = true;
