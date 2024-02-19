@@ -118,13 +118,11 @@ private:
 
     // Descriptors
     DescriptorAllocator globalDescriptorAllocator;
-    VkDescriptorSet mainDescriptorSet;
-    VkDescriptorSetLayout mainDescriptorSetLayout;
-    std::vector<VkDescriptorSetLayout> mainDescriptorSetLayouts;
-    std::vector<VkDescriptorSet> mainDescriptorSets;
+    std::vector<VkDescriptorSetLayout> sceneDescriptorSetLayouts;
+    std::vector<VkDescriptorSet> sceneDescriptorSets;
 
     // Lights
-    AllocatedBuffer PointLightsBuffer;
+    std::vector<AllocatedBuffer> PointLightsBuffers;
 
     // Immediate rendering resources
     VkFence immediateFence;
@@ -576,61 +574,64 @@ private:
 
     void init_scene_lights() {
         Scene::GetInstance().scenePointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), glm::vec3(1.0f, 1.0f, 1.0f)));
-        
 
-
-        upload_buffer(
-            PointLightsBuffer, 
-            Scene::GetInstance().scenePointLights.size() * sizeof(PointLight),
-            Scene::GetInstance().scenePointLights.data(),
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            vmaAllocator,
-            mainDeletionQueue
-        );
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
+            AllocatedBuffer pointLightBuffer;
+            PointLightsBuffers.push_back(pointLightBuffer);
+            upload_buffer(
+                PointLightsBuffers[i],
+                Scene::GetInstance().scenePointLights.size() * sizeof(PointLight),
+                Scene::GetInstance().scenePointLights.data(),
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                vmaAllocator,
+                mainDeletionQueue
+            );
+        }
     }
     
-    void init_descriptors() {
+    void init_scene_descriptors() {
         // Describe what and how many descriptors we want and create our pool
-        std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }
+        // These may be distributed in any combination among our sets
+        std::vector<DescriptorAllocator::DescriptorTypeCount> descriptorTypeCounts = {
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT } // We want 1 buffer for each frame in flight
         };
-        globalDescriptorAllocator.init_pool(device, 10, sizes); // We can allocate up to 10 uniform buffers
+        globalDescriptorAllocator.init_pool(device, MAX_FRAMES_IN_FLIGHT, descriptorTypeCounts); // We can allocate up to MAX_FRAMES_IN_FLIGHT sets from this pool
 
-        // Create a descriptor set
+        DescriptorLayoutBuilder layoutBuilder;
+        layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+
+        // We only need a single layout since they are all the same for each frame in flight
+        sceneDescriptorSetLayouts.push_back(layoutBuilder.buildLayout(device, VK_SHADER_STAGE_FRAGMENT_BIT));
+        mainDeletionQueue.push_function([&]() {
+                vkDestroyDescriptorSetLayout(device, sceneDescriptorSetLayouts[0], nullptr);
+        });
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
-            DescriptorLayoutBuilder layoutBuilder;
-            layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+            sceneDescriptorSets.push_back(
+                globalDescriptorAllocator.allocate(device, sceneDescriptorSetLayouts[0])
+            );
 
-            mainDescriptorSetLayout = layoutBuilder.buildLayout(device, VK_SHADER_STAGE_FRAGMENT_BIT);
-            mainDescriptorSetLayouts.push_back(mainDescriptorSetLayout);
-            
-            mainDeletionQueue.push_function([&]() {
-                vkDestroyDescriptorSetLayout(device, mainDescriptorSetLayout, nullptr);
-            });
+            // Update descriptor set(s)
+            VkDescriptorBufferInfo pointLightBufferInfo = {
+                .buffer = PointLightsBuffers[i].buffer,
+                .offset = 0,
+                .range = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight) // VK_WHOLE_SIZE?
+            };
+            VkWriteDescriptorSet pointLightDescriptorWrite = {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .pNext = nullptr,
+                .dstSet = sceneDescriptorSets[i],
+                .dstBinding = 0,
+                .dstArrayElement = {},
+                .descriptorCount = static_cast<uint32_t>(Scene::GetInstance().scenePointLights.size()),
+                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .pImageInfo = nullptr,
+                .pBufferInfo = &pointLightBufferInfo,
+                .pTexelBufferView = nullptr // ???
+            };
+            vkUpdateDescriptorSets(device, 1, &pointLightDescriptorWrite, 0, nullptr);
         }
-        mainDescriptorSet = globalDescriptorAllocator.allocate(device, mainDescriptorSetLayout);
-        mainDescriptorSets.push_back(mainDescriptorSet);
-
-        // Update descriptor set(s)
-        VkDescriptorBufferInfo pointLightBufferInfo = {
-            .buffer = PointLightsBuffer.buffer,
-            .offset = 0,
-            .range = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight) // VK_WHOLE_SIZE?
-        };
-
-        VkWriteDescriptorSet pointLightDescriptorWrite = {
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .pNext = nullptr,
-            .dstSet = mainDescriptorSet,
-            .dstBinding = 0,
-            .dstArrayElement = {},
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .pImageInfo = nullptr,
-            .pBufferInfo = &pointLightBufferInfo,
-            .pTexelBufferView = nullptr // ???
-        };
-        vkUpdateDescriptorSets(device, 1, &pointLightDescriptorWrite, 0, nullptr);
     }
 
     // temp
@@ -647,7 +648,15 @@ private:
             .stencilAttachmentFormat = {}
         };
 
-        GraphicsPipeline defaultPipeline(device, &pipelineRenderingCI, std::string("Shaders/triangle_mesh.vert.spv"), std::string("Shaders/triangle_mesh.frag.spv"), defaultPushConstantRanges, mainDescriptorSetLayouts, {WINDOW_WIDTH, WINDOW_HEIGHT});
+        GraphicsPipeline defaultPipeline(
+            device, 
+            &pipelineRenderingCI, 
+            std::string("Shaders/triangle_mesh.vert.spv"), 
+            std::string("Shaders/triangle_mesh.frag.spv"), 
+            defaultPushConstantRanges,
+            std::span<const VkDescriptorSetLayout>(sceneDescriptorSetLayouts.data(), 1), // TODO: They're all the same and this only has 1 layout for now
+            {WINDOW_WIDTH, WINDOW_HEIGHT}
+        );
         create_material(defaultPipeline, "defaultMaterial");
     }
 
@@ -680,7 +689,6 @@ private:
     void init_imgui() {
         // Create a descriptor pool for IMGUI
         // The size of the pool is very oversized, but it's copied from imgui demo
-
         VkDescriptorPoolSize poolSizes[] = { 
             { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
             { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
@@ -699,7 +707,7 @@ private:
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
             .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
             .maxSets = 1000,
-            .poolSizeCount = (uint32_t)std::size(poolSizes),
+            .poolSizeCount = static_cast<uint32_t>(std::size(poolSizes)),
             .pPoolSizes = poolSizes
         };
 
@@ -782,7 +790,7 @@ private:
         glm::mat4 viewProjectionMatrix = projection * view;
 
         for (RenderObject renderObject :  Scene::GetInstance().sceneRenderObjects) {
-            renderObject.BindAndDraw(commandBuffers[currentFrame], viewProjectionMatrix, mainDescriptorSets);
+            renderObject.BindAndDraw(commandBuffers[currentFrame], viewProjectionMatrix, std::span<const VkDescriptorSet>(sceneDescriptorSets.data() + currentFrame, 1));
         }
     }
 
@@ -803,7 +811,7 @@ private:
         createCommandBuffers();
         retrieveQueues();
         init_scene_lights();
-        init_descriptors();
+        init_scene_descriptors();
         createMaterialPipelines();
         init_scene_meshes();
         init_imgui();
@@ -825,10 +833,52 @@ private:
         vkCmdEndRenderingKHR(commandBuffers[currentFrame]);
     }
 
+    void update_scene_descriptors(uint32_t frameInFlightIndex) {
+        int lightCircleRadius = 5;
+        float lightCircleSpeed = 0.02f;
+        Scene::GetInstance().scenePointLights[0].worldSpacePosition = glm::vec3(
+            lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber),
+            0.0,
+            lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber)
+        );
+        
+
+        update_buffer(
+            PointLightsBuffers[frameInFlightIndex], 
+            Scene::GetInstance().scenePointLights.size() * sizeof(PointLight),
+            Scene::GetInstance().scenePointLights.data(),
+            vmaAllocator
+        );
+
+        // Update descriptor set(s)
+        VkDescriptorBufferInfo pointLightBufferInfo = {
+            .buffer = PointLightsBuffers[frameInFlightIndex].buffer,
+            .offset = 0,
+            .range = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight) // VK_WHOLE_SIZE?
+        };
+
+        VkWriteDescriptorSet pointLightDescriptorWrite = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .pNext = nullptr,
+            .dstSet = sceneDescriptorSets[frameInFlightIndex],
+            .dstBinding = 0,
+            .dstArrayElement = {},
+            .descriptorCount = static_cast<uint32_t>(Scene::GetInstance().scenePointLights.size()),
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .pImageInfo = nullptr,
+            .pBufferInfo = &pointLightBufferInfo,
+            .pTexelBufferView = nullptr // ???
+        };
+        vkUpdateDescriptorSets(device, 1, &pointLightDescriptorWrite, 0, nullptr);
+        
+    }
+
     void drawFrame() {
+            
             // Wait for previous frame to finish rendering before allowing us to acquire another image
             VkResult res = vkWaitForFences(device, 1, &renderFences[currentFrame], true, (std::numeric_limits<uint64_t>::max)());
             vkResetFences(device, 1, &renderFences[currentFrame]);
+            update_scene_descriptors(currentFrame); // Executes immediately
 
             uint32_t imageIndex;
             res = vkAcquireNextImageKHR(device, swapChain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);

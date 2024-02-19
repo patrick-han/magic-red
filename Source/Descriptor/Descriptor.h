@@ -12,14 +12,14 @@ struct DescriptorLayoutBuilder {
 };
 
 struct DescriptorAllocator {
-    struct PoolSizeRatio{ // Describes how many individual bindings we have of a given descriptor type
+    struct DescriptorTypeCount{ // Describes how many individual bindings we have of a given descriptor type
         VkDescriptorType type;
-        float ratio;
+        uint32_t count;
     };
 
     VkDescriptorPool pool;
 
-    void init_pool(VkDevice device, uint32_t maxSets, std::span<PoolSizeRatio const> poolRatios);
+    void init_pool(VkDevice device, uint32_t maxSets, std::span<DescriptorTypeCount const> descriptorCounts);
     void clear_descriptors(VkDevice device);
     void destroy_pool(VkDevice device);
     [[nodiscard]] VkDescriptorSet allocate(VkDevice device, VkDescriptorSetLayout layout);

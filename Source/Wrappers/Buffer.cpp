@@ -41,3 +41,14 @@ void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const vo
     memcpy(data, bufferData, bufferSize);
     vmaUnmapMemory(allocator, allocatedBuffer.allocation);
 }
+
+void update_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const void* bufferData, VmaAllocator allocator) {
+
+    assert(bufferSize > 0);
+
+    // Copy vertex data into mapped memory
+    void* data;
+    vmaMapMemory(allocator, allocatedBuffer.allocation, &data);
+    memcpy(data, bufferData, bufferSize);
+    vmaUnmapMemory(allocator, allocatedBuffer.allocation);
+}
