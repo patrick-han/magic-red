@@ -7,7 +7,7 @@
 #include <Scene/Scene.h>
 
 RenderObject::RenderObject(const char* materialName, const char* meshName) {
-    material = get_material(materialName);
+    material = get_material(materialName, Scene::GetInstance().sceneMaterialMap);
     mesh = get_mesh(meshName, Scene::GetInstance().sceneMeshMap);
 }
 
