@@ -281,7 +281,7 @@ private:
             )
         ));
         presentQueueFamilyIndex = 0u;
-        for (unsigned long queueFamilyIndex = 0ul; queueFamilyIndex < queueFamilyProperties.size(); queueFamilyIndex++) {
+        for (uint32_t queueFamilyIndex = 0; queueFamilyIndex < queueFamilyProperties.size(); queueFamilyIndex++) {
             // Check if a given queue family on our device supports presentation to the surface that was created
             VkBool32 supported = VK_FALSE;
             VkResult res = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, static_cast<uint32_t>(queueFamilyIndex), surface, &supported);
