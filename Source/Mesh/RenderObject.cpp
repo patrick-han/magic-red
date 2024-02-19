@@ -6,7 +6,7 @@
 #include <Pipeline/MaterialFunctions.h>
 #include <Scene/Scene.h>
 
-RenderObject::RenderObject(const char* materialName, const char* meshName) {
+RenderObject::RenderObject(const char* materialName, const char* meshName) { // TODO: Want to rethink the design of this + mesh loading because model loading seems all too opaque in the wrong ways, but ok for now
     material = get_material(materialName, Scene::GetInstance().sceneMaterialMap);
     mesh = get_mesh(meshName, Scene::GetInstance().sceneMeshMap);
 }

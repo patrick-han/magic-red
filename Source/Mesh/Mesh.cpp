@@ -5,6 +5,14 @@
 #include <External/tiny_obj_loader.h>
 #include <Common/Compiler/Unused.h>
 
+
+// Define these only in *one* .cpp file.
+#define TINYGLTF_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+// #define TINYGLTF_NOEXCEPTION // optional. disable exception handling.
+#include <External/tinygltf/tiny_gltf.h>
+
 void load_mesh_from_obj(Mesh& mesh, const char* fileName, MeshColor overrideColor) {
     // Attrib will contain the vertex arrays of the file
     tinyobj::attrib_t attrib;
@@ -87,6 +95,10 @@ void load_mesh_from_obj(Mesh& mesh, const char* fileName, MeshColor overrideColo
             index_offset += fv;
         }
     }
+}
+
+void load_mesh_from_gltf(Mesh& mesh, const char* fileName) {
+    tinygltf::TinyGLTF loader;
 }
 
 void load_mesh(Mesh& mesh, const char* meshFileName) {
