@@ -4,4 +4,5 @@
 Shaders/*.spv
 
 # Generated CMake files like Platform.h
-Source/Generated/*.h
+Source/Common/Platform.h
+Source/Common/RootDir.h
