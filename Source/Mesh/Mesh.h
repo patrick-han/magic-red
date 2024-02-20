@@ -23,6 +23,9 @@ struct Mesh {
 /* Load Mesh data from an .obj file */
 void load_mesh_from_obj(Mesh& mesh, const char* objFileName, MeshColor overrideColor);
 
+/* Load Mesh data from an .gltf or .glb file */
+void load_mesh_from_gltf(Mesh& mesh, const char* fileName);
+
 /* Load Mesh data using ASSIMP */
 void load_mesh(Mesh& mesh, const char* meshFileName);
 

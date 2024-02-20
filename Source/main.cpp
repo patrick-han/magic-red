@@ -660,6 +660,9 @@ private:
     }
 
     void init_scene_meshes() {
+
+
+
         // Sponza mesh
         Mesh sponzaMesh;
         load_mesh_from_obj(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza.obj", MeshColor::Blue);
@@ -683,6 +686,17 @@ private:
         monkeyObject.transformMatrix = monkeyTranslate;
 
         Scene::GetInstance().sceneRenderObjects.push_back(monkeyObject);
+
+        // Helmet mesh
+        Mesh helmetMesh;
+        load_mesh_from_gltf(helmetMesh, ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb");
+        Scene::GetInstance().sceneMeshMap["helmet"] = upload_mesh(helmetMesh, vmaAllocator, mainDeletionQueue);
+
+        RenderObject helmetObject("defaultMaterial", "helmet");
+        glm::mat4 helmetTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 4.0f, 0.0f));
+        helmetObject.transformMatrix = helmetTranslate;
+
+        Scene::GetInstance().sceneRenderObjects.push_back(helmetObject);
     }
 
     void init_imgui() {

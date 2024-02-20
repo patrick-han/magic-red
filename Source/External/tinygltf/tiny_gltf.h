@@ -36,6 +36,10 @@
 //
 #ifndef TINY_GLTF_H_
 #define TINY_GLTF_H_
+#include <Common/Compiler/DisableWarnings.h>
+PUSH_MSVC_WARNINGS
+DISABLE_MSVC_WARNING(4018)
+DISABLE_MSVC_WARNING(4267)
 
 #include <array>
 #include <cassert>
@@ -8622,3 +8626,4 @@ bool TinyGLTF::WriteGltfSceneToFile(const Model *model,
 #endif
 
 #endif  // TINYGLTF_IMPLEMENTATION
+POP_MSVC_WARNINGS
