@@ -222,37 +222,39 @@ void load_node(const tinygltf::Node& node, const tinygltf::Model& model, NodeLoa
 
             // Vertex Positions
             int primitivePositionAccessorIndex = nodeMeshPrimitive.attributes.find("POSITION")->second;
-            tinygltf::Accessor positionAccessor = model.accessors[primitivePositionAccessorIndex];
+            const tinygltf::Accessor &positionAccessor = model.accessors[primitivePositionAccessorIndex];
             size_t vertexCount = positionAccessor.count;
             if (positionAccessor.type != TINYGLTF_TYPE_VEC3)
             {
                 MRCERR("Position accessor isn't VEC3 type!");
                 exit(1);
             }
-            tinygltf::BufferView positionBufferView = model.bufferViews[positionAccessor.bufferView];
+            const tinygltf::BufferView &positionBufferView = model.bufferViews[positionAccessor.bufferView];
             size_t positionComponentTypeByteSize = component_type_to_size_in_bytes(positionAccessor.componentType);
             tinygltf::Buffer positionBuffer = model.buffers[positionBufferView.buffer];
             //                                                                                   Multiple accessors may refer 
             //                                                                                   to the same buffer view
             //                                                                                                  V
             const float* positionBufferData = reinterpret_cast<const float*>(&(positionBuffer.data[positionAccessor.byteOffset + positionBufferView.byteOffset]));
-            size_t positionByteStride = 3 * positionComponentTypeByteSize;
-
+//            size_t positionByteStride = positionAccessor.ByteStride(positionBufferView);
+            size_t blah = positionAccessor.ByteStride(positionBufferView);
+            size_t positionByteStride = positionAccessor.ByteStride(positionBufferView) ? (positionAccessor.ByteStride(positionBufferView) / sizeof(float)) : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC3);
 
 
             // Vertex Normals
             int primitiveNormalAccessorIndex = nodeMeshPrimitive.attributes.find("NORMAL")->second;
-            tinygltf::Accessor normalAccessor = model.accessors[primitiveNormalAccessorIndex];
+            const tinygltf::Accessor &normalAccessor = model.accessors[primitiveNormalAccessorIndex];
             if (normalAccessor.type != TINYGLTF_TYPE_VEC3)
             {
                 MRCERR("Normal accessor isn't VEC3 type!");
                 exit(1);
             }
-            tinygltf::BufferView normalBufferView = model.bufferViews[normalAccessor.bufferView];
+            const tinygltf::BufferView &normalBufferView = model.bufferViews[normalAccessor.bufferView];
             size_t normalComponentTypeByteSize = component_type_to_size_in_bytes(normalAccessor.componentType);
             tinygltf::Buffer normalBuffer = model.buffers[normalBufferView.buffer];
             const float* normalBufferData = reinterpret_cast<const float*>(&(normalBuffer.data[normalAccessor.byteOffset + normalBufferView.byteOffset]));
-            size_t normalByteStride = 3 * normalComponentTypeByteSize;
+//            size_t normalByteStride = normalAccessor.ByteStride(normalBufferView);
+            size_t normalByteStride = normalAccessor.ByteStride(normalBufferView) ? (normalAccessor.ByteStride(normalBufferView) / sizeof(float)) : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC3);
 
 
             for (size_t vertex_i = 0; vertex_i < vertexCount; vertex_i++)
@@ -273,7 +275,7 @@ void load_node(const tinygltf::Node& node, const tinygltf::Model& model, NodeLoa
                 exit(1);
             }
             tinygltf::BufferView indicesBufferView = model.bufferViews[indicesAccessor.bufferView];
-            size_t indicesComponentTypeByteSize = component_type_to_size_in_bytes(indicesAccessor.componentType);
+//            size_t indicesComponentTypeByteSize = component_type_to_size_in_bytes(indicesAccessor.componentType);
             tinygltf::Buffer indicesBuffer = model.buffers[indicesBufferView.buffer];
             const void* indexBufferDataPtr = &(indicesBuffer.data[indicesAccessor.byteOffset + indicesBufferView.byteOffset]);
 
@@ -311,9 +313,9 @@ void load_node(const tinygltf::Node& node, const tinygltf::Model& model, NodeLoa
                 exit(1);
                 break;
             }
-
-            const float* indicesBufferData = reinterpret_cast<const float*>(&(indicesBuffer.data[indicesAccessor.byteOffset + indicesBufferView.byteOffset]));
-            size_t indicesByteStride = 1 * indicesComponentTypeByteSize;
+//
+//            const float* indicesBufferData = reinterpret_cast<const float*>(&(indicesBuffer.data[indicesAccessor.byteOffset + indicesBufferView.byteOffset]));
+//            size_t indicesByteStride = 1 * indicesComponentTypeByteSize;
 
 
 
@@ -334,8 +336,9 @@ void load_mesh_from_gltf(Mesh& mesh, const char* fileName) {
     std::string err;
     std::string warn;
     UNUSED(mesh);
-    bool ret = gltfLoader.LoadBinaryFromFile(&gltfModel, &err, &warn, fileName);
-    if (!warn.empty()) 
+//    bool ret = gltfLoader.LoadBinaryFromFile(&gltfModel, &err, &warn, fileName);
+    bool ret = gltfLoader.LoadASCIIFromFile(&gltfModel, &err, &warn, fileName);
+    if (!warn.empty())
     {
         MRLOG("[tinygltf] Warning: " << warn);
     }
