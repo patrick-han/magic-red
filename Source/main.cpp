@@ -661,11 +661,9 @@ private:
 
     void init_scene_meshes() {
 
-
-
         // Sponza mesh
         Mesh sponzaMesh;
-        load_mesh_from_obj(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza.obj", MeshColor::Blue);
+        load_mesh_from_gltf(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false);
         Scene::GetInstance().sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
 
         RenderObject sponzaObject("defaultMaterial", "sponza");
@@ -678,7 +676,7 @@ private:
 
         // Suzanne mesh
         Mesh monkeyMesh;
-        load_mesh_from_obj(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.obj", MeshColor::Red);
+        load_mesh_from_gltf(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.glb", true);
         Scene::GetInstance().sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
 
         RenderObject monkeyObject("defaultMaterial", "suzanne");
@@ -689,12 +687,13 @@ private:
 
         // Helmet mesh
         Mesh helmetMesh;
-        load_mesh_from_gltf(helmetMesh, ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb");
+        load_mesh_from_gltf(helmetMesh, ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true);
         Scene::GetInstance().sceneMeshMap["helmet"] = upload_mesh(helmetMesh, vmaAllocator, mainDeletionQueue);
 
         RenderObject helmetObject("defaultMaterial", "helmet");
-        glm::mat4 helmetTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 4.0f, 0.0f));
-        helmetObject.transformMatrix = helmetTranslate;
+        glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
+        helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
+        helmetObject.transformMatrix = helmetTransform;
 
         Scene::GetInstance().sceneRenderObjects.push_back(helmetObject);
     }
