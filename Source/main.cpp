@@ -70,7 +70,6 @@ public:
 
 private:
     SDL_Window *window;
-    bool stop_rendering{ false };
 
     // VulkanMemoryAllocator (VMA)
     VmaAllocator vmaAllocator;
@@ -136,13 +135,13 @@ private:
         // We initialize SDL and create a window with it.
         SDL_Init(SDL_INIT_VIDEO);
 
-        window = SDL_CreateWindow("Vulkan Engine", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_VULKAN);
+        window = SDL_CreateWindow("Magic Red", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_VULKAN);
         SDL_SetRelativeMouseMode(SDL_TRUE);
     }
 
     void createInstance() {
         // Specify application and engine info
-        VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO, nullptr, "Hello Triangle", VK_MAKE_API_VERSION(1, 0, 0, 0), "Magic Red", VK_MAKE_API_VERSION(1, 0, 0, 0), VK_API_VERSION_1_2};
+        VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO, nullptr, "Magic Red", VK_MAKE_API_VERSION(1, 0, 0, 0), "Magic Red", VK_MAKE_API_VERSION(1, 0, 0, 0), VK_API_VERSION_1_2};
 
         // Get extensions required for SDL VK surface rendering
         uint32_t sdlExtensionCount = 0;
@@ -661,9 +660,10 @@ private:
     }
 
     void init_scene_meshes() {
+
         // Sponza mesh
         Mesh sponzaMesh;
-        load_mesh_from_obj(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza.obj", MeshColor::Blue);
+        load_mesh_from_gltf(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false);
         Scene::GetInstance().sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
 
         RenderObject sponzaObject("defaultMaterial", "sponza");
@@ -676,7 +676,7 @@ private:
 
         // Suzanne mesh
         Mesh monkeyMesh;
-        load_mesh_from_obj(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.obj", MeshColor::Red);
+        load_mesh_from_gltf(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.glb", true);
         Scene::GetInstance().sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
 
         RenderObject monkeyObject("defaultMaterial", "suzanne");
@@ -684,6 +684,18 @@ private:
         monkeyObject.transformMatrix = monkeyTranslate;
 
         Scene::GetInstance().sceneRenderObjects.push_back(monkeyObject);
+
+        // Helmet mesh
+        Mesh helmetMesh;
+        load_mesh_from_gltf(helmetMesh, ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true);
+        Scene::GetInstance().sceneMeshMap["helmet"] = upload_mesh(helmetMesh, vmaAllocator, mainDeletionQueue);
+
+        RenderObject helmetObject("defaultMaterial", "helmet");
+        glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
+        helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
+        helmetObject.transformMatrix = helmetTransform;
+
+        Scene::GetInstance().sceneRenderObjects.push_back(helmetObject);
     }
 
     void init_imgui() {
@@ -1006,12 +1018,6 @@ private:
             // Handle events on queue
             while (SDL_PollEvent(&sdlEvent) != 0) {
                 ImGui_ImplSDL3_ProcessEvent(&sdlEvent);      
-                if (sdlEvent.window.type == SDL_EVENT_WINDOW_MINIMIZED) {
-                    stop_rendering = true;
-                }
-                if (sdlEvent.window.type == SDL_EVENT_WINDOW_RESTORED) {
-                    stop_rendering = false;
-                }
                 if (sdlEvent.type == SDL_EVENT_QUIT) { // Built in Alt+F4 or hitting the 'x' button
                     SDL_SetRelativeMouseMode(SDL_FALSE); // Needed or else mouse freeze persists until clicking after closing app
                     bQuit = true;

@@ -6,10 +6,10 @@ void create_material(GraphicsPipeline graphicsPipeline, const std::string& mater
     Scene::GetInstance().sceneMaterialMap[materialName] = graphicsPipeline;
 }
 
-[[nodiscard]] GraphicsPipeline* get_material(const std::string& materialName) {
+[[nodiscard]] GraphicsPipeline* get_material(const std::string& materialName, std::unordered_map<std::string, GraphicsPipeline>& materialMap) {
     // Search for the material, and return nullptr if not found
-    auto it = Scene::GetInstance().sceneMaterialMap.find(materialName);
-    if (it == Scene::GetInstance().sceneMaterialMap.end()) {
+    auto it = materialMap.find(materialName);
+    if (it == materialMap.end()) {
         MRCERR("Could not find material: " << materialName);
         return nullptr;
     }

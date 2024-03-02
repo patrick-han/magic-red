@@ -20,11 +20,8 @@ struct Mesh {
     AllocatedBuffer  indexBuffer;
 };
 
-/* Load Mesh data from an .obj file */
-void load_mesh_from_obj(Mesh& mesh, const char* objFileName, MeshColor overrideColor);
-
-/* Load Mesh data using ASSIMP */
-void load_mesh(Mesh& mesh, const char* meshFileName);
+/* Load Mesh data from an .gltf or .glb file */
+void load_mesh_from_gltf(Mesh& mesh, const char* fileName, bool isBinary);
 
 /* Upload an instantiated Mesh to the GPU using a created VMA allocator */
 [[nodiscard]] Mesh& upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue& deletionQueue);

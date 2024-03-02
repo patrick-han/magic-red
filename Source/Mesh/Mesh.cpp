@@ -1,97 +1,220 @@
+#include <Common/Compiler/DisableWarnings.h>
+PUSH_MSVC_WARNINGS
+DISABLE_MSVC_WARNING(4267) // conversion from 'size_t' to 'uint32_t', possible loss of data
+DISABLE_MSVC_WARNING(4201) // nonstandard extension used : nameless struct / union (glm library)
+#include <Common/Compiler/Unused.h>
+
 #include <Mesh/Mesh.h>
 #include <vulkan/vulkan.h>
 #include <Common/Log.h>
-#define TINYOBJLOADER_IMPLEMENTATION
-#include <External/tiny_obj_loader.h>
-#include <Common/Compiler/Unused.h>
+#include <span>
 
-void load_mesh_from_obj(Mesh& mesh, const char* fileName, MeshColor overrideColor) {
-    // Attrib will contain the vertex arrays of the file
-    tinyobj::attrib_t attrib;
-    // Shapes contains the info for each separate object in the file
-    std::vector<tinyobj::shape_t> shapes;
-    // Materials contains the information about the material of each shape, but we won't use it.
-    std::vector<tinyobj::material_t> materials;
+// Define these only in *one* .cpp file.
+#define TINYGLTF_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+// #define TINYGLTF_NOEXCEPTION // optional. disable exception handling.
+#include <External/tinygltf/tiny_gltf.h>
 
-    // Error and warning output from the load function
-    std::string warn;
-    std::string err;
 
-    // Load the OBJ file
-    tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, fileName, nullptr);
-    // Make sure to output the warnings to the console, in case there are issues with the file
-    if (!warn.empty()) {
-        MRWARN(warn);
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+void get_node_properties(const tinygltf::Node& node, const tinygltf::Model& model, uint32_t& vertexCount, uint32_t& indexCount) {
+    if (node.children.size() > 0)
+    {
+        for (size_t i = 0; i < node.children.size(); i++)
+        {
+            tinygltf::Node childNode = model.nodes[node.children[i]];
+            get_node_properties(childNode, model, vertexCount, indexCount);
+        }
     }
-    // If we have any error, print it to the console, and break the mesh loading.
-    // This happens if the file can't be found or is malformed
-    if (!err.empty()) {
-        MRCERR("Failed to load mesh: " <<  fileName);
-    }
-
-    // Loop over shapes
-    for (size_t s = 0; s < shapes.size(); s++) {
-        // Loop over faces(polygon)
-        size_t index_offset = 0;
-        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
-
-            //hardcode loading to triangles
-            uint32_t fv = 3;
-
-            // Loop over vertices in the face.
-            for (size_t v = 0; v < fv; v++) {
-                // access to vertex
-                tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
-
-                //vertex position
-                tinyobj::real_t vx = attrib.vertices[3 * idx.vertex_index + 0];
-                tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1];
-                tinyobj::real_t vz = attrib.vertices[3 * idx.vertex_index + 2];
-                //vertex normal
-                tinyobj::real_t nx = attrib.normals[3 * idx.normal_index + 0];
-                tinyobj::real_t ny = attrib.normals[3 * idx.normal_index + 1];
-                tinyobj::real_t nz = attrib.normals[3 * idx.normal_index + 2];
-
-                //copy it into our vertex
-                Vertex new_vert;
-                new_vert.position.x = vx;
-                new_vert.position.y = vy;
-                new_vert.position.z = vz;
-
-                new_vert.normal.x = nx;
-                new_vert.normal.y = ny;
-                new_vert.normal.z = nz;
-
-                // Override vertex colors for debug
-                switch(overrideColor) {
-                    case MeshColor::Red:
-                        new_vert.color.x = 1.0f;
-                        new_vert.color.y = 0.2f;
-                        new_vert.color.z = 0.2f;
-                    break;
-                    case MeshColor::Green:
-                        new_vert.color.x = 0.2f;
-                        new_vert.color.y = 1.0f;
-                        new_vert.color.z = 0.2f;
-                    break;
-                    case MeshColor::Blue:
-                        new_vert.color.x = 0.2f;
-                        new_vert.color.y = 0.2f;
-                        new_vert.color.z = 1.0f;
-                    break;
-                }
-
-
-                mesh.vertices.push_back(new_vert);
+    if (node.mesh != -1) // -1 used to indicate validity in the tingltf library
+    {
+        tinygltf::Mesh nodeMesh = model.meshes[node.mesh];
+        for (size_t i = 0; i < nodeMesh.primitives.size(); i++)
+        {
+            tinygltf::Primitive nodeMeshPrimitive = nodeMesh.primitives[i];
+            int primitivePositionAccessorIndex = nodeMeshPrimitive.attributes.find("POSITION")->second;
+            vertexCount += model.accessors[primitivePositionAccessorIndex].count;
+            if (nodeMeshPrimitive.indices != -1) // Meshes may not be indexed drawn
+            {
+                indexCount += model.accessors[nodeMeshPrimitive.indices].count;
             }
-            index_offset += fv;
+            
         }
     }
 }
 
-void load_mesh(Mesh& mesh, const char* meshFileName) {
-    UNUSED(mesh);
-    UNUSED(meshFileName);
+struct NodeLoadingData {
+    std::vector<Vertex>& vertices;
+    std::vector<uint32_t>& indices;
+    size_t indexPos = 0;
+    size_t vertexPos = 0;
+};
+
+void load_node(const tinygltf::Node& node, const tinygltf::Model& model, NodeLoadingData& nodeLoadingData) {
+
+
+    if (node.children.size() >  0)
+    {
+        load_node(node, model, nodeLoadingData);
+    }
+    if (node.mesh != -1)
+    {
+        tinygltf::Mesh nodeMesh = model.meshes[node.mesh];
+        for (size_t j = 0; j < nodeMesh.primitives.size(); j++)
+        {
+            
+            tinygltf::Primitive nodeMeshPrimitive = nodeMesh.primitives[j];
+            uint32_t vertexStart = static_cast<uint32_t>(nodeLoadingData.vertexPos);
+			uint32_t indexStart = static_cast<uint32_t>(nodeLoadingData.indexPos);
+            UNUSED(indexStart);
+
+            // Vertex Positions
+            const tinygltf::Accessor& positionAccessor = model.accessors[nodeMeshPrimitive.attributes.find("POSITION")->second];
+            size_t vertexCount = positionAccessor.count;
+            if (positionAccessor.type != TINYGLTF_TYPE_VEC3)
+            {
+                MRCERR("Position accessor isn't VEC3 type!");
+                exit(1);
+            }
+            const tinygltf::BufferView& positionBufferView = model.bufferViews[positionAccessor.bufferView];
+            const tinygltf::Buffer& positionBuffer = model.buffers[positionBufferView.buffer];
+            const float* positionBufferData = reinterpret_cast<const float*>(&(positionBuffer.data[positionAccessor.byteOffset + positionBufferView.byteOffset]));
+            size_t positionByteStride = positionAccessor.ByteStride(positionBufferView) ? (positionAccessor.ByteStride(positionBufferView) / sizeof(float)) : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC3);
+
+
+            // Vertex Normals
+            const tinygltf::Accessor &normalAccessor = model.accessors[nodeMeshPrimitive.attributes.find("NORMAL")->second];
+            if (normalAccessor.type != TINYGLTF_TYPE_VEC3)
+            {
+                MRCERR("Normal accessor isn't VEC3 type!");
+                exit(1);
+            }
+            const tinygltf::BufferView& normalBufferView = model.bufferViews[normalAccessor.bufferView];
+            const tinygltf::Buffer& normalBuffer = model.buffers[normalBufferView.buffer];
+            const float* normalBufferData = reinterpret_cast<const float*>(&(normalBuffer.data[normalAccessor.byteOffset + normalBufferView.byteOffset]));
+            size_t normalByteStride = normalAccessor.ByteStride(normalBufferView) ? (normalAccessor.ByteStride(normalBufferView) / sizeof(float)) : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC3);
+
+            // Create vertices
+            for (size_t vertex_i = 0; vertex_i < vertexCount; vertex_i++)
+            {
+                glm::vec3 position = glm::make_vec3(&positionBufferData[vertex_i * positionByteStride]);
+                glm::vec3 normal = glm::normalize(glm::make_vec3(&normalBufferData[vertex_i * normalByteStride]));
+                Vertex new_vertex = { position, normal, glm::vec3(0.0, 0.8, 1.0)}; // Green default
+                nodeLoadingData.vertices[nodeLoadingData.vertexPos] = new_vertex;
+                nodeLoadingData.vertexPos++;
+            }
+
+            // Indices
+            const tinygltf::Accessor &indicesAccessor = model.accessors[nodeMeshPrimitive.indices];
+            size_t indexCount = indicesAccessor.count;
+            if (indicesAccessor.type != TINYGLTF_TYPE_SCALAR)
+            {
+                MRCERR("Index accessor isn't SCALAR type!");
+                exit(1);
+            }
+            const tinygltf::BufferView &indicesBufferView = model.bufferViews[indicesAccessor.bufferView];
+            const tinygltf::Buffer &indicesBuffer = model.buffers[indicesBufferView.buffer];
+            const void* indexBufferDataPtr = &(indicesBuffer.data[indicesAccessor.byteOffset + indicesBufferView.byteOffset]);
+
+            switch (indicesAccessor.componentType)
+            {
+            case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
+            {
+                const uint32_t* indicesBufferData = static_cast<const uint32_t*>(indexBufferDataPtr);
+                for (size_t index_i = 0; index_i < indexCount; index_i++)
+                {
+                    nodeLoadingData.indices[nodeLoadingData.indexPos] = indicesBufferData[index_i] + vertexStart;
+                    nodeLoadingData.indexPos++;
+                }
+                break;
+            }
+            case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
+            {
+                const uint16_t* indicesBufferData = static_cast<const uint16_t*>(indexBufferDataPtr);
+                for (size_t index_i = 0; index_i < indexCount; index_i++)
+                {
+                    nodeLoadingData.indices[nodeLoadingData.indexPos] = indicesBufferData[index_i] + vertexStart;
+                    nodeLoadingData.indexPos++;
+                }
+                break;
+            }
+            case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
+            {
+                const uint8_t* indicesBufferData = static_cast<const uint8_t*>(indexBufferDataPtr);
+                for (size_t index_i = 0; index_i < indexCount; index_i++)
+                {
+                    nodeLoadingData.indices[nodeLoadingData.indexPos] = indicesBufferData[index_i] + vertexStart;
+                    nodeLoadingData.indexPos++;
+                }
+                break;
+            }
+            default:
+                MRCERR("Unexpected index accessor component type, perhaps the gltf is malformed!");
+                exit(1);
+                break;
+            }
+        }
+    }
+}
+
+void load_mesh_from_gltf(Mesh& mesh, const char* fileName, bool isBinary) {
+    tinygltf::Model gltfModel;
+    tinygltf::TinyGLTF gltfLoader;
+    std::string err;
+    std::string warn;
+
+    bool ret;
+    if (isBinary)
+    {
+        ret = gltfLoader.LoadBinaryFromFile(&gltfModel, &err, &warn, fileName);
+    }
+    else
+    {
+        ret = gltfLoader.LoadASCIIFromFile(&gltfModel, &err, &warn, fileName);
+    }
+
+    if (!warn.empty())
+    {
+        MRLOG("[tinygltf] Warning: " << warn);
+    }
+    if (!err.empty()) 
+    {
+        MRLOG("[tinygltf] Error: " << err);
+    }
+    if(!ret) 
+    {
+        MRLOG("[tinygltf] Failed to parse gltf");
+        exit(1);
+    }
+    const tinygltf::Scene& scene = gltfModel.scenes[gltfModel.defaultScene != -1 ? gltfModel.defaultScene : 0];
+    uint32_t vertexCount = 0;
+    uint32_t indexCount = 0;
+    for (size_t i = 0; i < scene.nodes.size(); i++)
+    {
+        get_node_properties(gltfModel.nodes[scene.nodes[i]], gltfModel, vertexCount, indexCount);
+    }
+
+    mesh.vertices.resize(vertexCount);
+    mesh.indices.resize(indexCount);
+    NodeLoadingData nodeLoadingData = {mesh.vertices, mesh.indices};
+
+    for (size_t i = 0; i < scene.nodes.size(); i++)
+    {
+        const tinygltf::Node node = gltfModel.nodes[scene.nodes[i]];
+        load_node(node, gltfModel, nodeLoadingData);
+    }
+    
+    MRLOG(
+        "Finished loading gltf: " 
+        << fileName << " \n"
+        << "Number of vertices: " << mesh.vertices.size() << " \n"
+        << "Number of indices: " << mesh.indices.size() << " \n"
+    );
 }
 
 [[nodiscard]] Mesh& upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue& deletionQueue) {
@@ -114,3 +237,4 @@ void load_mesh(Mesh& mesh, const char* meshFileName) {
         return &(*it).second;
     }
 }
+POP_MSVC_WARNINGS
