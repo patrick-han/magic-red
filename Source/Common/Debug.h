@@ -2,6 +2,7 @@
 #include <vulkan/vulkan.h>
 #include <Common/Log.h>
 #include <Common/Compiler/Unused.h>
+#include <nvrhi/vulkan.h>
 
 // Debug and platform build defines
 
@@ -37,3 +38,36 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
         func(instance, debugMessenger, pAllocator);
     }
 }
+
+
+// Nvidia RHI
+class MessageCallbackImpl final : public nvrhi::IMessageCallback
+{
+public:
+    void message( nvrhi::MessageSeverity severity, const char* messageText ) override
+    {
+        const char* severityString = [&severity]()
+        {
+            using nvrhi::MessageSeverity;
+            switch ( severity )
+            {
+            case MessageSeverity::Info: return "[INFO]";
+            case MessageSeverity::Warning: return "[WARNING]";
+            case MessageSeverity::Error: return "[ERROR]";
+            case MessageSeverity::Fatal: return "[### FATAL ERROR ###]";
+            default: return "[unknown]";
+            }
+        }();
+
+        // std::cout << "NVRHI::" << severityString << " " << messageText << std::endl << std::endl;
+        MRLOG("NVRHI::" << severityString << " " << messageText);
+
+        if ( severity == nvrhi::MessageSeverity::Fatal )
+        {
+            // std::cout << "Fatal error encountered, look above ^" << std::endl;
+            // std::cout << "=====================================" << std::endl;
+            MRLOG("Fatal error encountered, look above ^");
+            MRLOG("=====================================");
+        }
+    }
+};

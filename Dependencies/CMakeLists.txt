@@ -55,15 +55,13 @@ target_link_libraries(Dependencies INTERFACE IMGUI)
 target_include_directories(Dependencies INTERFACE imgui)
     
 
-# ========== ASSIMP ========== #
-# set(ASSIMP_NO_EXPORT ON)
-# set(ASSIMP_BUILD_TESTS OFF)
-# set(ASSIMP_INSTALL OFF)
-# set(ASSIMP_WARNINGS_AS_ERRORS OFF)
-# if (NOT CMAKE_BUILD_TYPE MATCHES Debug)
-#     set(ASSIMP_INJECT_DEBUG_POSTFIX OFF)
-# endif()
+# ========== NVRHI ========== #
+set(NVRHI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 
-# add_subdirectory(Assimp)
-# target_link_libraries(Dependencies INTERFACE assimp)
-# target_include_directories(Dependencies SYSTEM INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/Assimp/include/)
+set(NVRHI_WITH_DX11 OFF CACHE BOOL "" FORCE)
+set(NVRHI_WITH_DX12 OFF CACHE BOOL "" FORCE)
+set(NVRHI_WITH_VULKAN ON CACHE BOOL "" FORCE)
+
+add_subdirectory(nvrhi)
+target_link_libraries(Dependencies INTERFACE nvrhi)
+target_link_libraries(Dependencies INTERFACE nvrhi_vk)

@@ -43,6 +43,9 @@
 
 #include <IncludeHelpers/ImguiIncludes.h>
 
+// NVRHI
+#include <nvrhi/vulkan.h>
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 // Frame data
 int frameNumber = 0;
 float deltaTime = 0.0f; // Time between current and last frame
@@ -84,6 +87,10 @@ private:
     VkSurfaceKHR surface;
     VkPhysicalDevice physicalDevice;
     VkDevice device;
+
+    // NVRHI
+    nvrhi::DeviceHandle nvrhiDevice;
+    nvrhi::IMessageCallback* nvrhiMessageCallback;
 
     // Queues
     uint32_t graphicsQueueFamilyIndex;
@@ -341,6 +348,18 @@ private:
         mainDeletionQueue.push_function([=]() {
             vkDestroyDevice(device, nullptr);
         });
+
+        ////nvrhiMessageCallback = new MessageCallbackImpl;
+        nvrhi::vulkan::DeviceDesc deviceDesc;
+        // deviceDesc.errorCB = nvrhiMessageCallback;
+        deviceDesc.errorCB = nullptr;
+        deviceDesc.physicalDevice = physicalDevice;
+        deviceDesc.device = device;
+        deviceDesc.graphicsQueue = graphicsQueue;
+        deviceDesc.graphicsQueueIndex = graphicsQueueFamilyIndex;
+        deviceDesc.deviceExtensions = deviceExtensions.data();
+        deviceDesc.numDeviceExtensions = std::size(deviceExtensions);
+        nvrhi::vulkan::createDevice(deviceDesc);
     }
 
     void createSwapchain() {
