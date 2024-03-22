@@ -3,9 +3,12 @@
 // #include <shaderc/shaderc.hpp>
 #include <vulkan/vulkan.h>
 #include <string>
+#include <vector>
 
 /* Given a string path to a precompiled spirv shader file, create the VkShaderModule */
 bool load_shader_spirv_source_to_module(const std::string& shaderSpirvPath, VkDevice device, VkShaderModule& shaderModule);
+
+bool load_shader_spirv_source_to_bytes(const std::string& shaderSpirvPath, std::vector<uint32_t> &byteBuffer, size_t& byteBufferSizeBytes);
 
 // /* Given a string path to a shader file, return a string containing its source ready to be compiled */
 // std::string load_shader_source_to_string(std::string const& shaderPath);

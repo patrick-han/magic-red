@@ -8,8 +8,10 @@
 
 #ifdef NDEBUG
     constexpr bool enableValidationLayers = false;
-#else
+    constexpr bool enableNvrhiValidation = false;
+#else    
     constexpr bool enableValidationLayers = true;
+    constexpr bool enableNvrhiValidation = true;
 #endif
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -44,6 +46,12 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
 class MessageCallbackImpl final : public nvrhi::IMessageCallback
 {
 public:
+    static MessageCallbackImpl& GetInstance()
+    {
+        static MessageCallbackImpl Instance;
+        return Instance;
+    }
+
     void message( nvrhi::MessageSeverity severity, const char* messageText ) override
     {
         const char* severityString = [&severity]()

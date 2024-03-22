@@ -1,3 +1,4 @@
+#if 0
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
@@ -43,16 +44,6 @@
 
 #include <IncludeHelpers/ImguiIncludes.h>
 
-#include <Shader/Shader.h>
-
-// NVRHI
-#include <nvrhi/vulkan.h>
-#include <nvrhi/validation.h>
-#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
-#include <vulkan/vulkan.hpp>
-VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
-#include <nvrhi/utils.h> // for ClearColorAttachment
-
 // Frame data
 int frameNumber = 0;
 float deltaTime = 0.0f; // Time between current and last frame
@@ -87,22 +78,13 @@ private:
     // Instance
     std::vector<const char*> extensionsVector;
     std::vector<const char*> layers;
-    // VkInstance instance;
-    vk::UniqueInstance instanceHPP;
+    VkInstance instance;
     VkDebugUtilsMessengerEXT debugMessenger;
 
     // Surface and devices
     VkSurfaceKHR surface;
     VkPhysicalDevice physicalDevice;
-    vk::PhysicalDevice physicalDeviceHPP;
-    std::vector<const char*> deviceExtensions;
     VkDevice device;
-    vk::UniqueDevice deviceHPP;
-
-    // NVRHI
-    //nvrhi::DeviceHandle nvrhiDevice;
-    nvrhi::vulkan::DeviceHandle nvrhiVulkanDevice;
-    nvrhi::DeviceHandle nvrhiValidationLayer;
 
     // Queues
     uint32_t graphicsQueueFamilyIndex;
@@ -111,8 +93,6 @@ private:
     std::vector<uint32_t> FamilyIndices;
     VkQueue graphicsQueue;
     VkQueue presentQueue;
-    vk::Queue graphicsQueueHPP;
-    vk::Queue presentQueueHPP;
 
     // Images
     AllocatedImage depthImage;
@@ -125,8 +105,6 @@ private:
     uint32_t swapChainImageCount = 3; // Should probably request support for this, but it's probably fine
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;
-    std::vector<nvrhi::TextureHandle> swapChainTextureHandlesNVRHI;
-    std::vector<nvrhi::FramebufferHandle> framebufferHandlesNVRHI;
 
     // Synchronization
     std::vector<VkSemaphore> imageAvailableSemaphores_F;
@@ -164,7 +142,7 @@ private:
 
     void createInstance() {
         // Specify application and engine info
-        // VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO, nullptr, "Magic Red", VK_MAKE_API_VERSION(1, 0, 0, 0), "Magic Red", VK_MAKE_API_VERSION(1, 0, 0, 0), VK_API_VERSION_1_2};
+        VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO, nullptr, "Magic Red", VK_MAKE_API_VERSION(1, 0, 0, 0), "Magic Red", VK_MAKE_API_VERSION(1, 0, 0, 0), VK_API_VERSION_1_2};
 
         // Get extensions required for SDL VK surface rendering
         uint32_t sdlExtensionCount = 0;
@@ -177,14 +155,11 @@ private:
         
 
         // MoltenVK requires
-        //VkInstanceCreateFlags instanceCreateFlagBits = {};
-        vk::InstanceCreateFlagBits instanceCreateFlagBits = {};
-
+        VkInstanceCreateFlags instanceCreateFlagBits = {};
 #if PLATFORM_MACOS
             MRLOG("Running on an Apple device, adding appropriate extension and instance creation flag bits");
             extensionsVector.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-            //instanceCreateFlagBits |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-            instanceCreateFlagBits |= vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
+            instanceCreateFlagBits |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
 
         // Enable validation layers and creation of debug messenger if building debug
@@ -196,39 +171,25 @@ private:
             MRLOG("Release build");
         }
 
-        // // Create instance
-        // VkInstanceCreateInfo instanceCreateInfo = {
-        //     VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        //     nullptr,
-        //     instanceCreateFlagBits,
-        //     &appInfo,
-        //     static_cast<uint32_t>(layers.size()),
-        //     layers.data(),
-        //     static_cast<uint32_t>(extensionsVector.size()),
-        //     extensionsVector.data()
-        // };
-        // VkResult res = vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
-        // if (res != VK_SUCCESS) {
-        //     MRCERR(string_VkResult(res));
-        //     throw std::runtime_error("Failed to create instance!");
-        // }
-        // mainDeletionQueue.push_function([=]() {
-        //     vkDestroyInstance(instance, nullptr);
-        // });
-
-
-        vk::ApplicationInfo appInfo("Magic Red", VK_MAKE_VERSION(1, 0, 0), "Magic Red", VK_MAKE_VERSION(1, 0, 0), VK_API_VERSION_1_2);
-
-        auto instanceCreateInfo = vk::InstanceCreateInfo(
-            instanceCreateFlagBits, 
+        // Create instance
+        VkInstanceCreateInfo instanceCreateInfo = {
+            VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+            nullptr,
+            instanceCreateFlagBits,
             &appInfo,
-            static_cast<uint32_t>(layers.size()), 
+            static_cast<uint32_t>(layers.size()),
             layers.data(),
-            static_cast<uint32_t>(extensionsVector.size()), 
+            static_cast<uint32_t>(extensionsVector.size()),
             extensionsVector.data()
-        );
-        instanceHPP = vk::createInstanceUnique(instanceCreateInfo);
-        VULKAN_HPP_DEFAULT_DISPATCHER.init(instanceHPP.get());
+        };
+        VkResult res = vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
+        if (res != VK_SUCCESS) {
+            MRCERR(string_VkResult(res));
+            throw std::runtime_error("Failed to create instance!");
+        }
+        mainDeletionQueue.push_function([=]() {
+            vkDestroyInstance(instance, nullptr);
+        });
     }
 
     void createDebugMessenger() {
@@ -249,51 +210,39 @@ private:
         debugMessengerCreateInfo.pfnUserCallback = debugCallback;
         debugMessengerCreateInfo.pUserData = nullptr;
 
-        // VkResult res = CreateDebugUtilsMessengerEXT(instance, &debugMessengerCreateInfo, nullptr, &debugMessenger);
-        VkResult res = CreateDebugUtilsMessengerEXT(reinterpret_cast<VkInstance&>(instanceHPP.get()), &debugMessengerCreateInfo, nullptr, &debugMessenger);
+        VkResult res = CreateDebugUtilsMessengerEXT(instance, &debugMessengerCreateInfo, nullptr, &debugMessenger);
         if (res != VK_SUCCESS) {
             MRCERR(string_VkResult(res));
             throw std::runtime_error("Failed to create debug messenger!");
         }
         mainDeletionQueue.push_function([=]() {
-            // DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
-            DestroyDebugUtilsMessengerEXT(reinterpret_cast<VkInstance&>(instanceHPP.get()), debugMessenger, nullptr);
+            DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
         });
     }
 
     void createSurface() {
-        // SDL_bool res = SDL_Vulkan_CreateSurface(window, instance, nullptr, &surface);
-        SDL_bool res = SDL_Vulkan_CreateSurface(window, reinterpret_cast<VkInstance&>(instanceHPP.get()), nullptr, &surface);
+        SDL_bool res = SDL_Vulkan_CreateSurface(window, instance, nullptr, &surface);
         if (res != SDL_TRUE) {
             throw std::runtime_error("Could not create surface!");
         }
         mainDeletionQueue.push_function([=]() {
-            // vkDestroySurfaceKHR(instance, surface, nullptr);
-            vkDestroySurfaceKHR(reinterpret_cast<VkInstance&>(instanceHPP.get()), surface, nullptr);
+            vkDestroySurfaceKHR(instance, surface, nullptr);
         });
     }
 
     void initPhysicalDevice() {
         
-        //uint32_t physicalDeviceCount = 0;
-        // vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr);
-        // vkEnumeratePhysicalDevices(reinterpret_cast<VkInstance &>(instanceHPP.get()), &physicalDeviceCount, nullptr);
-
-        std::vector<vk::PhysicalDevice> physicalDevices = instanceHPP->enumeratePhysicalDevices();
-        if (physicalDevices.size() == 0) {
+        uint32_t physicalDeviceCount = 0;
+        vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr);
+        if (physicalDeviceCount == 0) {
             throw std::runtime_error("No Vulkan capable devices found");
         }
-        // std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
-        // vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data());
-        // vkEnumeratePhysicalDevices(reinterpret_cast<VkInstance &>(instanceHPP.get()), &physicalDeviceCount, physicalDevices.data());
+        std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
+        vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data());
 
-        // for (VkPhysicalDevice d : physicalDevices) {
-        //     VkPhysicalDeviceProperties physDeviceProps;
-        //     vkGetPhysicalDeviceProperties(d, &physDeviceProps);
-        //     MRLOG("Physical device enumerated: " << physDeviceProps.deviceName);
-        // }
-        for (vk::PhysicalDevice pd : physicalDevices) {
-            vk::PhysicalDeviceProperties physDeviceProps = pd.getProperties();
+        for (VkPhysicalDevice d : physicalDevices) {
+            VkPhysicalDeviceProperties physDeviceProps;
+            vkGetPhysicalDeviceProperties(d, &physDeviceProps);
             MRLOG("Physical device enumerated: " << physDeviceProps.deviceName);
         }
 #if PLATFORM_MACOS
@@ -311,19 +260,16 @@ private:
         vkGetPhysicalDeviceProperties(physicalDevice, &chosenPhysDeviceProps);
         MRLOG("Chosen deviceName: " << chosenPhysDeviceProps.deviceName);
 #else
-            //physicalDevice = physicalDevices[0]; // TODO: By Default, just select the first physical device, could be bad if there are both integrated and discrete GPUs in the system
-            physicalDeviceHPP = physicalDevices[0]; // TODO: By Default, just select the first physical device, could be bad if there are both integrated and discrete GPUs in the system
+            physicalDevice = physicalDevices[0]; // TODO: By Default, just select the first physical device, could be bad if there are both integrated and discrete GPUs in the system
 #endif
     }
 
     void findQueueFamilyIndices() {
         // Find graphics and present queue family indices
         uint32_t queueFamilyPropertyCount = 0;
-        //vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertyCount, nullptr);
-        vkGetPhysicalDeviceQueueFamilyProperties(reinterpret_cast<vk::PhysicalDevice&>(physicalDeviceHPP), &queueFamilyPropertyCount, nullptr);
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertyCount, nullptr);
         std::vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertyCount);
-        //vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertyCount, queueFamilyProperties.data());
-        vkGetPhysicalDeviceQueueFamilyProperties(reinterpret_cast<vk::PhysicalDevice&>(physicalDeviceHPP), &queueFamilyPropertyCount, queueFamilyProperties.data());
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertyCount, queueFamilyProperties.data());
 
         graphicsQueueFamilyIndex = static_cast<uint32_t>(std::distance(queueFamilyProperties.begin(),
             std::find_if(queueFamilyProperties.begin(), queueFamilyProperties.end(),
@@ -336,8 +282,7 @@ private:
         for (uint32_t queueFamilyIndex = 0; queueFamilyIndex < queueFamilyProperties.size(); queueFamilyIndex++) {
             // Check if a given queue family on our device supports presentation to the surface that was created
             VkBool32 supported = VK_FALSE;
-            //VkResult res = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, static_cast<uint32_t>(queueFamilyIndex), surface, &supported);
-            VkResult res = vkGetPhysicalDeviceSurfaceSupportKHR(reinterpret_cast<vk::PhysicalDevice&>(physicalDeviceHPP), static_cast<uint32_t>(queueFamilyIndex), surface, &supported);
+            VkResult res = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, static_cast<uint32_t>(queueFamilyIndex), surface, &supported);
             if (res != VK_SUCCESS) {
                 MRCERR(string_VkResult(res));
                 throw std::runtime_error("Queue family does not support presentation!");
@@ -362,14 +307,7 @@ private:
         // Creation of logical device requires queue creation info as well as extensions + layers we want
 
         // For each queue family, create a single queue
-        //std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        //float queuePriority = 0.0f;
-        //uint32_t queueCountPerFamily = 1;
-        //for (auto& queueFamilyIndex : uniqueQueueFamilyIndices) {
-        //    queueCreateInfos.push_back(VkDeviceQueueCreateInfo{ VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, nullptr, VkDeviceQueueCreateFlags(), static_cast<uint32_t>(queueFamilyIndex), queueCountPerFamily, &queuePriority });
-        //}
-
-        std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+        std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
         float queuePriority = 0.0f;
         uint32_t queueCountPerFamily = 1;
         for (auto& queueFamilyIndex : uniqueQueueFamilyIndices) {
@@ -377,140 +315,33 @@ private:
         }
 
         // Device extensions
-        deviceExtensions.resize(3);
-        deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_KHR_dynamic_rendering" , VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME};
+        std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_KHR_dynamic_rendering" };
 #if PLATFORM_MACOS
         deviceExtensions.push_back("VK_KHR_portability_subset");
 #endif
-        // // Timeline semaphores
-        // VkPhysicalDeviceTimelineSemaphoreFeaturesKHR timeline_semaphores_feature {
-        //     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES_KHR,
-        //     .timelineSemaphore = VK_TRUE,
-        // };
         
-        // // Needed to enable dynamic rendering extension
-        // VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature {
-        //     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
-        //     .pNext = &timeline_semaphores_feature,
-        //     .dynamicRendering = VK_TRUE,
-        // };
+        // Needed to enable dynamic rendering extension
+        constexpr VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+            .dynamicRendering = VK_TRUE,
+        };
 
-        // VkDeviceCreateInfo deviceCreateInfo = {
-        //     VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        //     &dynamic_rendering_feature,
-        //     VkDeviceCreateFlags(),
-        //     static_cast<uint32_t>(queueCreateInfos.size()),
-        //     queueCreateInfos.data(),
-        //     0u,
-        //     nullptr,
-        //     static_cast<uint32_t>(deviceExtensions.size()),
-        //     deviceExtensions.data(),
-        //     nullptr
-        // };
-
-        
-
-        vk::PhysicalDeviceTimelineSemaphoreFeaturesKHR timeline_semaphore_feature;
-        timeline_semaphore_feature.timelineSemaphore = vk::True;
-
-        vk::PhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature;
-        dynamic_rendering_feature.pNext = &timeline_semaphore_feature;
-        dynamic_rendering_feature.dynamicRendering = vk::True;
-
-        vk::PhysicalDeviceSynchronization2Features physicalDeviceSynchronization2Features;
-        physicalDeviceSynchronization2Features.pNext = &dynamic_rendering_feature;
-        physicalDeviceSynchronization2Features.synchronization2 = vk::True;
-
-        vk::PhysicalDeviceFeatures2 physicalDeviceFeatures2;
-        physicalDeviceFeatures2.pNext = &physicalDeviceSynchronization2Features;
-
-
-        //vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceTimelineSemaphoreFeaturesKHR, vk::PhysicalDeviceDynamicRenderingFeaturesKHR> c = {
-        //  physicalDeviceFeatures2,
-        //  timeline_semaphore_feature,
-        //  dynamic_rendering_feature
-        
-
-        vk::DeviceCreateInfo deviceCreateInfo;
-        deviceCreateInfo.flags = {};
-        deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-        deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
-        deviceCreateInfo.enabledLayerCount = 0u;
-        deviceCreateInfo.ppEnabledLayerNames = nullptr;
-        deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-        deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
-        deviceCreateInfo.pEnabledFeatures = nullptr;
-        deviceCreateInfo.pNext = &physicalDeviceFeatures2;
-        deviceHPP = physicalDeviceHPP.createDeviceUnique(deviceCreateInfo);
-        VULKAN_HPP_DEFAULT_DISPATCHER.init(deviceHPP.get());
-
-
-        // vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
-        // mainDeletionQueue.push_function([=]() {
-        //     vkDestroyDevice(device, nullptr);
-        // });
-    }
-
-    void retrieveQueues() {
-        //vkGetDeviceQueue(device, graphicsQueueFamilyIndex, 0, &graphicsQueue);
-        //vkGetDeviceQueue(device, presentQueueFamilyIndex, 0, &presentQueue);
-        graphicsQueueHPP = deviceHPP->getQueue(graphicsQueueFamilyIndex, 0);
-        presentQueueHPP = deviceHPP->getQueue(presentQueueFamilyIndex, 0);
-    }
-
-    void initNVRHI() {
-        //nvrhi::vulkan::DeviceDesc deviceDesc;
-        //deviceDesc.errorCB = &MessageCallbackImpl::GetInstance();
-        //deviceDesc.instance = reinterpret_cast<VkInstance&>(instanceHPP.get());
-        //deviceDesc.physicalDevice = reinterpret_cast<VkPhysicalDevice&>(physicalDeviceHPP);
-        //deviceDesc.device = reinterpret_cast<VkDevice&>(deviceHPP.get());
-        //deviceDesc.graphicsQueue = reinterpret_cast<VkQueue&>(graphicsQueueHPP);
-        //deviceDesc.graphicsQueueIndex = graphicsQueueFamilyIndex;
-        //deviceDesc.deviceExtensions = deviceExtensions.data();
-        //deviceDesc.numDeviceExtensions = std::size(deviceExtensions);
-        //nvrhiDevice = nvrhi::vulkan::createDevice(deviceDesc);
-
-
-        nvrhi::vulkan::DeviceDesc deviceDesc;
-        deviceDesc.errorCB = &MessageCallbackImpl::GetInstance();
-        deviceDesc.instance = reinterpret_cast<VkInstance&>(instanceHPP.get());
-        deviceDesc.physicalDevice = reinterpret_cast<VkPhysicalDevice&>(physicalDeviceHPP);
-        deviceDesc.device = reinterpret_cast<VkDevice&>(deviceHPP.get());
-        deviceDesc.graphicsQueue = reinterpret_cast<VkQueue&>(graphicsQueueHPP);
-        deviceDesc.graphicsQueueIndex = graphicsQueueFamilyIndex;
-        // if ( m_DeviceParams.enableComputeQueue )
-        // {
-        //     deviceDesc.computeQueue = m_ComputeQueue;
-        //     deviceDesc.computeQueueIndex = m_ComputeQueueFamily;
-        // }
-        // if ( m_DeviceParams.enableCopyQueue )
-        // {
-        //     deviceDesc.transferQueue = m_TransferQueue;
-        //     deviceDesc.transferQueueIndex = m_TransferQueueFamily;
-        // }
-        deviceDesc.instanceExtensions = extensionsVector.data();
-        deviceDesc.numInstanceExtensions = extensionsVector.size();
-        deviceDesc.deviceExtensions = deviceExtensions.data();
-        deviceDesc.numDeviceExtensions = deviceExtensions.size();
-
-        nvrhiVulkanDevice = nvrhi::vulkan::createDevice(deviceDesc);
-
-        if (enableNvrhiValidation)
-        {
-            //nvrhi::DeviceHandle nvrhiValidationLayer = nvrhi::validation::createValidationLayer(nvrhiDevice);
-            //nvrhiDevice = nvrhiValidationLayer; // make the rest of the application go through the validation layer
-            nvrhiValidationLayer = nvrhi::validation::createValidationLayer(nvrhiVulkanDevice);
-            // nvrhiVulkanDevice = nvrhiValidationLayer; // make the rest of the application go through the validation layer
-        }
-    }
-
-    [[nodiscard]] nvrhi::IDevice* GetDevice() const
-    {
-        if (enableNvrhiValidation)
-        {
-            return nvrhiValidationLayer;
-        }
-        return nvrhiVulkanDevice;
+        VkDeviceCreateInfo deviceCreateInfo = {
+            VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+            &dynamic_rendering_feature,
+            VkDeviceCreateFlags(),
+            static_cast<uint32_t>(queueCreateInfos.size()),
+            queueCreateInfos.data(),
+            0u,
+            nullptr,
+            static_cast<uint32_t>(deviceExtensions.size()),
+            deviceExtensions.data(),
+            nullptr
+        };
+        vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
+        mainDeletionQueue.push_function([=]() {
+            vkDestroyDevice(device, nullptr);
+        });
     }
 
     void createSwapchain() {
@@ -525,15 +356,12 @@ private:
         
         // Query for surface format support
         VkSurfaceCapabilitiesKHR capabilities;
-        // vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &capabilities);
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(reinterpret_cast<VkPhysicalDevice&>(physicalDeviceHPP), surface, &capabilities);
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &capabilities);
 
         uint32_t surfaceFormatCount = 0;
-        // vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatCount, nullptr);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(reinterpret_cast<VkPhysicalDevice&>(physicalDeviceHPP), surface, &surfaceFormatCount, nullptr);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatCount, nullptr);
         std::vector<VkSurfaceFormatKHR> formats(surfaceFormatCount);
-        // vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatCount, formats.data());
-        vkGetPhysicalDeviceSurfaceFormatsKHR(reinterpret_cast<VkPhysicalDevice&>(physicalDeviceHPP), surface, &surfaceFormatCount, formats.data());
+        vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatCount, formats.data());
         
         swapChainFormat = VK_FORMAT_B8G8R8A8_UNORM;
         VkColorSpaceKHR swapChainColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
@@ -560,7 +388,7 @@ private:
             swapChainColorSpace,
             swapChainExtent, 
             1, 
-            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, // Transfer DST required by nvrhi usage I guess
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
             sharingModeUtil.sharingMode,
             sharingModeUtil.familyIndicesCount,
             sharingModeUtil.familyIndicesDataPtr,
@@ -570,32 +398,27 @@ private:
             true, 
             nullptr
         };
-        // VkResult res = vkCreateSwapchainKHR(device, &swapChainCreateInfo, nullptr, &swapChain);
-        VkResult res = vkCreateSwapchainKHR(reinterpret_cast<VkDevice&>(deviceHPP.get()), &swapChainCreateInfo, nullptr, &swapChain);
+        VkResult res = vkCreateSwapchainKHR(device, &swapChainCreateInfo, nullptr, &swapChain);
         if (res != VK_SUCCESS) {
             MRCERR(string_VkResult(res));
             throw std::runtime_error("Could not create swap chain!");
         }
         mainDeletionQueue.push_function([=]() {
-            // vkDestroySwapchainKHR(device, swapChain, nullptr);
-            vkDestroySwapchainKHR(reinterpret_cast<VkDevice&>(deviceHPP.get()), swapChain, nullptr);
+            vkDestroySwapchainKHR(device, swapChain, nullptr);
         });
     }
 
     void getSwapchainImages() {
-        // vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, nullptr); // We only specified a minimum during creation, need to query for the real number
-        vkGetSwapchainImagesKHR(reinterpret_cast<VkDevice&>(deviceHPP.get()), swapChain, &swapChainImageCount, nullptr); // We only specified a minimum during creation, need to query for the real number
+        vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, nullptr); // We only specified a minimum during creation, need to query for the real number
         swapChainImages.resize(swapChainImageCount); 
-        // vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, swapChainImages.data());
-        vkGetSwapchainImagesKHR(reinterpret_cast<VkDevice&>(deviceHPP.get()), swapChain, &swapChainImageCount, swapChainImages.data());
+        vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, swapChainImages.data());
         MRLOG("Final number of swapchain images: " << swapChainImageCount);
         assert(swapChainImageCount >= MAX_FRAMES_IN_FLIGHT); // Need at least as many swapchain images as FiFs or the extra FiFs are useless
         swapChainImageViews.resize(swapChainImages.size());
 
         for (uint32_t i = 0; i < swapChainImageViews.size(); i++) {
             VkImageViewCreateInfo imageViewCreateInfo = imageview_create_info(swapChainImages[i], swapChainFormat, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
-            // VkResult res = vkCreateImageView(device, &imageViewCreateInfo, nullptr, &swapChainImageViews[i]);
-            VkResult res = vkCreateImageView(reinterpret_cast<VkDevice&>(deviceHPP.get()), &imageViewCreateInfo, nullptr, &swapChainImageViews[i]);
+            VkResult res = vkCreateImageView(device, &imageViewCreateInfo, nullptr, &swapChainImageViews[i]);
             if (res != VK_SUCCESS) {
                 MRCERR(string_VkResult(res));
                 throw std::runtime_error("Could not create swap chain image view!");
@@ -603,127 +426,9 @@ private:
         }
         mainDeletionQueue.push_function([=]() {
             for (uint32_t k = 0; k < swapChainImageViews.size(); k++) {
-                // vkDestroyImageView(device, swapChainImageViews[k], nullptr);
-                vkDestroyImageView(reinterpret_cast<VkDevice&>(deviceHPP.get()), swapChainImageViews[k], nullptr);
+                vkDestroyImageView(device, swapChainImageViews[k], nullptr);
             }   
         });
-    }
-
-    void createSwapchainNVRHI() {
-        auto swapChainTextureDesc = nvrhi::TextureDesc()
-            .setDimension(nvrhi::TextureDimension::Texture2D)
-            .setFormat(nvrhi::Format::BGRA8_UNORM) // Matches above
-            .setWidth(WINDOW_WIDTH)
-            .setHeight(WINDOW_HEIGHT)
-            .setIsRenderTarget(true)
-            .setDebugName("Swap Chain Image");
-        swapChainTextureHandlesNVRHI.resize(swapChainImages.size());
-        framebufferHandlesNVRHI.resize(swapChainImages.size());
-        for (size_t i = 0; i < swapChainTextureHandlesNVRHI.size(); i++)
-        {
-            swapChainTextureHandlesNVRHI[i] = nvrhiVulkanDevice->createHandleForNativeTexture(nvrhi::ObjectTypes::VK_Image, swapChainImages[0], swapChainTextureDesc);
-            auto framebufferDesc = nvrhi::FramebufferDesc().addColorAttachment(swapChainTextureHandlesNVRHI[i]);
-            framebufferHandlesNVRHI[i] = GetDevice()->createFramebuffer(framebufferDesc);
-        }
-    }
-nvrhi::GraphicsPipelineHandle graphicsPipelineNVRHI;
-vk::Semaphore presentSemaphore;
-
-    void simpleNVRHI() {
-        // Assume the shaders are included as C headers; they could just as well be loaded from files.
-        //const char g_VertexShader[] = "";
-        //const char g_PixelShader[] = "";
-
-        std::vector<uint32_t> byteBuffer_VS;
-        size_t bufferSizeBytes_VS;
-        if(!load_shader_spirv_source_to_bytes(std::string(ROOT_DIR) + std::string("Shaders/basic_triangle.vert.spv"), byteBuffer_VS, bufferSizeBytes_VS))
-        {
-            MRCERR("Failed to load shader binary!");
-        }
-        //nvrhi::ShaderHandle vertexShader = nvrhiDevice->createShader(nvrhi::ShaderDesc(nvrhi::ShaderType::Vertex), byteBuffer_VS.data(), bufferSizeBytes_VS);
-        nvrhi::ShaderHandle vertexShader = GetDevice()->createShader(nvrhi::ShaderDesc(nvrhi::ShaderType::Vertex), byteBuffer_VS.data(), bufferSizeBytes_VS);
-
-        std::vector<uint32_t> byteBuffer_FS;
-        size_t bufferSizeBytes_FS;
-        if (!load_shader_spirv_source_to_bytes(std::string(ROOT_DIR) + std::string("Shaders/basic_triangle.frag.spv"), byteBuffer_FS, bufferSizeBytes_FS))
-        {
-            MRCERR("Failed to load shader binary!");
-        }
-        //nvrhi::ShaderHandle pixelShader = nvrhiDevice->createShader(nvrhi::ShaderDesc(nvrhi::ShaderType::Pixel), byteBuffer_FS.data(), bufferSizeBytes_FS);
-        nvrhi::ShaderHandle pixelShader = GetDevice()->createShader(nvrhi::ShaderDesc(nvrhi::ShaderType::Pixel), byteBuffer_FS.data(), bufferSizeBytes_FS);
-
-        
-        
-        // The framebuffer used to draw with a particular pipeline only needs to be compatible with the framebuffer used to create the pipeline
-        // TODO ? : how to handle multiple framebuffers/swapchain images
-         auto pipelineDesc = nvrhi::GraphicsPipelineDesc()
-             .setRenderState(nvrhi::RenderState().setDepthStencilState(nvrhi::DepthStencilState().disableDepthTest().disableStencil()))
-             .setVertexShader(vertexShader)
-             .setPixelShader(pixelShader);
-        //graphicsPipelineNVRHI = nvrhiDevice->createGraphicsPipeline(pipelineDesc, framebufferHandlesNVRHI[0]);
-        graphicsPipelineNVRHI = GetDevice()->createGraphicsPipeline(pipelineDesc, framebufferHandlesNVRHI[0]);
-
-        presentSemaphore = deviceHPP.get().createSemaphore(vk::SemaphoreCreateInfo());
-        mainDeletionQueue.push_function([=]() {
-            deviceHPP.get().destroySemaphore(presentSemaphore);
-        });
-        //renderFinishedSemaphore = deviceHPP.get().createSemaphore(vk::SemaphoreCreateInfo());
-    }
-
-    void simpleNVRHI_Draw() {
-        
-
-        //nvrhi::IFramebuffer* currentFramebuffer = framebufferHandlesNVRHI[0];
-        uint32_t imageIndex;
-        //VkResult res = vkAcquireNextImageKHR(reinterpret_cast<VkDevice&>(deviceHPP.get()), swapChain, std::numeric_limits<uint64_t>::max(), reinterpret_cast<VkSemaphore&>(presentSemaphore), VK_NULL_HANDLE, &imageIndex);
-        //if (!((res == VK_SUCCESS) || (res == VK_SUBOPTIMAL_KHR))) {
-        //    MRCERR(string_VkResult(res));
-        //    throw std::runtime_error("Failed to acquire image from Swap Chain!");
-        //}
-        const vk::Result res = deviceHPP.get().acquireNextImageKHR(swapChain, std::numeric_limits<uint64_t>::max(), presentSemaphore, vk::Fence(), &imageIndex);
-        assert(res == vk::Result::eSuccess);
-        nvrhiVulkanDevice->queueWaitForSemaphore(nvrhi::CommandQueue::Graphics, presentSemaphore, 0);
-        nvrhi::IFramebuffer* currentFramebuffer = framebufferHandlesNVRHI[imageIndex];
-
-        // Create command list
-        //nvrhi::CommandListHandle commandList = nvrhiDevice->createCommandList();
-        nvrhi::CommandListHandle commandList = nvrhiVulkanDevice->createCommandList();
-        commandList->open();
-        // Clear the primary render target
-        nvrhi::utils::ClearColorAttachment(commandList, currentFramebuffer, 0, nvrhi::Color(0.f));
-
-
-        // Set the graphics state: pipeline, framebuffer, viewport, bindings.
-        auto graphicsState = nvrhi::GraphicsState()
-            .setPipeline(graphicsPipelineNVRHI)
-            .setFramebuffer(currentFramebuffer)
-            .setViewport(nvrhi::ViewportState().addViewportAndScissorRect(nvrhi::Viewport(WINDOW_WIDTH, WINDOW_HEIGHT)));
-        commandList->setGraphicsState(graphicsState);
-
-
-        // Draw
-        auto drawArguments = nvrhi::DrawArguments()
-            .setVertexCount(3);
-        commandList->draw(drawArguments);
-
-        commandList->close();
-        //nvrhiDevice->executeCommandList(commandList);
-        nvrhiVulkanDevice->executeCommandList(commandList);
-
-        nvrhiVulkanDevice->queueSignalSemaphore(nvrhi::CommandQueue::Graphics, reinterpret_cast<VkSemaphore&>(presentSemaphore), 0);
-
-
-
-        // Present frame
-        VkPresentInfoKHR presentInfo = {};
-        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-        presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores =  &reinterpret_cast<VkSemaphore&>(presentSemaphore);
-        presentInfo.swapchainCount = 1;
-        presentInfo.pSwapchains = &swapChain;
-        presentInfo.pImageIndices = &imageIndex;
-        VkResult res2 = vkQueuePresentKHR(reinterpret_cast<VkQueue&>(graphicsQueueHPP), &presentInfo);
-        assert(res2 == VK_SUCCESS);
     }
 
     void createDrawImage() {
@@ -847,20 +552,25 @@ vk::Semaphore presentSemaphore;
         vkAllocateCommandBuffers(device, &immCmdBufferAllocInfo, &immediateCommandBuffer);
     }
 
-    //void initVMA() {
-    //    VmaAllocatorCreateInfo allocatorInfo = {};
-    //    allocatorInfo.physicalDevice = physicalDevice;
-    //    allocatorInfo.device = device;
-    //    allocatorInfo.instance = instance;
-    //    VkResult res = vmaCreateAllocator(&allocatorInfo, &vmaAllocator);
-    //    if (res != VK_SUCCESS) {
-    //        MRCERR(string_VkResult(res));
-    //        throw std::runtime_error("vmaCreateAllocator unsuccessful!");
-    //    }
-    //    mainDeletionQueue.push_function([&]() {
-		  //  vmaDestroyAllocator(vmaAllocator);
-    //    });
-    //}
+    void retrieveQueues() {
+        vkGetDeviceQueue(device, graphicsQueueFamilyIndex, 0, &graphicsQueue);
+        vkGetDeviceQueue(device, presentQueueFamilyIndex, 0, &presentQueue);
+    }
+
+    void initVMA() {
+        VmaAllocatorCreateInfo allocatorInfo = {};
+        allocatorInfo.physicalDevice = physicalDevice;
+        allocatorInfo.device = device;
+        allocatorInfo.instance = instance;
+        VkResult res = vmaCreateAllocator(&allocatorInfo, &vmaAllocator);
+        if (res != VK_SUCCESS) {
+            MRCERR(string_VkResult(res));
+            throw std::runtime_error("vmaCreateAllocator unsuccessful!");
+        }
+        mainDeletionQueue.push_function([&]() {
+		    vmaDestroyAllocator(vmaAllocator);
+        });
+    }
 
     void init_scene_lights() {
         Scene::GetInstance().scenePointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), glm::vec3(1.0f, 1.0f, 1.0f)));
@@ -989,68 +699,68 @@ vk::Semaphore presentSemaphore;
         Scene::GetInstance().sceneRenderObjects.push_back(helmetObject);
     }
 
-    //void init_imgui() {
-    //    // Create a descriptor pool for IMGUI
-    //    // The size of the pool is very oversized, but it's copied from imgui demo
-    //    VkDescriptorPoolSize poolSizes[] = { 
-    //        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-    //        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-    //        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-    //        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-    //        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-    //        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-    //        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-    //        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-    //        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-    //        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-    //        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-    //    };
+    void init_imgui() {
+        // Create a descriptor pool for IMGUI
+        // The size of the pool is very oversized, but it's copied from imgui demo
+        VkDescriptorPoolSize poolSizes[] = { 
+            { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+        };
 
-    //    VkDescriptorPoolCreateInfo poolInfo = {
-    //        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-    //        .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-    //        .maxSets = 1000,
-    //        .poolSizeCount = static_cast<uint32_t>(std::size(poolSizes)),
-    //        .pPoolSizes = poolSizes
-    //    };
+        VkDescriptorPoolCreateInfo poolInfo = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+            .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+            .maxSets = 1000,
+            .poolSizeCount = static_cast<uint32_t>(std::size(poolSizes)),
+            .pPoolSizes = poolSizes
+        };
 
-    //    VkDescriptorPool imguiPool;
-    //    vkCreateDescriptorPool(device, &poolInfo, nullptr, &imguiPool);
+        VkDescriptorPool imguiPool;
+        vkCreateDescriptorPool(device, &poolInfo, nullptr, &imguiPool);
 
-    //    // Initialize core structures of imgui library
-    //    ImGui::CreateContext();
+        // Initialize core structures of imgui library
+        ImGui::CreateContext();
 
-    //    // Initialize imgui for SDL
-    //    ImGui_ImplSDL3_InitForVulkan(window);
+        // Initialize imgui for SDL
+        ImGui_ImplSDL3_InitForVulkan(window);
 
-    //    // Initialize imgui for Vulkan
-    //    ImGui_ImplVulkan_InitInfo initInfo = {
-    //        .Instance = instance,
-    //        .PhysicalDevice = physicalDevice,
-    //        .Device = device,
-    //        .Queue = graphicsQueue,
-    //        .DescriptorPool = imguiPool,
-    //        .MinImageCount = 3,
-    //        .ImageCount = 3,
-    //        .UseDynamicRendering = true,
-    //        .ColorAttachmentFormat = swapChainFormat,
-    //    };
+        // Initialize imgui for Vulkan
+        ImGui_ImplVulkan_InitInfo initInfo = {
+            .Instance = instance,
+            .PhysicalDevice = physicalDevice,
+            .Device = device,
+            .Queue = graphicsQueue,
+            .DescriptorPool = imguiPool,
+            .MinImageCount = 3,
+            .ImageCount = 3,
+            .UseDynamicRendering = true,
+            .ColorAttachmentFormat = swapChainFormat,
+        };
 
-    //    initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+        initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-    //    ImGui_ImplVulkan_Init(&initInfo, VK_NULL_HANDLE);
+        ImGui_ImplVulkan_Init(&initInfo, VK_NULL_HANDLE);
 
-    //    // Execute a gpu command to upload imgui font textures
-    //    // Update: No longer requires passing a command buffer (builds own pool + buffer internally), also no longer require destroy DestroyFontUploadObjects()
-    //    // immediate_submit([=]() { 
-    //        ImGui_ImplVulkan_CreateFontsTexture(); 
-    //    // });
+        // Execute a gpu command to upload imgui font textures
+        // Update: No longer requires passing a command buffer (builds own pool + buffer internally), also no longer require destroy DestroyFontUploadObjects()
+        // immediate_submit([=]() { 
+            ImGui_ImplVulkan_CreateFontsTexture(); 
+        // });
 
-    //    // add the destroy the imgui created structures
-    //    mainDeletionQueue.push_function([=]() {
-    //        vkDestroyDescriptorPool(device, imguiPool, nullptr);
-    //    });
-    //}
+        // add the destroy the imgui created structures
+        mainDeletionQueue.push_function([=]() {
+            vkDestroyDescriptorPool(device, imguiPool, nullptr);
+        });
+    }
 
     // Used for data uploads and other "instant operations" not synced with the swapchain
     void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function) { // Lambda should take a command buffer and return nothing
@@ -1098,31 +808,26 @@ vk::Semaphore presentSemaphore;
     }
 
     void initVulkan() {
-        VULKAN_HPP_DEFAULT_DISPATCHER.init();
         createInstance();
         createDebugMessenger();
         createSurface();
         initPhysicalDevice();
         findQueueFamilyIndices();
         createDevice();
-        retrieveQueues();
-        initNVRHI();
-        // initVMA();
+        initVMA();
         createSwapchain();
         getSwapchainImages();
-        createSwapchainNVRHI();
-        simpleNVRHI();
-        simpleNVRHI_Draw();
         // createDrawImage();
-        // createDepthImageAndView();
-        // createSynchronizationStructures();
-        // createCommandPool();
-        // createCommandBuffers();
-        // init_scene_lights();
-        // init_scene_descriptors();
-        // createMaterialPipelines();
-        // init_scene_meshes();
-        // init_imgui();
+        createDepthImageAndView();
+        createSynchronizationStructures();
+        createCommandPool();
+        createCommandBuffers();
+        retrieveQueues();
+        init_scene_lights();
+        init_scene_descriptors();
+        createMaterialPipelines();
+        init_scene_meshes();
+        init_imgui();
     }
 
     void draw_imgui(VkImageView targetImageView) {
@@ -1308,12 +1013,12 @@ vk::Semaphore presentSemaphore;
     void mainLoop() {
         SDL_Event sdlEvent;
         bool bQuit = false;
-        // ImGuiIO& io = ImGui::GetIO();
-        // UNUSED(io);
+        ImGuiIO& io = ImGui::GetIO();
+        UNUSED(io);
         while (!bQuit) {
             // Handle events on queue
             while (SDL_PollEvent(&sdlEvent) != 0) {
-                // ImGui_ImplSDL3_ProcessEvent(&sdlEvent);      
+                ImGui_ImplSDL3_ProcessEvent(&sdlEvent);      
                 if (sdlEvent.type == SDL_EVENT_QUIT) { // Built in Alt+F4 or hitting the 'x' button
                     SDL_SetRelativeMouseMode(SDL_FALSE); // Needed or else mouse freeze persists until clicking after closing app
                     bQuit = true;
@@ -1342,12 +1047,12 @@ vk::Semaphore presentSemaphore;
                     camera.process_mouse_movement(xoffset, yoffset, true);
                 }
             }
-            // ImGui_ImplVulkan_NewFrame();
-            // ImGui_ImplSDL3_NewFrame();
-            // ImGui::NewFrame();
-            // ImGui::ShowDemoWindow();
-            // ImGui::Render();
-            // drawFrame();
+            ImGui_ImplVulkan_NewFrame();
+            ImGui_ImplSDL3_NewFrame();
+            ImGui::NewFrame();
+            ImGui::ShowDemoWindow();
+            ImGui::Render();
+            drawFrame();
 
             lastFrameTick = currentFrameTick;
             currentFrameTick = SDL_GetTicks();
@@ -1386,15 +1091,13 @@ vk::Semaphore presentSemaphore;
     }
 
     void cleanup() {
-        // vkDeviceWaitIdle(device);
-        //nvrhiDevice->waitForIdle();
-        GetDevice()->waitForIdle();
+        vkDeviceWaitIdle(device);
 
-        // ImGui_ImplVulkan_Shutdown();
-        // ImGui_ImplSDL3_Shutdown();
-        // ImGui::DestroyContext();
+        ImGui_ImplVulkan_Shutdown();
+        ImGui_ImplSDL3_Shutdown();
+        ImGui::DestroyContext();
 
-        // globalDescriptorAllocator.destroy_pool(device);
+        globalDescriptorAllocator.destroy_pool(device);
 
         for (auto material : Scene::GetInstance().sceneMaterialMap) {
             vkDestroyPipeline(device, material.second.getPipeline(), nullptr);
@@ -1418,3 +1121,4 @@ int main() {
 
     return EXIT_SUCCESS;
 }
+#endif
