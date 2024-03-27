@@ -17,6 +17,7 @@
 #include <set>
 #include <stdexcept>
 #include <cstdlib>
+#include <queue>
 
 #include <Common/RootDir.h>
 #include <Common/Platform.h>
@@ -112,7 +113,7 @@ private:
     VkQueue graphicsQueue;
     VkQueue presentQueue;
     vk::Queue graphicsQueueHPP;
-    vk::Queue presentQueueHPP;
+    // vk::Queue presentQueueHPP;
 
     // Images
     AllocatedImage depthImage;
@@ -455,7 +456,7 @@ private:
         //vkGetDeviceQueue(device, graphicsQueueFamilyIndex, 0, &graphicsQueue);
         //vkGetDeviceQueue(device, presentQueueFamilyIndex, 0, &presentQueue);
         graphicsQueueHPP = deviceHPP->getQueue(graphicsQueueFamilyIndex, 0);
-        presentQueueHPP = deviceHPP->getQueue(presentQueueFamilyIndex, 0);
+        // presentQueueHPP = deviceHPP->getQueue(presentQueueFamilyIndex, 0);
     }
 
     void initNVRHI() {
@@ -612,23 +613,30 @@ private:
     void createSwapchainNVRHI() {
         auto swapChainTextureDesc = nvrhi::TextureDesc()
             .setDimension(nvrhi::TextureDimension::Texture2D)
-            .setFormat(nvrhi::Format::BGRA8_UNORM) // Matches above
             .setWidth(WINDOW_WIDTH)
             .setHeight(WINDOW_HEIGHT)
-            .setIsRenderTarget(true)
-            .setDebugName("Swap Chain Image");
+            .setFormat(nvrhi::Format::BGRA8_UNORM) // Matches above
+            .setDebugName("Swap Chain Image")
+            .setInitialState(nvrhi::ResourceStates::Present)
+            .setKeepInitialState(true)
+            .setIsRenderTarget(true);
+            
         swapChainTextureHandlesNVRHI.resize(swapChainImages.size());
         framebufferHandlesNVRHI.resize(swapChainImages.size());
         for (size_t i = 0; i < swapChainTextureHandlesNVRHI.size(); i++)
         {
-            swapChainTextureHandlesNVRHI[i] = nvrhiVulkanDevice->createHandleForNativeTexture(nvrhi::ObjectTypes::VK_Image, swapChainImages[0], swapChainTextureDesc);
+            swapChainTextureHandlesNVRHI[i] = nvrhiVulkanDevice->createHandleForNativeTexture(nvrhi::ObjectTypes::VK_Image, swapChainImages[i], swapChainTextureDesc);
             auto framebufferDesc = nvrhi::FramebufferDesc().addColorAttachment(swapChainTextureHandlesNVRHI[i]);
             framebufferHandlesNVRHI[i] = GetDevice()->createFramebuffer(framebufferDesc);
         }
     }
 nvrhi::GraphicsPipelineHandle graphicsPipelineNVRHI;
-vk::Semaphore presentSemaphore;
-
+std::vector<vk::Semaphore> presentSemaphores;
+std::vector< nvrhi::EventQueryHandle> eventQueries;
+nvrhi::CommandListHandle barrierCommandList;
+uint32_t currentFrameInFlight = 0;
+std::queue<nvrhi::EventQueryHandle> m_FramesInFlight;
+std::vector<nvrhi::EventQueryHandle> m_QueryPool;
     void simpleNVRHI() {
         // Assume the shaders are included as C headers; they could just as well be loaded from files.
         //const char g_VertexShader[] = "";
@@ -663,67 +671,107 @@ vk::Semaphore presentSemaphore;
         //graphicsPipelineNVRHI = nvrhiDevice->createGraphicsPipeline(pipelineDesc, framebufferHandlesNVRHI[0]);
         graphicsPipelineNVRHI = GetDevice()->createGraphicsPipeline(pipelineDesc, framebufferHandlesNVRHI[0]);
 
-        presentSemaphore = deviceHPP.get().createSemaphore(vk::SemaphoreCreateInfo());
-        mainDeletionQueue.push_function([=]() {
-            deviceHPP.get().destroySemaphore(presentSemaphore);
-        });
-        //renderFinishedSemaphore = deviceHPP.get().createSemaphore(vk::SemaphoreCreateInfo());
+        presentSemaphores.reserve(MAX_FRAMES_IN_FLIGHT);
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
+            presentSemaphores.push_back(deviceHPP->createSemaphore(vk::SemaphoreCreateInfo()));
+            mainDeletionQueue.push_function([=]() {
+                deviceHPP->destroySemaphore(presentSemaphores[i]);
+            });
+            eventQueries.push_back(nvrhiVulkanDevice->createEventQuery());
+        }
+
+        barrierCommandList = nvrhiVulkanDevice->createCommandList();
+        
+    }
+uint32_t swapChainImageIndex;
+    void simpleNVRHI_BeginFrame() {
+        const auto& semaphore = presentSemaphores[currentFrameInFlight];
+        // Acquire next swapchain image
+        vk::Result res = deviceHPP->acquireNextImageKHR(swapChain, std::numeric_limits<uint64_t>::max(), semaphore, vk::Fence(), &swapChainImageIndex);
+        assert(res == vk::Result::eSuccess);
+        nvrhiVulkanDevice->queueWaitForSemaphore(nvrhi::CommandQueue::Graphics, semaphore, 0);
     }
 
     void simpleNVRHI_Draw() {
+        nvrhi::IFramebuffer* currentFramebuffer = framebufferHandlesNVRHI[swapChainImageIndex];
+        {
+            // Create command list
+            nvrhi::CommandListHandle commandList = nvrhiVulkanDevice->createCommandList();
+            commandList->open();
+            //commandList->beginTrackingTextureState(swapChainTextureHandlesNVRHI[swapChainImageIndex], nvrhi::TextureSubresourceSet(), nvrhi::ResourceStates::Unknown);
+            // Clear the primary render target
+            nvrhi::utils::ClearColorAttachment(commandList, currentFramebuffer, 0, nvrhi::Color(0.f));
+
+            // Set the graphics state: pipeline, framebuffer, viewport, bindings.
+            auto graphicsState = nvrhi::GraphicsState()
+                .setPipeline(graphicsPipelineNVRHI)
+                .setFramebuffer(currentFramebuffer)
+                .setViewport(nvrhi::ViewportState().addViewportAndScissorRect(nvrhi::Viewport(WINDOW_WIDTH, WINDOW_HEIGHT)));
+            commandList->setGraphicsState(graphicsState);
+
+            // Draw
+            auto drawArguments = nvrhi::DrawArguments()
+                .setVertexCount(3);
+            commandList->draw(drawArguments);
+            //commandList->setTextureState(swapChainTextureHandlesNVRHI[swapChainImageIndex], nvrhi::TextureSubresourceSet(), nvrhi::ResourceStates::Present);
+            commandList->close();
+
+            nvrhiVulkanDevice->executeCommandList(commandList, nvrhi::CommandQueue::Graphics);
+        }
+    }
+    
+    void simpleNVRHI_PresentFrame() {
+        //nvrhiVulkanDevice->waitEventQuery(eventQueries[currentFrameInFlight]);
         
+        const auto& semaphore = presentSemaphores[currentFrameInFlight];
+        nvrhiVulkanDevice->queueSignalSemaphore(nvrhi::CommandQueue::Graphics, semaphore, 0);
 
-        //nvrhi::IFramebuffer* currentFramebuffer = framebufferHandlesNVRHI[0];
-        uint32_t imageIndex;
-        //VkResult res = vkAcquireNextImageKHR(reinterpret_cast<VkDevice&>(deviceHPP.get()), swapChain, std::numeric_limits<uint64_t>::max(), reinterpret_cast<VkSemaphore&>(presentSemaphore), VK_NULL_HANDLE, &imageIndex);
-        //if (!((res == VK_SUCCESS) || (res == VK_SUBOPTIMAL_KHR))) {
-        //    MRCERR(string_VkResult(res));
-        //    throw std::runtime_error("Failed to acquire image from Swap Chain!");
-        //}
-        const vk::Result res = deviceHPP.get().acquireNextImageKHR(swapChain, std::numeric_limits<uint64_t>::max(), presentSemaphore, vk::Fence(), &imageIndex);
-        assert(res == vk::Result::eSuccess);
-        nvrhiVulkanDevice->queueWaitForSemaphore(nvrhi::CommandQueue::Graphics, presentSemaphore, 0);
-        nvrhi::IFramebuffer* currentFramebuffer = framebufferHandlesNVRHI[imageIndex];
-
-        // Create command list
-        //nvrhi::CommandListHandle commandList = nvrhiDevice->createCommandList();
-        nvrhi::CommandListHandle commandList = nvrhiVulkanDevice->createCommandList();
-        commandList->open();
-        // Clear the primary render target
-        nvrhi::utils::ClearColorAttachment(commandList, currentFramebuffer, 0, nvrhi::Color(0.f));
-
-
-        // Set the graphics state: pipeline, framebuffer, viewport, bindings.
-        auto graphicsState = nvrhi::GraphicsState()
-            .setPipeline(graphicsPipelineNVRHI)
-            .setFramebuffer(currentFramebuffer)
-            .setViewport(nvrhi::ViewportState().addViewportAndScissorRect(nvrhi::Viewport(WINDOW_WIDTH, WINDOW_HEIGHT)));
-        commandList->setGraphicsState(graphicsState);
-
-
-        // Draw
-        auto drawArguments = nvrhi::DrawArguments()
-            .setVertexCount(3);
-        commandList->draw(drawArguments);
-
-        commandList->close();
-        //nvrhiDevice->executeCommandList(commandList);
-        nvrhiVulkanDevice->executeCommandList(commandList);
-
-        nvrhiVulkanDevice->queueSignalSemaphore(nvrhi::CommandQueue::Graphics, reinterpret_cast<VkSemaphore&>(presentSemaphore), 0);
-
-
+        barrierCommandList->open();
+        barrierCommandList->close();
+        nvrhiVulkanDevice->executeCommandList(barrierCommandList);
 
         // Present frame
         VkPresentInfoKHR presentInfo = {};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores =  &reinterpret_cast<VkSemaphore&>(presentSemaphore);
+        presentInfo.pWaitSemaphores =  &reinterpret_cast<VkSemaphore&>(presentSemaphores[currentFrameInFlight]);
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = &swapChain;
-        presentInfo.pImageIndices = &imageIndex;
-        VkResult res2 = vkQueuePresentKHR(reinterpret_cast<VkQueue&>(graphicsQueueHPP), &presentInfo);
-        assert(res2 == VK_SUCCESS);
+        presentInfo.pImageIndices = &swapChainImageIndex;
+        VkResult res = vkQueuePresentKHR(reinterpret_cast<VkQueue&>(graphicsQueueHPP), &presentInfo);
+        assert(res == VK_SUCCESS);
+
+        currentFrameInFlight = (currentFrameInFlight + 1) % presentSemaphores.size();
+
+        //nvrhiVulkanDevice->resetEventQuery(eventQueries[currentFrameInFlight]);
+        //nvrhiVulkanDevice->setEventQuery(eventQueries[currentFrameInFlight], nvrhi::CommandQueue::Graphics);
+
+        // TODO: This is a stand-in for Fence synchronization in Vulkan land, need to understand
+        while (m_FramesInFlight.size() >= MAX_FRAMES_IN_FLIGHT)
+        {
+            auto query = m_FramesInFlight.front();
+            m_FramesInFlight.pop();
+
+            nvrhiVulkanDevice->waitEventQuery(query);
+
+            m_QueryPool.push_back(query);
+        }
+
+        nvrhi::EventQueryHandle query;
+        if (!m_QueryPool.empty())
+        {
+            query = m_QueryPool.back();
+            m_QueryPool.pop_back();
+        }
+        else
+        {
+            query = nvrhiVulkanDevice->createEventQuery();
+        }
+
+        nvrhiVulkanDevice->resetEventQuery(query);
+        nvrhiVulkanDevice->setEventQuery(query, nvrhi::CommandQueue::Graphics);
+        m_FramesInFlight.push(query);
     }
 
     void createDrawImage() {
@@ -1112,7 +1160,6 @@ vk::Semaphore presentSemaphore;
         getSwapchainImages();
         createSwapchainNVRHI();
         simpleNVRHI();
-        simpleNVRHI_Draw();
         // createDrawImage();
         // createDepthImageAndView();
         // createSynchronizationStructures();
@@ -1182,7 +1229,6 @@ vk::Semaphore presentSemaphore;
     }
 
     void drawFrame() {
-            
             // Wait for previous frame to finish rendering before allowing us to acquire another image
             VkResult res = vkWaitForFences(device, 1, &renderFences_F[currentFrame], true, (std::numeric_limits<uint64_t>::max)());
             vkResetFences(device, 1, &renderFences_F[currentFrame]);
@@ -1348,10 +1394,14 @@ vk::Semaphore presentSemaphore;
             // ImGui::ShowDemoWindow();
             // ImGui::Render();
             // drawFrame();
+            simpleNVRHI_BeginFrame();
+            simpleNVRHI_Draw();
+            simpleNVRHI_PresentFrame();
 
             lastFrameTick = currentFrameTick;
             currentFrameTick = SDL_GetTicks();
             deltaTime = (currentFrameTick - lastFrameTick) / 1000.f;
+            //MRLOG("currentFrameTick: " << currentFrameTick);
 
             // For multi-press/holding down keys
             const Uint8* state = SDL_GetKeyboardState(nullptr);
