@@ -3,6 +3,18 @@ cmake_minimum_required(VERSION 3.20)
 
 add_library(Dependencies INTERFACE)
 
+# ========== Diligent ========== #
+add_subdirectory(DiligentCore)
+target_include_directories(Dependencies INTERFACE DiligentCore)
+target_link_libraries(Dependencies
+INTERFACE
+    # Diligent-GraphicsEngineD3D11-shared
+    # Diligent-GraphicsEngineOpenGL-shared
+    # Diligent-GraphicsEngineD3D12-shared
+    Diligent-GraphicsEngineVk-shared
+)
+# copy_required_dlls(Dependencies)
+
 # ========== KHRONOS UTILITIES ========== #
 # set(SPIRV_WERROR OFF)
 # add_subdirectory(glslang)

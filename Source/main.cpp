@@ -43,6 +43,13 @@
 
 #include <IncludeHelpers/ImguiIncludes.h>
 
+#if PLATFORM_WINDOWS
+typedef void* HWND; // Needed for Diligent
+#endif
+#include <EngineFactoryVk.h>
+#include <Common/interface/RefCntAutoPtr.hpp>
+
+
 // Frame data
 int frameNumber = 0;
 float deltaTime = 0.0f; // Time between current and last frame
@@ -131,12 +138,30 @@ private:
     // Cleanup
     DeletionQueue mainDeletionQueue; // Contains all deletable vulkan resources except pipelines/pipeline layouts
 
+#if PLATFORM_WINDOWS
+    HWND hwnd;
+    Diligent::Win32NativeWindow diligent_hwnd;
+#endif
+
     void initWindow() {
         // We initialize SDL and create a window with it.
         SDL_Init(SDL_INIT_VIDEO);
 
         window = SDL_CreateWindow("Magic Red", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_VULKAN);
         SDL_SetRelativeMouseMode(SDL_TRUE);
+
+#if defined(SDL_PLATFORM_WIN32)
+        hwnd = (HWND)SDL_GetProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+        diligent_hwnd = Diligent::Win32NativeWindow(hwnd);
+        //if (hwnd) {
+        //    ...
+        //}
+#elif defined(SDL_PLATFORM_MACOS)
+        NSWindow* nswindow = (__bridge NSWindow*)SDL_GetProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, NULL);
+        //if (nswindow) {
+        //    ...
+        //}
+#endif
     }
 
     void createInstance() {
@@ -805,28 +830,156 @@ private:
             renderObject.BindAndDraw(commandBuffers_F[currentFrame], viewProjectionMatrix, std::span<const VkDescriptorSet>(sceneDescriptorSets_F.data() + currentFrame, 1));
         }
     }
+Diligent::RefCntAutoPtr<Diligent::IRenderDevice>  m_pDevice;
+Diligent::RefCntAutoPtr<Diligent::IDeviceContext> m_pImmediateContext;
+Diligent::RefCntAutoPtr<Diligent::ISwapChain>     m_pSwapChain;
+    void engineInit()
+    {
+        Diligent::SwapChainDesc swapchainDesc = Diligent::SwapChainDesc(
+            WINDOW_WIDTH, WINDOW_HEIGHT, 
+            Diligent::TEXTURE_FORMAT::TEX_FORMAT_BGRA8_UNORM, Diligent::TEXTURE_FORMAT::TEX_FORMAT_D32_FLOAT,
+            3, //swapChainImageCount,
+            1.f, // Default depth value
+            0,   // Default stencil value
+            true // Is primary
+        );
+        Diligent::EngineVkCreateInfo engineCI;
+        auto* pFactoryVk = Diligent::GetEngineFactoryVk();
+        pFactoryVk->CreateDeviceAndContextsVk(engineCI, &m_pDevice, &m_pImmediateContext);
+        //Win32NativeWindow Window{ hWnd };
+        pFactoryVk->CreateSwapChainVk(m_pDevice, m_pImmediateContext, swapchainDesc, diligent_hwnd, &m_pSwapChain);
+        MRLOG("Op success!");
+    }
+    const char* VSSource = R"(
+    struct PSInput 
+    { 
+        float4 Pos   : SV_POSITION; 
+        float3 Color : COLOR; 
+    };
+
+    void main(in  uint    VertId : SV_VertexID,
+              out PSInput PSIn) 
+    {
+        float4 Pos[3];
+        Pos[0] = float4(-0.5, -0.5, 0.0, 1.0);
+        Pos[1] = float4( 0.0, +0.5, 0.0, 1.0);
+        Pos[2] = float4(+0.5, -0.5, 0.0, 1.0);
+
+        float3 Col[3];
+        Col[0] = float3(1.0, 0.0, 0.0); // red
+        Col[1] = float3(0.0, 1.0, 0.0); // green
+        Col[2] = float3(0.0, 0.0, 1.0); // blue
+
+        PSIn.Pos   = Pos[VertId];
+        PSIn.Color = Col[VertId];
+    }
+    )";
+
+    // Pixel shader simply outputs interpolated vertex color
+    const char* PSSource = R"(
+    struct PSInput 
+    { 
+        float4 Pos   : SV_POSITION; 
+        float3 Color : COLOR; 
+    };
+
+    struct PSOutput
+    { 
+        float4 Color : SV_TARGET; 
+    };
+
+    void main(in  PSInput  PSIn,
+              out PSOutput PSOut)
+    {
+        PSOut.Color = float4(PSIn.Color.rgb, 1.0);
+    }
+    )";
+Diligent::RefCntAutoPtr<Diligent::IPipelineState> m_pPSO;
+    void buildResources()
+    {
+        Diligent::GraphicsPipelineStateCreateInfo psoCreateInfo;
+        psoCreateInfo.PSODesc.Name = "Simple Triangle PSO";
+        psoCreateInfo.PSODesc.PipelineType = Diligent::PIPELINE_TYPE_GRAPHICS;
+        psoCreateInfo.GraphicsPipeline.NumRenderTargets = 1;
+        psoCreateInfo.GraphicsPipeline.RTVFormats[0] = m_pSwapChain->GetDesc().ColorBufferFormat;
+        psoCreateInfo.GraphicsPipeline.DSVFormat = m_pSwapChain->GetDesc().DepthBufferFormat;
+        psoCreateInfo.GraphicsPipeline.PrimitiveTopology = Diligent::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        psoCreateInfo.GraphicsPipeline.RasterizerDesc.CullMode = Diligent::CULL_MODE_NONE;
+        psoCreateInfo.GraphicsPipeline.DepthStencilDesc.DepthEnable = Diligent::False;
+
+        Diligent::ShaderCreateInfo shaderCI;
+        shaderCI.SourceLanguage = Diligent::SHADER_SOURCE_LANGUAGE_HLSL;
+        shaderCI.Desc.UseCombinedTextureSamplers = true; // optional?
+        Diligent::RefCntAutoPtr<Diligent::IShader> pVS;
+        {
+            shaderCI.Desc.ShaderType = Diligent::SHADER_TYPE_VERTEX;
+            shaderCI.EntryPoint = "main";
+            shaderCI.Desc.Name = "Triangle vertex shader";
+            shaderCI.Source = VSSource;
+            m_pDevice->CreateShader(shaderCI, &pVS);
+        }
+        Diligent::RefCntAutoPtr<Diligent::IShader> pPS;
+        {
+            shaderCI.Desc.ShaderType = Diligent::SHADER_TYPE_PIXEL;
+            shaderCI.EntryPoint = "main";
+            shaderCI.Desc.Name = "Triangle fragment shader";
+            shaderCI.Source = PSSource;
+            m_pDevice->CreateShader(shaderCI, &pPS);
+        }
+        // Finally, create the pipeline state
+        psoCreateInfo.pVS = pVS;
+        psoCreateInfo.pPS = pPS;
+        m_pDevice->CreateGraphicsPipelineState(psoCreateInfo, &m_pPSO);
+    }
+
+    void diligentRender()
+    {
+        // Clear the back buffer
+        const float ClearColor[] = { 0.350f, 0.350f, 0.350f, 1.0f };
+        // Let the engine perform required state transitions
+        auto* pRTV = m_pSwapChain->GetCurrentBackBufferRTV();
+        auto* pDSV = m_pSwapChain->GetDepthBufferDSV();
+        m_pImmediateContext->SetRenderTargets(1, &pRTV, pDSV, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        m_pImmediateContext->ClearRenderTarget(pRTV, ClearColor, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        m_pImmediateContext->ClearDepthStencil(pDSV, Diligent::CLEAR_DEPTH_FLAG, 1.f, 0, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+        // Set the pipeline state in the immediate context
+        m_pImmediateContext->SetPipelineState(m_pPSO);
+
+        // Typically we should now call CommitShaderResources(), however shaders in this example don't
+        // use any resources.
+
+        Diligent::DrawAttribs drawAttrs;
+        drawAttrs.NumVertices = 3; // We will render 3 vertices
+        m_pImmediateContext->Draw(drawAttrs);
+
+        m_pSwapChain->Present(true ? 1 : 0);
+    }
 
     void initVulkan() {
-        createInstance();
-        createDebugMessenger();
-        createSurface();
-        initPhysicalDevice();
-        findQueueFamilyIndices();
-        createDevice();
-        initVMA();
-        createSwapchain();
-        getSwapchainImages();
-        // createDrawImage();
-        createDepthImageAndView();
-        createSynchronizationStructures();
-        createCommandPool();
-        createCommandBuffers();
-        retrieveQueues();
-        init_scene_lights();
-        init_scene_descriptors();
-        createMaterialPipelines();
-        init_scene_meshes();
-        init_imgui();
+        
+        // createInstance();
+        // createDebugMessenger();
+        // createSurface();
+        // initPhysicalDevice();
+        // findQueueFamilyIndices();
+        // createDevice();
+        // // initVMA();
+        // createSwapchain();
+        // getSwapchainImages();
+        // createDepthImageAndView();
+        engineInit();
+        buildResources();
+        // // createDrawImage();
+        // createSynchronizationStructures();   
+        // createCommandPool();
+        // createCommandBuffers();
+        // retrieveQueues();
+        // init_scene_lights();
+        // init_scene_descriptors();
+        // createMaterialPipelines();
+        // init_scene_meshes();
+        // init_imgui();
     }
 
     void draw_imgui(VkImageView targetImageView) {
@@ -1012,12 +1165,10 @@ private:
     void mainLoop() {
         SDL_Event sdlEvent;
         bool bQuit = false;
-        ImGuiIO& io = ImGui::GetIO();
-        UNUSED(io);
         while (!bQuit) {
             // Handle events on queue
             while (SDL_PollEvent(&sdlEvent) != 0) {
-                ImGui_ImplSDL3_ProcessEvent(&sdlEvent);      
+                // ImGui_ImplSDL3_ProcessEvent(&sdlEvent);      
                 if (sdlEvent.type == SDL_EVENT_QUIT) { // Built in Alt+F4 or hitting the 'x' button
                     SDL_SetRelativeMouseMode(SDL_FALSE); // Needed or else mouse freeze persists until clicking after closing app
                     bQuit = true;
@@ -1046,12 +1197,13 @@ private:
                     camera.process_mouse_movement(xoffset, yoffset, true);
                 }
             }
-            ImGui_ImplVulkan_NewFrame();
-            ImGui_ImplSDL3_NewFrame();
-            ImGui::NewFrame();
-            ImGui::ShowDemoWindow();
-            ImGui::Render();
-            drawFrame();
+            // ImGui_ImplVulkan_NewFrame();
+            // ImGui_ImplSDL3_NewFrame();
+            // ImGui::NewFrame();
+            // ImGui::ShowDemoWindow();
+            // ImGui::Render();
+            // drawFrame();
+            diligentRender();
 
             lastFrameTick = currentFrameTick;
             currentFrameTick = SDL_GetTicks();
@@ -1090,19 +1242,19 @@ private:
     }
 
     void cleanup() {
-        vkDeviceWaitIdle(device);
+        // vkDeviceWaitIdle(device);
 
-        ImGui_ImplVulkan_Shutdown();
-        ImGui_ImplSDL3_Shutdown();
-        ImGui::DestroyContext();
+        // ImGui_ImplVulkan_Shutdown();
+        // ImGui_ImplSDL3_Shutdown();
+        // ImGui::DestroyContext();
 
-        globalDescriptorAllocator.destroy_pool(device);
+        // globalDescriptorAllocator.destroy_pool(device);
 
-        for (auto material : Scene::GetInstance().sceneMaterialMap) {
-            vkDestroyPipeline(device, material.second.getPipeline(), nullptr);
-            vkDestroyPipelineLayout(device, material.second.getPipelineLayout(), nullptr);
-        }
-        mainDeletionQueue.flush();
+        // for (auto material : Scene::GetInstance().sceneMaterialMap) {
+        //     vkDestroyPipeline(device, material.second.getPipeline(), nullptr);
+        //     vkDestroyPipelineLayout(device, material.second.getPipelineLayout(), nullptr);
+        // }
+        // mainDeletionQueue.flush();
 
         SDL_DestroyWindow(window);
     }
