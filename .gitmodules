@@ -19,9 +19,6 @@
 [submodule "Dependencies/VulkanMemoryAllocator"]
 	path = Dependencies/VulkanMemoryAllocator
 	url = git@github.com:GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
-[submodule "Dependencies/assimp"]
-	path = Dependencies/assimp
-	url = https://github.com/assimp/assimp
 [submodule "Dependencies/SDL"]
 	path = Dependencies/SDL
 	url = git@github.com:libsdl-org/SDL.git
