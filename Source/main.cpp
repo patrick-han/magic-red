@@ -1257,6 +1257,7 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> m_pPSO;
         // mainDeletionQueue.flush();
 
         SDL_DestroyWindow(window);
+        SDL_Quit();
     }
 };
 
