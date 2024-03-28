@@ -45,7 +45,10 @@
 #include <IncludeHelpers/ImguiIncludes.h>
 
 #if PLATFORM_WINDOWS
-typedef void* HWND; // Needed for Diligent
+typedef void* HWND;
+#elif PLATFORM_MACOS
+extern void* GetNSWindowView(SDL_Window* wnd); // Written in the Objective C++ file SurfaceHelper.mm
+typedef void* NSWindow;
 #endif
 #include <EngineFactoryVk.h>
 #include <Common/interface/RefCntAutoPtr.hpp>
@@ -147,6 +150,9 @@ private:
 #if PLATFORM_WINDOWS
     HWND hwnd;
     Diligent::Win32NativeWindow diligent_hwnd;
+#elif PLATFORM_MACOS
+    NSWindow nswindow;
+    Diligent::MacOSNativeWindow diligent_nswindow;
 #endif
 
     void initWindow() {
@@ -159,14 +165,9 @@ private:
 #if defined(SDL_PLATFORM_WIN32)
         hwnd = (HWND)SDL_GetProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
         diligent_hwnd = Diligent::Win32NativeWindow(hwnd);
-        //if (hwnd) {
-        //    ...
-        //}
 #elif defined(SDL_PLATFORM_MACOS)
-        NSWindow* nswindow = (__bridge NSWindow*)SDL_GetProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, NULL);
-        //if (nswindow) {
-        //    ...
-        //}
+        NSWindow *nswindow = (NSWindow *)GetNSWindowView(window);
+        diligent_nswindow = Diligent::MacOSNativeWindow(nswindow);
 #endif
     }
 
@@ -344,8 +345,12 @@ Diligent::RefCntAutoPtr<Diligent::ISwapChain>     m_pSwapChain;
         Diligent::EngineVkCreateInfo engineCI;
         auto* pFactoryVk = Diligent::GetEngineFactoryVk();
         pFactoryVk->CreateDeviceAndContextsVk(engineCI, &m_pDevice, &m_pImmediateContext);
-        //Win32NativeWindow Window{ hWnd };
+        
+        #if PLATFORM_WINDOWS
         pFactoryVk->CreateSwapChainVk(m_pDevice, m_pImmediateContext, swapchainDesc, diligent_hwnd, &m_pSwapChain);
+        #elif PLATFORM_MACOS
+        pFactoryVk->CreateSwapChainVk(m_pDevice, m_pImmediateContext, swapchainDesc, diligent_nswindow, &m_pSwapChain);
+        #endif
         MRLOG("Op success!");
     }
 Diligent::RefCntAutoPtr<Diligent::IPipelineState> m_pPSO;

@@ -27,7 +27,7 @@ if(MSVC)
 elseif(APPLE)
   set(PLATFORM_WINDOWS 0)
   set(PLATFORM_MACOS 1)
-endif ()
+endif()
 configure_file(Source/Common/Generators/Platform.h.in ${CMAKE_SOURCE_DIR}/Source/Common/Platform.h)
 
 # Include directories
@@ -38,6 +38,11 @@ include_directories(${CMAKE_BINARY_DIR}/Source/External)
 # Add SOURCE_FILES and HEADER_FILES variables, will traverse all subdirectories
 file(GLOB_RECURSE SOURCE_FILES ${CMAKE_SOURCE_DIR}/Source/*.cpp)
 file(GLOB_RECURSE HEADER_FILES ${CMAKE_SOURCE_DIR}/Source/*.h)
+
+# Needed for macOS window creation
+if(APPLE)
+  list(APPEND SOURCE_FILES ${CMAKE_SOURCE_DIR}/Source/SurfaceHelper.mm)
+endif()
 
 # Define the executable
 add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${HEADER_FILES})
