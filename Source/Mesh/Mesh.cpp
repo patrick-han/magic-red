@@ -12,6 +12,7 @@ DISABLE_MSVC_WARNING(4201) // nonstandard extension used : nameless struct / uni
 
 PUSH_CLANG_WARNINGS
 DISABLE_CLANG_WARNING("-Wmissing-field-initializers")
+DISABLE_CLANG_WARNING("-Wshorten-64-to-32")
 // Define these only in *one* .cpp file.
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
