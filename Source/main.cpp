@@ -20,6 +20,7 @@
 
 #include <Common/RootDir.h>
 #include <Common/Platform.h>
+#include <Common/Compiler/DisableWarnings.h>
 
 #include <Control/Camera.h>
 #include <Common/Log.h>
@@ -50,11 +51,17 @@ typedef void* HWND;
 extern void* GetNSWindowView(SDL_Window* wnd); // Written in the Objective C++ file SurfaceHelper.mm
 typedef void* NSWindow;
 #endif
+PUSH_CLANG_WARNINGS
+DISABLE_CLANG_WARNING("-Wunused-parameter")
+DISABLE_CLANG_WARNING("-Wgnu-zero-variadic-macro-arguments")
+// Diligent
 #include <EngineFactoryVk.h>
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <Graphics/GraphicsTools/interface/MapHelper.hpp>
 #include <Graphics/GraphicsTools/interface/GraphicsUtilities.h>
 #include <FlagEnum.h>
+POP_CLANG_WARNINGS
+
 
 #include <Shader/Shader.h>
 
@@ -83,7 +90,9 @@ public:
         mainLoop();
         cleanup();
     }
-
+// TODO: remove this lol
+PUSH_CLANG_WARNINGS
+DISABLE_CLANG_WARNING("-Wunused-private-field")
 private:
     SDL_Window *window;
 
@@ -146,12 +155,11 @@ private:
 
     // Cleanup
     DeletionQueue mainDeletionQueue; // Contains all deletable vulkan resources except pipelines/pipeline layouts
-
+POP_CLANG_WARNINGS
 #if PLATFORM_WINDOWS
     HWND hwnd;
     Diligent::Win32NativeWindow diligent_hwnd;
 #elif PLATFORM_MACOS
-    NSWindow nswindow;
     Diligent::MacOSNativeWindow diligent_nswindow;
 #endif
 

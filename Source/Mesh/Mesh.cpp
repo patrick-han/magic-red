@@ -2,6 +2,7 @@
 PUSH_MSVC_WARNINGS
 DISABLE_MSVC_WARNING(4267) // conversion from 'size_t' to 'uint32_t', possible loss of data
 DISABLE_MSVC_WARNING(4201) // nonstandard extension used : nameless struct / union (glm library)
+
 #include <Common/Compiler/Unused.h>
 
 #include <Mesh/Mesh.h>
@@ -9,13 +10,15 @@ DISABLE_MSVC_WARNING(4201) // nonstandard extension used : nameless struct / uni
 #include <Common/Log.h>
 #include <span>
 
+PUSH_CLANG_WARNINGS
+DISABLE_CLANG_WARNING("-Wmissing-field-initializers")
 // Define these only in *one* .cpp file.
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 // #define TINYGLTF_NOEXCEPTION // optional. disable exception handling.
 #include <External/tinygltf/tiny_gltf.h>
-
+POP_CLANG_WARNINGS
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
