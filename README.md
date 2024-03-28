@@ -28,13 +28,18 @@ mkdir build
 ```
 
 ### Windows:
-It's recommended to use the CMake gui application from here.
+It's recommended to use the CMake gui application from here. After configuring and generating, open the solution and build the `magic-red` project.
 
 ### MacOS:
 ```
 cmake -S . -B build -G "Xcode"
 ```
-or if you're feeling spicy and don't like Xcode:
+Then open the Xcode project in the `build` folder and build the magic-red target.
+\
+\
+Or if you're feeling spicy and don't like Xcode:
 ```
 cmake -S . -B build -G "Unix Makefiles"
+cd build
+make -j `sysctl -n hw.ncpu` magic-red
 ```
