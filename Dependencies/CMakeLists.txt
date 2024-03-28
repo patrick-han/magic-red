@@ -12,6 +12,7 @@ INTERFACE
     # Diligent-GraphicsEngineOpenGL-shared
     # Diligent-GraphicsEngineD3D12-shared
     Diligent-GraphicsEngineVk-shared
+    Diligent-GraphicsTools
 )
 # copy_required_dlls(Dependencies)
 

@@ -11,16 +11,16 @@
     constexpr bool enableValidationLayers = true;
 #endif
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT messageType,
-    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-    void* pUserData) {
-    MRVAL("validation layer: " << pCallbackData->pMessage);
-    UNUSED(messageSeverity);
-    UNUSED(messageType);
-    UNUSED(pUserData);
-    return VK_FALSE;
-}
+//static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+//    VkDebugUtilsMessageTypeFlagsEXT messageType,
+//    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+//    void* pUserData) {
+//    MRVAL("validation layer: " << pCallbackData->pMessage);
+//    UNUSED(messageSeverity);
+//    UNUSED(messageType);
+//    UNUSED(pUserData);
+//    return VK_FALSE;
+//}
 
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");

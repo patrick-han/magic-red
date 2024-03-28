@@ -34,6 +34,7 @@
 #include <Pipeline/MaterialFunctions.h>
 #include <Mesh/RenderObject.h>
 #include <Vertex/VertexDescriptors.h>
+#include <Vertex/Vertex.h>
 #include <Common/Config.h>
 #include <Common/Defaults.h>
 #include <Scene/Scene.h>
@@ -48,6 +49,11 @@ typedef void* HWND; // Needed for Diligent
 #endif
 #include <EngineFactoryVk.h>
 #include <Common/interface/RefCntAutoPtr.hpp>
+#include <Graphics/GraphicsTools/interface/MapHelper.hpp>
+#include <Graphics/GraphicsTools/interface/GraphicsUtilities.h>
+#include <FlagEnum.h>
+
+#include <Shader/Shader.h>
 
 
 // Frame data
@@ -164,438 +170,6 @@ private:
 #endif
     }
 
-    void createInstance() {
-        // Specify application and engine info
-        VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO, nullptr, "Magic Red", VK_MAKE_API_VERSION(1, 0, 0, 0), "Magic Red", VK_MAKE_API_VERSION(1, 0, 0, 0), VK_API_VERSION_1_2};
-
-        // Get extensions required for SDL VK surface rendering
-        uint32_t sdlExtensionCount = 0;
-        SDL_Vulkan_GetInstanceExtensions(&sdlExtensionCount);
-        extensionsVector.resize(sdlExtensionCount);
-        const char* const* sdlVulkanExtensions = SDL_Vulkan_GetInstanceExtensions(&sdlExtensionCount);
-        for (uint32_t i = 0; i < sdlExtensionCount; i++) {
-            extensionsVector[i] = sdlVulkanExtensions[i];
-        }
-        
-
-        // MoltenVK requires
-        VkInstanceCreateFlags instanceCreateFlagBits = {};
-#if PLATFORM_MACOS
-            MRLOG("Running on an Apple device, adding appropriate extension and instance creation flag bits");
-            extensionsVector.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-            instanceCreateFlagBits |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-#endif
-
-        // Enable validation layers and creation of debug messenger if building debug
-        if (enableValidationLayers) {
-            MRLOG("Debug build");
-            extensionsVector.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-            layers.push_back("VK_LAYER_KHRONOS_validation");
-        } else {
-            MRLOG("Release build");
-        }
-
-        // Create instance
-        VkInstanceCreateInfo instanceCreateInfo = {
-            VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-            nullptr,
-            instanceCreateFlagBits,
-            &appInfo,
-            static_cast<uint32_t>(layers.size()),
-            layers.data(),
-            static_cast<uint32_t>(extensionsVector.size()),
-            extensionsVector.data()
-        };
-        VkResult res = vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
-        if (res != VK_SUCCESS) {
-            MRCERR(string_VkResult(res));
-            throw std::runtime_error("Failed to create instance!");
-        }
-        mainDeletionQueue.push_function([=]() {
-            vkDestroyInstance(instance, nullptr);
-        });
-    }
-
-    void createDebugMessenger() {
-        if (!enableValidationLayers) {
-            return;
-        }
-        VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = {};
-        debugMessengerCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-        debugMessengerCreateInfo.messageSeverity = 
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-        debugMessengerCreateInfo.messageType = 
-            VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-        debugMessengerCreateInfo.pfnUserCallback = debugCallback;
-        debugMessengerCreateInfo.pUserData = nullptr;
-
-        VkResult res = CreateDebugUtilsMessengerEXT(instance, &debugMessengerCreateInfo, nullptr, &debugMessenger);
-        if (res != VK_SUCCESS) {
-            MRCERR(string_VkResult(res));
-            throw std::runtime_error("Failed to create debug messenger!");
-        }
-        mainDeletionQueue.push_function([=]() {
-            DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
-        });
-    }
-
-    void createSurface() {
-        SDL_bool res = SDL_Vulkan_CreateSurface(window, instance, nullptr, &surface);
-        if (res != SDL_TRUE) {
-            throw std::runtime_error("Could not create surface!");
-        }
-        mainDeletionQueue.push_function([=]() {
-            vkDestroySurfaceKHR(instance, surface, nullptr);
-        });
-    }
-
-    void initPhysicalDevice() {
-        
-        uint32_t physicalDeviceCount = 0;
-        vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr);
-        if (physicalDeviceCount == 0) {
-            throw std::runtime_error("No Vulkan capable devices found");
-        }
-        std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
-        vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data());
-
-        for (VkPhysicalDevice d : physicalDevices) {
-            VkPhysicalDeviceProperties physDeviceProps;
-            vkGetPhysicalDeviceProperties(d, &physDeviceProps);
-            MRLOG("Physical device enumerated: " << physDeviceProps.deviceName);
-        }
-#if PLATFORM_MACOS
-        // Find Apple device if Apple build, otherwise just choose the first device in the list
-        std::vector<VkPhysicalDevice>::iterator findIfIterator;
-        findIfIterator = std::find_if(physicalDevices.begin(), physicalDevices.end(), 
-            [](const VkPhysicalDevice& physicalDevice) -> char* {
-                VkPhysicalDeviceProperties physDeviceProps;
-                vkGetPhysicalDeviceProperties(physicalDevice, &physDeviceProps);
-                return strstr(physDeviceProps.deviceName, "Apple"); // Returns null pointer if not found
-            }
-        );
-        physicalDevice = physicalDevices[std::distance(physicalDevices.begin(), findIfIterator)];
-        VkPhysicalDeviceProperties chosenPhysDeviceProps;
-        vkGetPhysicalDeviceProperties(physicalDevice, &chosenPhysDeviceProps);
-        MRLOG("Chosen deviceName: " << chosenPhysDeviceProps.deviceName);
-#else
-            physicalDevice = physicalDevices[0]; // TODO: By Default, just select the first physical device, could be bad if there are both integrated and discrete GPUs in the system
-#endif
-    }
-
-    void findQueueFamilyIndices() {
-        // Find graphics and present queue family indices
-        uint32_t queueFamilyPropertyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertyCount, nullptr);
-        std::vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertyCount, queueFamilyProperties.data());
-
-        graphicsQueueFamilyIndex = static_cast<uint32_t>(std::distance(queueFamilyProperties.begin(),
-            std::find_if(queueFamilyProperties.begin(), queueFamilyProperties.end(),
-                [](VkQueueFamilyProperties const& qfp) {
-                    return qfp.queueFlags & VK_QUEUE_GRAPHICS_BIT;
-                }
-            )
-        ));
-        presentQueueFamilyIndex = 0u;
-        for (uint32_t queueFamilyIndex = 0; queueFamilyIndex < queueFamilyProperties.size(); queueFamilyIndex++) {
-            // Check if a given queue family on our device supports presentation to the surface that was created
-            VkBool32 supported = VK_FALSE;
-            VkResult res = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, static_cast<uint32_t>(queueFamilyIndex), surface, &supported);
-            if (res != VK_SUCCESS) {
-                MRCERR(string_VkResult(res));
-                throw std::runtime_error("Queue family does not support presentation!");
-            } else {
-                presentQueueFamilyIndex = queueFamilyIndex;
-            }
-        }
-        MRLOG("Graphics and Present queue family indices, respectively: " << graphicsQueueFamilyIndex << ", " << presentQueueFamilyIndex);
-
-        uniqueQueueFamilyIndices = {
-            graphicsQueueFamilyIndex,
-            presentQueueFamilyIndex
-        };
-
-        FamilyIndices = {
-            uniqueQueueFamilyIndices.begin(),
-            uniqueQueueFamilyIndices.end()
-        };
-    }
-
-    void createDevice() {
-        // Creation of logical device requires queue creation info as well as extensions + layers we want
-
-        // For each queue family, create a single queue
-        std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        float queuePriority = 0.0f;
-        uint32_t queueCountPerFamily = 1;
-        for (auto& queueFamilyIndex : uniqueQueueFamilyIndices) {
-            queueCreateInfos.push_back(VkDeviceQueueCreateInfo{ VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, nullptr, VkDeviceQueueCreateFlags(), static_cast<uint32_t>(queueFamilyIndex), queueCountPerFamily, &queuePriority });
-        }
-
-        // Device extensions
-        std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_KHR_dynamic_rendering" };
-#if PLATFORM_MACOS
-        deviceExtensions.push_back("VK_KHR_portability_subset");
-#endif
-        
-        // Needed to enable dynamic rendering extension
-        constexpr VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature {
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
-            .dynamicRendering = VK_TRUE,
-        };
-
-        VkDeviceCreateInfo deviceCreateInfo = {
-            VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-            &dynamic_rendering_feature,
-            VkDeviceCreateFlags(),
-            static_cast<uint32_t>(queueCreateInfos.size()),
-            queueCreateInfos.data(),
-            0u,
-            nullptr,
-            static_cast<uint32_t>(deviceExtensions.size()),
-            deviceExtensions.data(),
-            nullptr
-        };
-        vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
-        mainDeletionQueue.push_function([=]() {
-            vkDestroyDevice(device, nullptr);
-        });
-    }
-
-    void createSwapchain() {
-        // If the graphics and presentation queue family indices are different, allow concurrent access to object from multiple queue families
-        struct SM {
-            VkSharingMode sharingMode;
-            uint32_t familyIndicesCount;
-            uint32_t* familyIndicesDataPtr;
-        } sharingModeUtil  = { (graphicsQueueFamilyIndex != presentQueueFamilyIndex) ?
-                           SM{ VK_SHARING_MODE_CONCURRENT, 2u, FamilyIndices.data() } :
-                           SM{ VK_SHARING_MODE_EXCLUSIVE, 0u, static_cast<uint32_t*>(nullptr) } };
-        
-        // Query for surface format support
-        VkSurfaceCapabilitiesKHR capabilities;
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &capabilities);
-
-        uint32_t surfaceFormatCount = 0;
-        vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatCount, nullptr);
-        std::vector<VkSurfaceFormatKHR> formats(surfaceFormatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatCount, formats.data());
-        
-        swapChainFormat = VK_FORMAT_B8G8R8A8_UNORM;
-        VkColorSpaceKHR swapChainColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-        bool foundCompatible = false;
-        for (auto format : formats) {
-            if (format.format == swapChainFormat && format.colorSpace == swapChainColorSpace) {
-                foundCompatible = true;
-                break;
-            }
-        }
-        if (!foundCompatible) {
-            throw std::runtime_error("Could not find compatible surface format!");
-        }
-
-        // Create swapchain
-        VkExtent2D swapChainExtent = { WINDOW_WIDTH, WINDOW_HEIGHT };
-        VkSwapchainCreateInfoKHR swapChainCreateInfo = {
-            VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-            nullptr,
-            {},
-            surface, 
-            swapChainImageCount, // This is a minimum, not exact
-            swapChainFormat,
-            swapChainColorSpace,
-            swapChainExtent, 
-            1, 
-            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-            sharingModeUtil.sharingMode,
-            sharingModeUtil.familyIndicesCount,
-            sharingModeUtil.familyIndicesDataPtr,
-            VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
-            VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-            VK_PRESENT_MODE_FIFO_KHR, // Required for implementations, no need to query for support
-            true, 
-            nullptr
-        };
-        VkResult res = vkCreateSwapchainKHR(device, &swapChainCreateInfo, nullptr, &swapChain);
-        if (res != VK_SUCCESS) {
-            MRCERR(string_VkResult(res));
-            throw std::runtime_error("Could not create swap chain!");
-        }
-        mainDeletionQueue.push_function([=]() {
-            vkDestroySwapchainKHR(device, swapChain, nullptr);
-        });
-    }
-
-    void getSwapchainImages() {
-        vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, nullptr); // We only specified a minimum during creation, need to query for the real number
-        swapChainImages.resize(swapChainImageCount); 
-        vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, swapChainImages.data());
-        MRLOG("Final number of swapchain images: " << swapChainImageCount);
-        assert(swapChainImageCount >= MAX_FRAMES_IN_FLIGHT); // Need at least as many swapchain images as FiFs or the extra FiFs are useless
-        swapChainImageViews.resize(swapChainImages.size());
-
-        for (uint32_t i = 0; i < swapChainImageViews.size(); i++) {
-            VkImageViewCreateInfo imageViewCreateInfo = imageview_create_info(swapChainImages[i], swapChainFormat, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
-            VkResult res = vkCreateImageView(device, &imageViewCreateInfo, nullptr, &swapChainImageViews[i]);
-            if (res != VK_SUCCESS) {
-                MRCERR(string_VkResult(res));
-                throw std::runtime_error("Could not create swap chain image view!");
-            }
-        }
-        mainDeletionQueue.push_function([=]() {
-            for (uint32_t k = 0; k < swapChainImageViews.size(); k++) {
-                vkDestroyImageView(device, swapChainImageViews[k], nullptr);
-            }   
-        });
-    }
-
-    void createDrawImage() {
-        VkExtent3D drawImageExtent = {
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            1
-        };
-        drawImage.imageExtent = drawImageExtent;
-        drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
-        
-        VkImageUsageFlags drawImageUsages = {};
-        drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-        drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-        drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
-        drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-        VkImageCreateInfo drawImageCreateInfo = image_create_info(drawImage.imageFormat, drawImage.imageExtent, drawImageUsages);
-
-        upload_gpu_only_image(drawImage, drawImageCreateInfo, vmaAllocator, mainDeletionQueue);
-
-        VkImageViewCreateInfo drawImageViewCreateInfo = imageview_create_info(drawImage.image, drawImage.imageFormat, {}, VK_IMAGE_ASPECT_COLOR_BIT);
-        VkResult res = vkCreateImageView(device, &drawImageViewCreateInfo, nullptr, &drawImage.imageView);
-        if(res != VK_SUCCESS) {
-            MRCERR(string_VkResult(res));
-            throw std::runtime_error("Could not create draw image view!");
-        }
-
-        mainDeletionQueue.push_function([=]() {
-            vkDestroyImageView(device, drawImage.imageView, nullptr);
-        });
-    }
-
-    void createDepthImageAndView() {
-        depthImage.imageExtent = VkExtent3D{ WINDOW_WIDTH, WINDOW_HEIGHT, 1 };
-        depthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
-
-        VkImageCreateInfo depthImageCreateInfo = image_create_info(depthImage.imageFormat, depthImage.imageExtent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
-
-        VmaAllocationCreateInfo vmaAllocInfo = {};
-        vmaAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-        vmaAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT; 
-        VkResult res = vmaCreateImage(vmaAllocator, &depthImageCreateInfo, &vmaAllocInfo, &reinterpret_cast<VkImage &>(depthImage.image), &depthImage.allocation, nullptr);
-
-        if (res != VK_SUCCESS) {
-            MRCERR(string_VkResult(res));
-            throw std::runtime_error("Could not create depth image!");
-        }
-
-        VkImageViewCreateInfo depthImageViewCreateInfo = imageview_create_info(depthImage.image, depthImage.imageFormat, {},VK_IMAGE_ASPECT_DEPTH_BIT);
-
-        vkCreateImageView(device, &depthImageViewCreateInfo, nullptr, &depthImage.imageView);
-
-        mainDeletionQueue.push_function([=]() {
-            vkDestroyImageView(device, depthImage.imageView, nullptr);
-            vmaDestroyImage(vmaAllocator, depthImage.image, depthImage.allocation);
-        });
-    }
-
-    void createSynchronizationStructures() {
-        imageAvailableSemaphores_F.resize(MAX_FRAMES_IN_FLIGHT);
-        renderFinishedSemaphores_F.resize(MAX_FRAMES_IN_FLIGHT);
-        renderFences_F.resize(MAX_FRAMES_IN_FLIGHT);
-
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            VkSemaphoreCreateInfo semaphoreCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, {}, {}};
-            vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &imageAvailableSemaphores_F[i]);
-            vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &renderFinishedSemaphores_F[i]);
-            mainDeletionQueue.push_function([=]() {
-                vkDestroySemaphore(device, imageAvailableSemaphores_F[i], nullptr);
-                vkDestroySemaphore(device, renderFinishedSemaphores_F[i], nullptr);
-            });
-
-            VkFenceCreateInfo fenceCreateInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
-            vkCreateFence(device, &fenceCreateInfo, nullptr, &renderFences_F[i]);
-            mainDeletionQueue.push_function([=]() {
-                vkDestroyFence(device, renderFences_F[i], nullptr);
-            });
-        }
-
-        // Immediate submission synchronization structures
-        {
-            VkFenceCreateInfo fenceCreateInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
-            vkCreateFence(device, &fenceCreateInfo, nullptr, &immediateFence);
-            mainDeletionQueue.push_function([=]() {
-                vkDestroyFence(device, immediateFence, nullptr);
-            });
-        }
-    }
-
-    void createCommandPool() {
-        VkCommandPoolCreateInfo commandPoolCreateInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO, nullptr,
-        VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, // allows any command buffer allocated from a pool to be individually reset to the initial state; either by calling vkResetCommandBuffer, or via the implicit reset when calling vkBeginCommandBuffer.
-        graphicsQueueFamilyIndex};
-        vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &commandPool);
-        vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &immediateCommandPool);
-
-        mainDeletionQueue.push_function([=]() {
-            vkDestroyCommandPool(device, commandPool, nullptr);
-            vkDestroyCommandPool(device, immediateCommandPool, nullptr);
-        });
-    }
-    
-
-    void createCommandBuffers() {
-        // Main per FiF command buffers
-        commandBuffers_F.resize(MAX_FRAMES_IN_FLIGHT);
-        VkCommandBufferAllocateInfo cmdBufferAllocInfo = {};
-        cmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        cmdBufferAllocInfo.commandPool = commandPool;
-        cmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        cmdBufferAllocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers_F.size());
-        vkAllocateCommandBuffers(device, &cmdBufferAllocInfo, commandBuffers_F.data());
-
-        // Immediate command buffer
-        VkCommandBufferAllocateInfo immCmdBufferAllocInfo = {};
-        immCmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        immCmdBufferAllocInfo.commandPool = immediateCommandPool;
-        immCmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        immCmdBufferAllocInfo.commandBufferCount = 1;
-        vkAllocateCommandBuffers(device, &immCmdBufferAllocInfo, &immediateCommandBuffer);
-    }
-
-    void retrieveQueues() {
-        vkGetDeviceQueue(device, graphicsQueueFamilyIndex, 0, &graphicsQueue);
-        vkGetDeviceQueue(device, presentQueueFamilyIndex, 0, &presentQueue);
-    }
-
-    void initVMA() {
-        VmaAllocatorCreateInfo allocatorInfo = {};
-        allocatorInfo.physicalDevice = physicalDevice;
-        allocatorInfo.device = device;
-        allocatorInfo.instance = instance;
-        VkResult res = vmaCreateAllocator(&allocatorInfo, &vmaAllocator);
-        if (res != VK_SUCCESS) {
-            MRCERR(string_VkResult(res));
-            throw std::runtime_error("vmaCreateAllocator unsuccessful!");
-        }
-        mainDeletionQueue.push_function([&]() {
-		    vmaDestroyAllocator(vmaAllocator);
-        });
-    }
-
     void init_scene_lights() {
         Scene::GetInstance().scenePointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), glm::vec3(1.0f, 1.0f, 1.0f)));
 
@@ -684,45 +258,6 @@ private:
         create_material(defaultPipeline, "defaultMaterial");
     }
 
-    void init_scene_meshes() {
-
-        // Sponza mesh
-        Mesh sponzaMesh;
-        load_mesh_from_gltf(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false);
-        Scene::GetInstance().sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
-
-        RenderObject sponzaObject("defaultMaterial", "sponza");
-        glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
-        glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
-        sponzaObject.transformMatrix = translate * scale;
-
-        Scene::GetInstance().sceneRenderObjects.push_back(sponzaObject);
-
-
-        // Suzanne mesh
-        Mesh monkeyMesh;
-        load_mesh_from_gltf(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.glb", true);
-        Scene::GetInstance().sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
-
-        RenderObject monkeyObject("defaultMaterial", "suzanne");
-        glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
-        monkeyObject.transformMatrix = monkeyTranslate;
-
-        Scene::GetInstance().sceneRenderObjects.push_back(monkeyObject);
-
-        // Helmet mesh
-        Mesh helmetMesh;
-        load_mesh_from_gltf(helmetMesh, ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true);
-        Scene::GetInstance().sceneMeshMap["helmet"] = upload_mesh(helmetMesh, vmaAllocator, mainDeletionQueue);
-
-        RenderObject helmetObject("defaultMaterial", "helmet");
-        glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
-        helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
-        helmetObject.transformMatrix = helmetTransform;
-
-        Scene::GetInstance().sceneRenderObjects.push_back(helmetObject);
-    }
-
     void init_imgui() {
         // Create a descriptor pool for IMGUI
         // The size of the pool is very oversized, but it's copied from imgui demo
@@ -786,50 +321,13 @@ private:
         });
     }
 
-    // Used for data uploads and other "instant operations" not synced with the swapchain
-    void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function) { // Lambda should take a command buffer and return nothing
-        
-        vkResetFences(device, 1, &immediateFence);
-        vkResetCommandBuffer(immediateCommandBuffer, {});
+    //void draw_objects() {
+    //    
 
-        VkCommandBufferBeginInfo beginInfo = {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            .pNext = nullptr,
-            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-            .pInheritanceInfo = {}
-        };
-        vkBeginCommandBuffer(immediateCommandBuffer, &beginInfo);
-
-        function(immediateCommandBuffer);
-
-        vkEndCommandBuffer(immediateCommandBuffer);
-
-        // Submit immediate workload
-        VkSubmitInfo submitInfo = {
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .waitSemaphoreCount = 0,
-            .pWaitSemaphores = nullptr,
-            .pWaitDstStageMask = nullptr,
-            .commandBufferCount = 1,
-            .pCommandBuffers = &immediateCommandBuffer,
-            .signalSemaphoreCount = 0,
-            .pSignalSemaphores = nullptr
-        };
-        vkQueueSubmit(graphicsQueue, 1, &submitInfo, immediateFence);
-
-        vkWaitForFences(device, 1, &immediateFence, true, (std::numeric_limits<uint64_t>::max)());
-    }
-
-    void draw_objects() {
-        glm::mat4 view = camera.get_view_matrix();
-        glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
-        projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
-        glm::mat4 viewProjectionMatrix = projection * view;
-
-        for (RenderObject renderObject :  Scene::GetInstance().sceneRenderObjects) {
-            renderObject.BindAndDraw(commandBuffers_F[currentFrame], viewProjectionMatrix, std::span<const VkDescriptorSet>(sceneDescriptorSets_F.data() + currentFrame, 1));
-        }
-    }
+    //    for (RenderObject renderObject :  Scene::GetInstance().sceneRenderObjects) {
+    //        renderObject.BindAndDraw(commandBuffers_F[currentFrame], viewProjectionMatrix, std::span<const VkDescriptorSet>(sceneDescriptorSets_F.data() + currentFrame, 1));
+    //    }
+    //}
 Diligent::RefCntAutoPtr<Diligent::IRenderDevice>  m_pDevice;
 Diligent::RefCntAutoPtr<Diligent::IDeviceContext> m_pImmediateContext;
 Diligent::RefCntAutoPtr<Diligent::ISwapChain>     m_pSwapChain;
@@ -850,62 +348,61 @@ Diligent::RefCntAutoPtr<Diligent::ISwapChain>     m_pSwapChain;
         pFactoryVk->CreateSwapChainVk(m_pDevice, m_pImmediateContext, swapchainDesc, diligent_hwnd, &m_pSwapChain);
         MRLOG("Op success!");
     }
-    const char* VSSource = R"(
-    struct PSInput 
-    { 
-        float4 Pos   : SV_POSITION; 
-        float3 Color : COLOR; 
-    };
-
-    void main(in  uint    VertId : SV_VertexID,
-              out PSInput PSIn) 
-    {
-        float4 Pos[3];
-        Pos[0] = float4(-0.5, -0.5, 0.0, 1.0);
-        Pos[1] = float4( 0.0, +0.5, 0.0, 1.0);
-        Pos[2] = float4(+0.5, -0.5, 0.0, 1.0);
-
-        float3 Col[3];
-        Col[0] = float3(1.0, 0.0, 0.0); // red
-        Col[1] = float3(0.0, 1.0, 0.0); // green
-        Col[2] = float3(0.0, 0.0, 1.0); // blue
-
-        PSIn.Pos   = Pos[VertId];
-        PSIn.Color = Col[VertId];
-    }
-    )";
-
-    // Pixel shader simply outputs interpolated vertex color
-    const char* PSSource = R"(
-    struct PSInput 
-    { 
-        float4 Pos   : SV_POSITION; 
-        float3 Color : COLOR; 
-    };
-
-    struct PSOutput
-    { 
-        float4 Color : SV_TARGET; 
-    };
-
-    void main(in  PSInput  PSIn,
-              out PSOutput PSOut)
-    {
-        PSOut.Color = float4(PSIn.Color.rgb, 1.0);
-    }
-    )";
 Diligent::RefCntAutoPtr<Diligent::IPipelineState> m_pPSO;
+Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> m_pSRB;
+Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pVSCBConstants;
     void buildResources()
     {
+        // Constant buffer creation, frequently updated by the CPU, used for our transformation matrices
+        Diligent::BufferDesc constantBufferDesc;
+        constantBufferDesc.Name = "VS constants CB";
+        constantBufferDesc.Size = sizeof(glm::mat4);
+        constantBufferDesc.Usage = Diligent::USAGE_DYNAMIC;
+        constantBufferDesc.BindFlags = Diligent::BIND_UNIFORM_BUFFER;
+        constantBufferDesc.CPUAccessFlags = Diligent::CPU_ACCESS_WRITE;
+        m_pDevice->CreateBuffer(constantBufferDesc, nullptr, &m_pVSCBConstants);
+
+        // Define how vertex attributes are fetched from the vertex buffer
+        Diligent::LayoutElement LayoutElems[] =
+        {
+            // Attribute 0 - vertex position
+            Diligent::LayoutElement{0, 0, 3, Diligent::VT_FLOAT32, Diligent::False},
+            // Attribute 1 - vertex normal
+            Diligent::LayoutElement{1, 0, 3, Diligent::VT_FLOAT32, Diligent::True},
+            // Attribute 2 - vertex color
+            Diligent::LayoutElement{2, 0, 4, Diligent::VT_FLOAT32, Diligent::False}
+        };
+
         Diligent::GraphicsPipelineStateCreateInfo psoCreateInfo;
+        psoCreateInfo.GraphicsPipeline.InputLayout.LayoutElements = LayoutElems;
+        psoCreateInfo.GraphicsPipeline.InputLayout.NumElements = _countof(LayoutElems);
+
+        psoCreateInfo.PSODesc.ResourceLayout.DefaultVariableType = Diligent::SHADER_RESOURCE_VARIABLE_TYPE_STATIC;
+
         psoCreateInfo.PSODesc.Name = "Simple Triangle PSO";
         psoCreateInfo.PSODesc.PipelineType = Diligent::PIPELINE_TYPE_GRAPHICS;
         psoCreateInfo.GraphicsPipeline.NumRenderTargets = 1;
         psoCreateInfo.GraphicsPipeline.RTVFormats[0] = m_pSwapChain->GetDesc().ColorBufferFormat;
         psoCreateInfo.GraphicsPipeline.DSVFormat = m_pSwapChain->GetDesc().DepthBufferFormat;
+        psoCreateInfo.GraphicsPipeline.DepthStencilDesc.DepthEnable = Diligent::True;
+
+        psoCreateInfo.GraphicsPipeline.RasterizerDesc.CullMode = Diligent::CULL_MODE_BACK;
+
         psoCreateInfo.GraphicsPipeline.PrimitiveTopology = Diligent::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        psoCreateInfo.GraphicsPipeline.RasterizerDesc.CullMode = Diligent::CULL_MODE_NONE;
-        psoCreateInfo.GraphicsPipeline.DepthStencilDesc.DepthEnable = Diligent::False;
+        
+        // bool load_shader_spirv_source_to_bytes(const std::string& shaderSpirvPath, std::vector<uint32_t> &byteBuffer, size_t &byteBufferSizeBytes)
+        //std::vector<uint32_t> VS_source;
+        //size_t VS_byteCount;
+        //std::vector<uint32_t> PS_source;
+        //size_t PS_byteCount;
+
+        //load_shader_spirv_source_to_bytes(std::string(ROOT_DIR) + std::string("Shaders/hello_triangle.vert.spv"), VS_source, VS_byteCount);
+        //load_shader_spirv_source_to_bytes(std::string(ROOT_DIR) + std::string("Shaders/hello_triangle.frag.spv"), PS_source, PS_byteCount);
+
+        std::string VS_source;
+        std::string PS_source;
+        load_shader_source_to_string(std::string(ROOT_DIR) + std::string("Shaders/simple.vsh"), VS_source);
+        load_shader_source_to_string(std::string(ROOT_DIR) + std::string("Shaders/simple.psh"), PS_source);
 
         Diligent::ShaderCreateInfo shaderCI;
         shaderCI.SourceLanguage = Diligent::SHADER_SOURCE_LANGUAGE_HLSL;
@@ -915,7 +412,9 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> m_pPSO;
             shaderCI.Desc.ShaderType = Diligent::SHADER_TYPE_VERTEX;
             shaderCI.EntryPoint = "main";
             shaderCI.Desc.Name = "Triangle vertex shader";
-            shaderCI.Source = VSSource;
+            //shaderCI.ByteCode = VS_source.data();
+            //shaderCI.ByteCodeSize = VS_byteCount;
+            shaderCI.Source = VS_source.data();
             m_pDevice->CreateShader(shaderCI, &pVS);
         }
         Diligent::RefCntAutoPtr<Diligent::IShader> pPS;
@@ -923,17 +422,118 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> m_pPSO;
             shaderCI.Desc.ShaderType = Diligent::SHADER_TYPE_PIXEL;
             shaderCI.EntryPoint = "main";
             shaderCI.Desc.Name = "Triangle fragment shader";
-            shaderCI.Source = PSSource;
+            //shaderCI.ByteCode = PS_source.data();
+            //shaderCI.ByteCodeSize = PS_byteCount;
+            shaderCI.Source = PS_source.data();
             m_pDevice->CreateShader(shaderCI, &pPS);
         }
+
         // Finally, create the pipeline state
         psoCreateInfo.pVS = pVS;
         psoCreateInfo.pPS = pPS;
         m_pDevice->CreateGraphicsPipelineState(psoCreateInfo, &m_pPSO);
+
+        // Bind static variables, in this case just the constant buffer fed to the vertex shader
+        m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_VERTEX, "Constants")->Set(m_pVSCBConstants);
+
+        // Since our vertex shader uses shader resources (constant buffer), we need to create a shader resource binding object that will manage all required resource bindings:
+        m_pPSO->CreateShaderResourceBinding(&m_pSRB, true);
     }
+
+    Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pMonkeyVertexBuffer;
+    Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pMonkeyIndexBuffer;
+    uint32_t numIndicesTemp;
+    void init_scene_meshes() {
+
+        // // Sponza mesh
+        // Mesh sponzaMesh;
+        // load_mesh_from_gltf(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false);
+        // Scene::GetInstance().sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, vmaAllocator, mainDeletionQueue);
+
+        // RenderObject sponzaObject("defaultMaterial", "sponza");
+        // glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
+        // glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
+        // sponzaObject.transformMatrix = translate * scale;
+
+        // Scene::GetInstance().sceneRenderObjects.push_back(sponzaObject);
+
+
+        // Suzanne mesh
+        Mesh monkeyMesh;
+        load_mesh_from_gltf(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.glb", true);
+
+        {
+            Diligent::BufferDesc monkeyVertexBuffDesc;
+            monkeyVertexBuffDesc.Name = "Monkey vertex buffer";
+            monkeyVertexBuffDesc.BindFlags = Diligent::BIND_VERTEX_BUFFER;
+            monkeyVertexBuffDesc.Usage = Diligent::USAGE_IMMUTABLE;
+            monkeyVertexBuffDesc.Size = monkeyMesh.vertices.size() * Vertex::sizeInBytes();
+            Diligent::BufferData monkeyVBData;
+            monkeyVBData.pData = monkeyMesh.vertices.data();
+            monkeyVBData.DataSize = monkeyMesh.vertices.size() * Vertex::sizeInBytes();
+            m_pDevice->CreateBuffer(monkeyVertexBuffDesc, &monkeyVBData, &m_pMonkeyVertexBuffer);
+        }
+
+        Diligent::BufferDesc monkeyIndexBuffDesc;
+        monkeyIndexBuffDesc.Name = "Monkey index buffer";
+        monkeyIndexBuffDesc.BindFlags = Diligent::BIND_INDEX_BUFFER;
+        monkeyIndexBuffDesc.Usage = Diligent::USAGE_IMMUTABLE;
+        monkeyIndexBuffDesc.Size = monkeyMesh.indices.size() * sizeof(uint32_t);
+        Diligent::BufferData monkeyIBData;
+        monkeyIBData.pData = monkeyMesh.indices.data();
+        monkeyIBData.DataSize = monkeyMesh.indices.size() * sizeof(uint32_t);
+        m_pDevice->CreateBuffer(monkeyIndexBuffDesc, &monkeyIBData, &m_pMonkeyIndexBuffer);
+
+        numIndicesTemp = static_cast<uint32_t>(monkeyMesh.indices.size());
+
+        // Scene::GetInstance().sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
+
+        RenderObject monkeyObject("defaultMaterial", "suzanne");
+        glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
+        monkeyObject.transformMatrix = monkeyTranslate;
+
+        Scene::GetInstance().sceneRenderObjects.push_back(monkeyObject);
+
+        // // Helmet mesh
+        // Mesh helmetMesh;
+        // load_mesh_from_gltf(helmetMesh, ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true);
+        // Scene::GetInstance().sceneMeshMap["helmet"] = upload_mesh(helmetMesh, vmaAllocator, mainDeletionQueue);
+
+        // RenderObject helmetObject("defaultMaterial", "helmet");
+        // glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
+        // helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
+        // helmetObject.transformMatrix = helmetTransform;
+
+        // Scene::GetInstance().sceneRenderObjects.push_back(helmetObject);
+    }
+
 
     void diligentRender()
     {
+        // Calculate view projection matrix
+        glm::mat4 view = camera.get_view_matrix();
+        glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, 0.1f, 200.0f);
+        //projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
+        glm::mat4 viewProjectionMatrix = projection * view;
+
+        glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
+
+        glm::mat4 modelViewProjectionMatrix = viewProjectionMatrix * monkeyTranslate;
+
+        // Update vertex shader constant buffer
+        {
+            Diligent::MapHelper<glm::mat4> VSConstants(m_pImmediateContext, m_pVSCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
+            *VSConstants = modelViewProjectionMatrix;
+        }
+
+        // Bind vertex and index buffers
+        Uint64   offset = 0;
+        Diligent::IBuffer* pBuffs[] = { m_pMonkeyVertexBuffer };
+        m_pImmediateContext->SetVertexBuffers(0, 1, pBuffs, &offset, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION, Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
+        m_pImmediateContext->SetIndexBuffer(m_pMonkeyIndexBuffer, 0, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        
+
+
         // Clear the back buffer
         const float ClearColor[] = { 0.350f, 0.350f, 0.350f, 1.0f };
         // Let the engine perform required state transitions
@@ -946,30 +546,28 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> m_pPSO;
         // Set the pipeline state in the immediate context
         m_pImmediateContext->SetPipelineState(m_pPSO);
 
-        // Typically we should now call CommitShaderResources(), however shaders in this example don't
-        // use any resources.
+        // Very important: Commit shader resources
+        m_pImmediateContext->CommitShaderResources(m_pSRB, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-        Diligent::DrawAttribs drawAttrs;
-        drawAttrs.NumVertices = 3; // We will render 3 vertices
-        m_pImmediateContext->Draw(drawAttrs);
+        //Diligent::DrawAttribs drawAttrs;
+        //drawAttrs.NumVertices = 3; // We will render 3 vertices
+        //m_pImmediateContext->Draw(drawAttrs);
+
+        Diligent::DrawIndexedAttribs drawIndexAttrs;
+        drawIndexAttrs.IndexType = Diligent::VT_UINT32;
+        drawIndexAttrs.NumIndices = numIndicesTemp;
+        // Verify the state of vertex and index buffers as well as consistence of 
+        // render targets and correctness of draw command arguments
+        drawIndexAttrs.Flags = Diligent::DRAW_FLAG_VERIFY_ALL;
+        m_pImmediateContext->DrawIndexed(drawIndexAttrs);
 
         m_pSwapChain->Present(true ? 1 : 0);
     }
 
     void initVulkan() {
-        
-        // createInstance();
-        // createDebugMessenger();
-        // createSurface();
-        // initPhysicalDevice();
-        // findQueueFamilyIndices();
-        // createDevice();
-        // // initVMA();
-        // createSwapchain();
-        // getSwapchainImages();
-        // createDepthImageAndView();
         engineInit();
         buildResources();
+        init_scene_meshes();
         // // createDrawImage();
         // createSynchronizationStructures();   
         // createCommandPool();
@@ -1098,7 +696,7 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> m_pPSO;
 
             vkCmdSetViewport(commandBuffers_F[currentFrame], 0, 1, &DEFAULT_VIEWPORT_FULLSCREEN);
             vkCmdSetScissor(commandBuffers_F[currentFrame], 0, 1, &DEFAULT_SCISSOR_FULLSCREEN);
-            draw_objects();
+            //draw_objects();
 
             PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR"));
             vkCmdEndRenderingKHR(commandBuffers_F[currentFrame]);
