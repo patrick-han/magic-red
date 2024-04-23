@@ -369,15 +369,15 @@ Diligent::RefCntAutoPtr<Diligent::ISwapChain>     m_pSwapChain;
 Diligent::RefCntAutoPtr<Diligent::IPipelineState> m_pPSO;
 Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> m_pSRB;
 Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pVSCBConstants;
-//Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pFSLightCBConstants;
+Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pFSLightCBConstants;
 
 struct cb_contents
 {
     glm::mat4 model;
     glm::mat4 view;
     glm::mat4 projection;
-    glm::vec4 pos;
-    glm::vec4 color;
+    // glm::vec4 pos;
+    // glm::vec4 color;
 };
     void buildResources()
     {
@@ -391,16 +391,16 @@ struct cb_contents
          m_pDevice->CreateBuffer(constantBufferDesc, nullptr, &m_pVSCBConstants);
         //CreateUniformBuffer(m_pDevice, sizeof(glm::mat4), "VS constants CB", &m_pVSCBConstants);
 
-        // // Per scene constant buffer creation, used for lighting info
-        // Diligent::BufferDesc lightConstantBufferDesc;
-        // lightConstantBufferDesc.Name = "VS light constants CB";
-        // // lightConstantBufferDesc.Size = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight);
-        // lightConstantBufferDesc.Size = 1 * sizeof(PointLight);
-        // lightConstantBufferDesc.Usage = Diligent::USAGE_DYNAMIC;
-        // lightConstantBufferDesc.BindFlags = Diligent::BIND_UNIFORM_BUFFER;
-        // lightConstantBufferDesc.CPUAccessFlags = Diligent::CPU_ACCESS_WRITE;
-        // m_pDevice->CreateBuffer(lightConstantBufferDesc, nullptr, &m_pFSLightCBConstants);
-        // //CreateUniformBuffer(m_pDevice, /*Scene::GetInstance().scenePointLights.size() * */sizeof(PointLight), "VS light constants CB", &m_pFSLightCBConstants);
+        // Per scene constant buffer creation, used for lighting info
+        Diligent::BufferDesc lightConstantBufferDesc;
+        lightConstantBufferDesc.Name = "VS light constants CB";
+        // lightConstantBufferDesc.Size = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight);
+        lightConstantBufferDesc.Size = 1 * sizeof(PointLight);
+        lightConstantBufferDesc.Usage = Diligent::USAGE_DYNAMIC;
+        lightConstantBufferDesc.BindFlags = Diligent::BIND_UNIFORM_BUFFER;
+        lightConstantBufferDesc.CPUAccessFlags = Diligent::CPU_ACCESS_WRITE;
+        m_pDevice->CreateBuffer(lightConstantBufferDesc, nullptr, &m_pFSLightCBConstants);
+        //CreateUniformBuffer(m_pDevice, /*Scene::GetInstance().scenePointLights.size() * */sizeof(PointLight), "VS light constants CB", &m_pFSLightCBConstants);
 
         // Define how vertex attributes are fetched from the vertex buffer
         Diligent::LayoutElement LayoutElems[] =
@@ -486,9 +486,9 @@ struct cb_contents
 
         // Bind static variables, in this case just the constant buffer fed to the vertex shader
         m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_VERTEX, "Constants")->Set(m_pVSCBConstants);
-        m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_PIXEL, "Constants")->Set(m_pVSCBConstants);
+        // m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_PIXEL, "Constants")->Set(m_pVSCBConstants);
         //m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_VS_PS, "Constants")->Set(m_pVSCBConstants);
-        // m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_PIXEL, "LightConstants")->Set(m_pFSLightCBConstants);
+        m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_PIXEL, "LightConstants")->Set(m_pFSLightCBConstants);
 
         // Since our vertex shader uses shader resources (constant buffer), we need to create a shader resource binding object that will manage all required resource bindings:
         m_pPSO->CreateShaderResourceBinding(&m_pSRB, true);
@@ -587,41 +587,40 @@ struct cb_contents
             Diligent::MapHelper<cb_contents> VSConstants(m_pImmediateContext, m_pVSCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
             cb_contents contents;
 
-            float lightCircleRadius = 5.0f;
-            float lightCircleSpeed = 0.02f;
+            //float lightCircleRadius = 5.0f;
+            //float lightCircleSpeed = 0.02f;
             contents.model = monkeyTranslate;
             contents.view = view;
             contents.projection = projection;
-            contents.pos = glm::vec4(lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber), 0.0f, lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber), 0.0f);
-            contents.color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+            // contents.pos = glm::vec4(lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber), 0.0f, lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber), 0.0f);
+            // contents.color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
             *VSConstants = contents;
-            MRLOG("--------------------");
-            MRLOG(contents.pos.x);
-            MRLOG(contents.pos.y);
-            MRLOG(contents.pos.z);
-            MRLOG("--------------------");
+            // MRLOG("--------------------");
+            // MRLOG(contents.pos.x);
+            // MRLOG(contents.pos.y);
+            // MRLOG(contents.pos.z);
+            // MRLOG("--------------------");
         }
 
         // Update vertex shader light constant buffer
-        //{
-        //    Diligent::MapHelper<PointLight> VSLightConstants(m_pImmediateContext, m_pFSLightCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
+        {
+           Diligent::MapHelper<PointLight> FSLightConstants(m_pImmediateContext, m_pFSLightCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
 
-        //    //int lightCircleRadius = 5;
-        //    //float lightCircleSpeed = 0.02f;
-        //    // PointLight light(glm::vec4(lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber), 0.0f, lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber), 0.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-        //    PointLight light(glm::vec4(2.0, 0.0, 0.0, 0.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
-        //    MRLOG("--------------------");
-        //    MRLOG(light.worldSpacePosition.x);
-        //    MRLOG(light.worldSpacePosition.y);
-        //    MRLOG(light.worldSpacePosition.z);
-        //    MRLOG("--------------------");
-        //    *VSLightConstants = light;
+           int lightCircleRadius = 5;
+           float lightCircleSpeed = 0.02f;
+           PointLight light(glm::vec4(lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber), 0.0f, lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber), 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+           MRLOG("--------------------");
+           MRLOG(light.worldSpacePosition.x);
+           MRLOG(light.worldSpacePosition.y);
+           MRLOG(light.worldSpacePosition.z);
+           MRLOG("--------------------");
+           *FSLightConstants = light;
 
-        //    // Scene::GetInstance().scenePointLights[0].worldSpacePosition.x = lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber);
-        //    // Scene::GetInstance().scenePointLights[0].worldSpacePosition.y = 0.0f;
-        //    // Scene::GetInstance().scenePointLights[0].worldSpacePosition.z = lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber);
-        //    // *VSLightConstants = Scene::GetInstance().scenePointLights[0];
-        //}
+           // Scene::GetInstance().scenePointLights[0].worldSpacePosition.x = lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber);
+           // Scene::GetInstance().scenePointLights[0].worldSpacePosition.y = 0.0f;
+           // Scene::GetInstance().scenePointLights[0].worldSpacePosition.z = lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber);
+           // *FSLightConstants = Scene::GetInstance().scenePointLights[0];
+        }
 
         // Bind vertex and index buffers
         Uint64   offset = 0;

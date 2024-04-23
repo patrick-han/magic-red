@@ -4,22 +4,22 @@
 //     float4 color;
 // };
 
-// cbuffer LightConstants
-// {
-//     // PointLight pointLights;
-//     float4 worldSpacePosition;
-//     float4 color;
-// };
-
-cbuffer Constants
+cbuffer LightConstants
 {
-    // float4x4 g_WorldViewProj;
-    float4x4 g_Model;
-    float4x4 g_View;
-    float4x4 g_Proj;
+    // PointLight pointLights;
     float4 worldSpacePosition;
     float4 color;
 };
+
+// cbuffer Constants
+// {
+//     // float4x4 g_WorldViewProj;
+//     float4x4 g_Model;
+//     float4x4 g_View;
+//     float4x4 g_Proj;
+//     float4 worldSpacePosition;
+//     float4 color;
+// };
 
 struct PSInput 
 { 
