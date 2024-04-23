@@ -1,7 +1,7 @@
 #include "PointLight.h"
 #include <utility>
 
-PointLight::PointLight(glm::vec3 _worldSpacePosition, glm::vec3 _color) 
+PointLight::PointLight(glm::vec4 _worldSpacePosition, glm::vec4 _color) 
     : worldSpacePosition(_worldSpacePosition)
     , color(_color) 
 {}

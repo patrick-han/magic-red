@@ -179,67 +179,67 @@ POP_CLANG_WARNINGS
 #endif
     }
 
-    void init_scene_lights() {
-        Scene::GetInstance().scenePointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), glm::vec3(1.0f, 1.0f, 1.0f)));
+    //void init_scene_lights() {
+    //    Scene::GetInstance().scenePointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), glm::vec3(1.0f, 1.0f, 1.0f)));
 
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            AllocatedBuffer pointLightBuffer;
-            PointLightsBuffers_F.push_back(pointLightBuffer);
-            upload_buffer(
-                PointLightsBuffers_F[i],
-                Scene::GetInstance().scenePointLights.size() * sizeof(PointLight),
-                Scene::GetInstance().scenePointLights.data(),
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                vmaAllocator,
-                mainDeletionQueue
-            );
-        }
-    }
+    //    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    //    {
+    //        AllocatedBuffer pointLightBuffer;
+    //        PointLightsBuffers_F.push_back(pointLightBuffer);
+    //        upload_buffer(
+    //            PointLightsBuffers_F[i],
+    //            Scene::GetInstance().scenePointLights.size() * sizeof(PointLight),
+    //            Scene::GetInstance().scenePointLights.data(),
+    //            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    //            vmaAllocator,
+    //            mainDeletionQueue
+    //        );
+    //    }
+    //}
     
-    void init_scene_descriptors() {
-        // Describe what and how many descriptors we want and create our pool
-        // These may be distributed in any combination among our sets
-        std::vector<DescriptorAllocator::DescriptorTypeCount> descriptorTypeCounts = {
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT } // We want 1 buffer for each frame in flight
-        };
-        globalDescriptorAllocator.init_pool(device, MAX_FRAMES_IN_FLIGHT, descriptorTypeCounts); // We can allocate up to MAX_FRAMES_IN_FLIGHT sets from this pool
+    // void init_scene_descriptors() {
+    //     // Describe what and how many descriptors we want and create our pool
+    //     // These may be distributed in any combination among our sets
+    //     std::vector<DescriptorAllocator::DescriptorTypeCount> descriptorTypeCounts = {
+    //         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT } // We want 1 buffer for each frame in flight
+    //     };
+    //     globalDescriptorAllocator.init_pool(device, MAX_FRAMES_IN_FLIGHT, descriptorTypeCounts); // We can allocate up to MAX_FRAMES_IN_FLIGHT sets from this pool
 
-        DescriptorLayoutBuilder layoutBuilder;
-        layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    //     DescriptorLayoutBuilder layoutBuilder;
+    //     layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
-        // We only need a single layout since they are all the same for each frame in flight
-        sceneDescriptorSetLayouts.push_back(layoutBuilder.buildLayout(device, VK_SHADER_STAGE_FRAGMENT_BIT));
-        mainDeletionQueue.push_function([&]() {
-                vkDestroyDescriptorSetLayout(device, sceneDescriptorSetLayouts[0], nullptr);
-        });
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            sceneDescriptorSets_F.push_back(
-                globalDescriptorAllocator.allocate(device, sceneDescriptorSetLayouts[0])
-            );
+    //     // We only need a single layout since they are all the same for each frame in flight
+    //     sceneDescriptorSetLayouts.push_back(layoutBuilder.buildLayout(device, VK_SHADER_STAGE_FRAGMENT_BIT));
+    //     mainDeletionQueue.push_function([&]() {
+    //             vkDestroyDescriptorSetLayout(device, sceneDescriptorSetLayouts[0], nullptr);
+    //     });
+    //     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    //     {
+    //         sceneDescriptorSets_F.push_back(
+    //             globalDescriptorAllocator.allocate(device, sceneDescriptorSetLayouts[0])
+    //         );
 
-            // Update descriptor set(s)
-            VkDescriptorBufferInfo pointLightBufferInfo = {
-                .buffer = PointLightsBuffers_F[i].buffer,
-                .offset = 0,
-                .range = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight) // VK_WHOLE_SIZE?
-            };
-            VkWriteDescriptorSet pointLightDescriptorWrite = {
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .pNext = nullptr,
-                .dstSet = sceneDescriptorSets_F[i],
-                .dstBinding = 0,
-                .dstArrayElement = {},
-                .descriptorCount = static_cast<uint32_t>(Scene::GetInstance().scenePointLights.size()),
-                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                .pImageInfo = nullptr,
-                .pBufferInfo = &pointLightBufferInfo,
-                .pTexelBufferView = nullptr // ???
-            };
-            vkUpdateDescriptorSets(device, 1, &pointLightDescriptorWrite, 0, nullptr);
-        }
-    }
+    //         // Update descriptor set(s)
+    //         VkDescriptorBufferInfo pointLightBufferInfo = {
+    //             .buffer = PointLightsBuffers_F[i].buffer,
+    //             .offset = 0,
+    //             .range = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight) // VK_WHOLE_SIZE?
+    //         };
+    //         VkWriteDescriptorSet pointLightDescriptorWrite = {
+    //             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    //             .pNext = nullptr,
+    //             .dstSet = sceneDescriptorSets_F[i],
+    //             .dstBinding = 0,
+    //             .dstArrayElement = {},
+    //             .descriptorCount = static_cast<uint32_t>(Scene::GetInstance().scenePointLights.size()),
+    //             .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    //             .pImageInfo = nullptr,
+    //             .pBufferInfo = &pointLightBufferInfo,
+    //             .pTexelBufferView = nullptr // ???
+    //         };
+    //         vkUpdateDescriptorSets(device, 1, &pointLightDescriptorWrite, 0, nullptr);
+    //     }
+    // }
 
     // temp
     std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
@@ -361,19 +361,46 @@ Diligent::RefCntAutoPtr<Diligent::ISwapChain>     m_pSwapChain;
         #endif
         MRLOG("Op success!");
     }
+    void init_scene_lights() {
+        // Scene::GetInstance().scenePointLights.push_back(PointLight(glm::vec4(0.0f, 3.5f, -4.0f, 0.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)));
+        // Scene::GetInstance().scenePointLights.push_back(PointLight(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)));
+    }
+
 Diligent::RefCntAutoPtr<Diligent::IPipelineState> m_pPSO;
 Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> m_pSRB;
 Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pVSCBConstants;
+//Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pFSLightCBConstants;
+
+struct cb_contents
+{
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 projection;
+    glm::vec4 pos;
+    glm::vec4 color;
+};
     void buildResources()
     {
-        // Constant buffer creation, frequently updated by the CPU, used for our transformation matrices
-        Diligent::BufferDesc constantBufferDesc;
-        constantBufferDesc.Name = "VS constants CB";
-        constantBufferDesc.Size = sizeof(glm::mat4);
-        constantBufferDesc.Usage = Diligent::USAGE_DYNAMIC;
-        constantBufferDesc.BindFlags = Diligent::BIND_UNIFORM_BUFFER;
-        constantBufferDesc.CPUAccessFlags = Diligent::CPU_ACCESS_WRITE;
-        m_pDevice->CreateBuffer(constantBufferDesc, nullptr, &m_pVSCBConstants);
+        // Per object onstant buffer creation, frequently updated by the CPU, used for our transformation matrices
+         Diligent::BufferDesc constantBufferDesc;
+         constantBufferDesc.Name = "VS constants CB";
+         constantBufferDesc.Size = sizeof(cb_contents);
+         constantBufferDesc.Usage = Diligent::USAGE_DYNAMIC;
+         constantBufferDesc.BindFlags = Diligent::BIND_UNIFORM_BUFFER;
+         constantBufferDesc.CPUAccessFlags = Diligent::CPU_ACCESS_WRITE;
+         m_pDevice->CreateBuffer(constantBufferDesc, nullptr, &m_pVSCBConstants);
+        //CreateUniformBuffer(m_pDevice, sizeof(glm::mat4), "VS constants CB", &m_pVSCBConstants);
+
+        // // Per scene constant buffer creation, used for lighting info
+        // Diligent::BufferDesc lightConstantBufferDesc;
+        // lightConstantBufferDesc.Name = "VS light constants CB";
+        // // lightConstantBufferDesc.Size = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight);
+        // lightConstantBufferDesc.Size = 1 * sizeof(PointLight);
+        // lightConstantBufferDesc.Usage = Diligent::USAGE_DYNAMIC;
+        // lightConstantBufferDesc.BindFlags = Diligent::BIND_UNIFORM_BUFFER;
+        // lightConstantBufferDesc.CPUAccessFlags = Diligent::CPU_ACCESS_WRITE;
+        // m_pDevice->CreateBuffer(lightConstantBufferDesc, nullptr, &m_pFSLightCBConstants);
+        // //CreateUniformBuffer(m_pDevice, /*Scene::GetInstance().scenePointLights.size() * */sizeof(PointLight), "VS light constants CB", &m_pFSLightCBConstants);
 
         // Define how vertex attributes are fetched from the vertex buffer
         Diligent::LayoutElement LayoutElems[] =
@@ -381,7 +408,7 @@ Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pVSCBConstants;
             // Attribute 0 - vertex position
             Diligent::LayoutElement{0, 0, 3, Diligent::VT_FLOAT32, Diligent::False},
             // Attribute 1 - vertex normal
-            Diligent::LayoutElement{1, 0, 3, Diligent::VT_FLOAT32, Diligent::True},
+            Diligent::LayoutElement{1, 0, 3, Diligent::VT_FLOAT32, Diligent::False},
             // Attribute 2 - vertex color
             Diligent::LayoutElement{2, 0, 4, Diligent::VT_FLOAT32, Diligent::False}
         };
@@ -390,8 +417,18 @@ Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pVSCBConstants;
         psoCreateInfo.GraphicsPipeline.InputLayout.LayoutElements = LayoutElems;
         psoCreateInfo.GraphicsPipeline.InputLayout.NumElements = _countof(LayoutElems);
 
+        //// Layout description
+        //Diligent::ShaderResourceVariableDesc ShaderVars[] =
+        //{
+        //    {Diligent::SHADER_TYPE_VERTEX, "Constants",  Diligent::SHADER_RESOURCE_VARIABLE_TYPE_STATIC},
+        //    {Diligent::SHADER_TYPE_VERTEX, "LightConstants", Diligent::SHADER_RESOURCE_VARIABLE_TYPE_STATIC},
+        //};
+        //psoCreateInfo.PSODesc.ResourceLayout.Variables = ShaderVars;
+        //psoCreateInfo.PSODesc.ResourceLayout.NumVariables = _countof(ShaderVars);
         psoCreateInfo.PSODesc.ResourceLayout.DefaultVariableType = Diligent::SHADER_RESOURCE_VARIABLE_TYPE_STATIC;
 
+
+        // Other
         psoCreateInfo.PSODesc.Name = "Simple Triangle PSO";
         psoCreateInfo.PSODesc.PipelineType = Diligent::PIPELINE_TYPE_GRAPHICS;
         psoCreateInfo.GraphicsPipeline.NumRenderTargets = 1;
@@ -400,6 +437,7 @@ Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pVSCBConstants;
         psoCreateInfo.GraphicsPipeline.DepthStencilDesc.DepthEnable = Diligent::True;
 
         psoCreateInfo.GraphicsPipeline.RasterizerDesc.CullMode = Diligent::CULL_MODE_BACK;
+        psoCreateInfo.GraphicsPipeline.RasterizerDesc.FrontCounterClockwise = Diligent::True;
 
         psoCreateInfo.GraphicsPipeline.PrimitiveTopology = Diligent::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         
@@ -448,6 +486,9 @@ Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pVSCBConstants;
 
         // Bind static variables, in this case just the constant buffer fed to the vertex shader
         m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_VERTEX, "Constants")->Set(m_pVSCBConstants);
+        m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_PIXEL, "Constants")->Set(m_pVSCBConstants);
+        //m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_VS_PS, "Constants")->Set(m_pVSCBConstants);
+        // m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_PIXEL, "LightConstants")->Set(m_pFSLightCBConstants);
 
         // Since our vertex shader uses shader resources (constant buffer), we need to create a shader resource binding object that will manage all required resource bindings:
         m_pPSO->CreateShaderResourceBinding(&m_pSRB, true);
@@ -475,6 +516,7 @@ Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pVSCBConstants;
         Mesh monkeyMesh;
         load_mesh_from_gltf(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.glb", true);
 
+        // Load vertices into buffer
         {
             Diligent::BufferDesc monkeyVertexBuffDesc;
             monkeyVertexBuffDesc.Name = "Monkey vertex buffer";
@@ -487,25 +529,29 @@ Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pVSCBConstants;
             m_pDevice->CreateBuffer(monkeyVertexBuffDesc, &monkeyVBData, &m_pMonkeyVertexBuffer);
         }
 
-        Diligent::BufferDesc monkeyIndexBuffDesc;
-        monkeyIndexBuffDesc.Name = "Monkey index buffer";
-        monkeyIndexBuffDesc.BindFlags = Diligent::BIND_INDEX_BUFFER;
-        monkeyIndexBuffDesc.Usage = Diligent::USAGE_IMMUTABLE;
-        monkeyIndexBuffDesc.Size = monkeyMesh.indices.size() * sizeof(uint32_t);
-        Diligent::BufferData monkeyIBData;
-        monkeyIBData.pData = monkeyMesh.indices.data();
-        monkeyIBData.DataSize = monkeyMesh.indices.size() * sizeof(uint32_t);
-        m_pDevice->CreateBuffer(monkeyIndexBuffDesc, &monkeyIBData, &m_pMonkeyIndexBuffer);
+
+        // Load indices into buffer
+        {
+            Diligent::BufferDesc monkeyIndexBuffDesc;
+            monkeyIndexBuffDesc.Name = "Monkey index buffer";
+            monkeyIndexBuffDesc.BindFlags = Diligent::BIND_INDEX_BUFFER;
+            monkeyIndexBuffDesc.Usage = Diligent::USAGE_IMMUTABLE;
+            monkeyIndexBuffDesc.Size = monkeyMesh.indices.size() * sizeof(uint32_t);
+            Diligent::BufferData monkeyIBData;
+            monkeyIBData.pData = monkeyMesh.indices.data();
+            monkeyIBData.DataSize = monkeyMesh.indices.size() * sizeof(uint32_t);
+            m_pDevice->CreateBuffer(monkeyIndexBuffDesc, &monkeyIBData, &m_pMonkeyIndexBuffer);
+        }
 
         numIndicesTemp = static_cast<uint32_t>(monkeyMesh.indices.size());
 
         // Scene::GetInstance().sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, vmaAllocator, mainDeletionQueue);
 
-        RenderObject monkeyObject("defaultMaterial", "suzanne");
-        glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
-        monkeyObject.transformMatrix = monkeyTranslate;
+        //RenderObject monkeyObject("defaultMaterial", "suzanne");
+        //glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
+        //monkeyObject.transformMatrix = monkeyTranslate;
 
-        Scene::GetInstance().sceneRenderObjects.push_back(monkeyObject);
+        //Scene::GetInstance().sceneRenderObjects.push_back(monkeyObject);
 
         // // Helmet mesh
         // Mesh helmetMesh;
@@ -520,6 +566,7 @@ Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pVSCBConstants;
         // Scene::GetInstance().sceneRenderObjects.push_back(helmetObject);
     }
 
+    
 
     void diligentRender()
     {
@@ -527,17 +574,54 @@ Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pVSCBConstants;
         glm::mat4 view = camera.get_view_matrix();
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, 0.1f, 200.0f);
         //projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
-        glm::mat4 viewProjectionMatrix = projection * view;
+        //glm::mat4 viewProjectionMatrix = projection * view;
 
         glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
 
-        glm::mat4 modelViewProjectionMatrix = viewProjectionMatrix * monkeyTranslate;
+        //glm::mat4 modelViewProjectionMatrix = viewProjectionMatrix * monkeyTranslate;
 
         // Update vertex shader constant buffer
         {
-            Diligent::MapHelper<glm::mat4> VSConstants(m_pImmediateContext, m_pVSCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
-            *VSConstants = modelViewProjectionMatrix;
+            // Diligent::MapHelper<glm::mat4> VSConstants(m_pImmediateContext, m_pVSCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
+            // *VSConstants = modelViewProjectionMatrix;
+            Diligent::MapHelper<cb_contents> VSConstants(m_pImmediateContext, m_pVSCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
+            cb_contents contents;
+
+            float lightCircleRadius = 5.0f;
+            float lightCircleSpeed = 0.02f;
+            contents.model = monkeyTranslate;
+            contents.view = view;
+            contents.projection = projection;
+            contents.pos = glm::vec4(lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber), 0.0f, lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber), 0.0f);
+            contents.color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+            *VSConstants = contents;
+            MRLOG("--------------------");
+            MRLOG(contents.pos.x);
+            MRLOG(contents.pos.y);
+            MRLOG(contents.pos.z);
+            MRLOG("--------------------");
         }
+
+        // Update vertex shader light constant buffer
+        //{
+        //    Diligent::MapHelper<PointLight> VSLightConstants(m_pImmediateContext, m_pFSLightCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
+
+        //    //int lightCircleRadius = 5;
+        //    //float lightCircleSpeed = 0.02f;
+        //    // PointLight light(glm::vec4(lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber), 0.0f, lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber), 0.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+        //    PointLight light(glm::vec4(2.0, 0.0, 0.0, 0.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+        //    MRLOG("--------------------");
+        //    MRLOG(light.worldSpacePosition.x);
+        //    MRLOG(light.worldSpacePosition.y);
+        //    MRLOG(light.worldSpacePosition.z);
+        //    MRLOG("--------------------");
+        //    *VSLightConstants = light;
+
+        //    // Scene::GetInstance().scenePointLights[0].worldSpacePosition.x = lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber);
+        //    // Scene::GetInstance().scenePointLights[0].worldSpacePosition.y = 0.0f;
+        //    // Scene::GetInstance().scenePointLights[0].worldSpacePosition.z = lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber);
+        //    // *VSLightConstants = Scene::GetInstance().scenePointLights[0];
+        //}
 
         // Bind vertex and index buffers
         Uint64   offset = 0;
@@ -575,10 +659,12 @@ Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pVSCBConstants;
         m_pImmediateContext->DrawIndexed(drawIndexAttrs);
 
         m_pSwapChain->Present(true ? 1 : 0);
+        frameNumber++;
     }
 
     void initVulkan() {
         engineInit();
+        init_scene_lights();
         buildResources();
         init_scene_meshes();
         // // createDrawImage();
@@ -609,52 +695,52 @@ Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pVSCBConstants;
         vkCmdEndRenderingKHR(commandBuffers_F[currentFrame]);
     }
 
-    void update_scene_descriptors(uint32_t frameInFlightIndex) {
-        int lightCircleRadius = 5;
-        float lightCircleSpeed = 0.02f;
-        Scene::GetInstance().scenePointLights[0].worldSpacePosition = glm::vec3(
-            lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber),
-            0.0,
-            lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber)
-        );
+    // void update_scene_descriptors(uint32_t frameInFlightIndex) {
+    //     int lightCircleRadius = 5;
+    //     float lightCircleSpeed = 0.02f;
+    //     Scene::GetInstance().scenePointLights[0].worldSpacePosition = glm::vec3(
+    //         lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber),
+    //         0.0,
+    //         lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber)
+    //     );
         
 
-        update_buffer(
-            PointLightsBuffers_F[frameInFlightIndex], 
-            Scene::GetInstance().scenePointLights.size() * sizeof(PointLight),
-            Scene::GetInstance().scenePointLights.data(),
-            vmaAllocator
-        );
+    //     update_buffer(
+    //         PointLightsBuffers_F[frameInFlightIndex], 
+    //         Scene::GetInstance().scenePointLights.size() * sizeof(PointLight),
+    //         Scene::GetInstance().scenePointLights.data(),
+    //         vmaAllocator
+    //     );
 
-        // Update descriptor set(s)
-        VkDescriptorBufferInfo pointLightBufferInfo = {
-            .buffer = PointLightsBuffers_F[frameInFlightIndex].buffer,
-            .offset = 0,
-            .range = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight) // VK_WHOLE_SIZE?
-        };
+    //     // Update descriptor set(s)
+    //     VkDescriptorBufferInfo pointLightBufferInfo = {
+    //         .buffer = PointLightsBuffers_F[frameInFlightIndex].buffer,
+    //         .offset = 0,
+    //         .range = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight) // VK_WHOLE_SIZE?
+    //     };
 
-        VkWriteDescriptorSet pointLightDescriptorWrite = {
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .pNext = nullptr,
-            .dstSet = sceneDescriptorSets_F[frameInFlightIndex],
-            .dstBinding = 0,
-            .dstArrayElement = {},
-            .descriptorCount = static_cast<uint32_t>(Scene::GetInstance().scenePointLights.size()),
-            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .pImageInfo = nullptr,
-            .pBufferInfo = &pointLightBufferInfo,
-            .pTexelBufferView = nullptr // ???
-        };
-        vkUpdateDescriptorSets(device, 1, &pointLightDescriptorWrite, 0, nullptr);
+    //     VkWriteDescriptorSet pointLightDescriptorWrite = {
+    //         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    //         .pNext = nullptr,
+    //         .dstSet = sceneDescriptorSets_F[frameInFlightIndex],
+    //         .dstBinding = 0,
+    //         .dstArrayElement = {},
+    //         .descriptorCount = static_cast<uint32_t>(Scene::GetInstance().scenePointLights.size()),
+    //         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    //         .pImageInfo = nullptr,
+    //         .pBufferInfo = &pointLightBufferInfo,
+    //         .pTexelBufferView = nullptr // ???
+    //     };
+    //     vkUpdateDescriptorSets(device, 1, &pointLightDescriptorWrite, 0, nullptr);
         
-    }
+    // }
 
     void drawFrame() {
             
             // Wait for previous frame to finish rendering before allowing us to acquire another image
             VkResult res = vkWaitForFences(device, 1, &renderFences_F[currentFrame], true, (std::numeric_limits<uint64_t>::max)());
             vkResetFences(device, 1, &renderFences_F[currentFrame]);
-            update_scene_descriptors(currentFrame); // Executes immediately
+            //update_scene_descriptors(currentFrame); // Executes immediately
 
             uint32_t imageIndex;
             res = vkAcquireNextImageKHR(device, swapChain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphores_F[currentFrame], VK_NULL_HANDLE, &imageIndex);

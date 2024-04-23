@@ -1,6 +1,16 @@
+// cbuffer Constants
+// {
+//     float4x4 g_WorldViewProj;
+// };
+
 cbuffer Constants
 {
-    float4x4 g_WorldViewProj;
+    // float4x4 g_WorldViewProj;
+    float4x4 g_Model;
+    float4x4 g_View;
+    float4x4 g_Proj;
+    float4 worldSpacePosition;
+    float4 color;
 };
 
 struct VSInput
@@ -13,11 +23,17 @@ struct VSInput
 struct PSInput 
 { 
     float4 Pos    : SV_POSITION;
-    float4 Color  : COLOR0; 
+    float3 Normal : NORMAL;
+    float4 Color  : COLOR0;
+    float4 FragWorldPos : FRAG_WORLD_POS;
 };
 
 void main(in  VSInput VSIn, out PSInput PSIn)
 {
-    PSIn.Pos = mul(g_WorldViewProj, float4(VSIn.Pos, 1.0));
+    float4x4 g_ModelViewProj = mul(mul(g_Proj, g_View), g_Model);
+    PSIn.Pos = mul(g_ModelViewProj, float4(VSIn.Pos, 1.0));
+    PSIn.Normal = VSIn.Normal;
     PSIn.Color = VSIn.Color;
+    PSIn.FragWorldPos = mul(g_Model, float4(VSIn.Pos, 1.0));
+    // PSIn.Color = float4(VSIn.Normal, 1.0);
 }
