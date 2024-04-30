@@ -111,49 +111,6 @@ private:
     VkPhysicalDevice physicalDevice;
     VkDevice device;
 
-    // Queues
-    uint32_t graphicsQueueFamilyIndex;
-    uint32_t presentQueueFamilyIndex;
-    std::set<uint32_t> uniqueQueueFamilyIndices;
-    std::vector<uint32_t> FamilyIndices;
-    VkQueue graphicsQueue;
-    VkQueue presentQueue;
-
-    // Images
-    AllocatedImage depthImage;
-    AllocatedImage drawImage;
-    // VkExtent2D drawExtent; // Allow for resizing
-
-    // Swapchain
-    VkSwapchainKHR swapChain;
-    VkFormat swapChainFormat;
-    uint32_t swapChainImageCount = 3; // Should probably request support for this, but it's probably fine
-    std::vector<VkImage> swapChainImages;
-    std::vector<VkImageView> swapChainImageViews;
-
-    // Synchronization
-    std::vector<VkSemaphore> imageAvailableSemaphores_F;
-    std::vector<VkSemaphore> renderFinishedSemaphores_F;
-    std::vector<VkFence> renderFences_F;
-    uint32_t currentFrame = 0;
-
-    // Command Pools and Buffers
-    VkCommandPool commandPool;
-    std::vector<VkCommandBuffer> commandBuffers_F;
-
-    // Descriptors
-    DescriptorAllocator globalDescriptorAllocator;
-    std::vector<VkDescriptorSetLayout> sceneDescriptorSetLayouts;
-    std::vector<VkDescriptorSet> sceneDescriptorSets_F;
-
-    // Lights
-    std::vector<AllocatedBuffer> PointLightsBuffers_F;
-
-    // Immediate rendering resources
-    VkFence immediateFence;
-    VkCommandBuffer immediateCommandBuffer;
-    VkCommandPool immediateCommandPool;
-
     // Cleanup
     DeletionQueue mainDeletionQueue; // Contains all deletable vulkan resources except pipelines/pipeline layouts
 POP_CLANG_WARNINGS
@@ -180,164 +137,6 @@ POP_CLANG_WARNINGS
 #endif
     }
 
-    //void init_scene_lights() {
-    //    Scene::GetInstance().scenePointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), glm::vec3(1.0f, 1.0f, 1.0f)));
-
-    //    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    //    {
-    //        AllocatedBuffer pointLightBuffer;
-    //        PointLightsBuffers_F.push_back(pointLightBuffer);
-    //        upload_buffer(
-    //            PointLightsBuffers_F[i],
-    //            Scene::GetInstance().scenePointLights.size() * sizeof(PointLight),
-    //            Scene::GetInstance().scenePointLights.data(),
-    //            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-    //            vmaAllocator,
-    //            mainDeletionQueue
-    //        );
-    //    }
-    //}
-    
-    // void init_scene_descriptors() {
-    //     // Describe what and how many descriptors we want and create our pool
-    //     // These may be distributed in any combination among our sets
-    //     std::vector<DescriptorAllocator::DescriptorTypeCount> descriptorTypeCounts = {
-    //         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT } // We want 1 buffer for each frame in flight
-    //     };
-    //     globalDescriptorAllocator.init_pool(device, MAX_FRAMES_IN_FLIGHT, descriptorTypeCounts); // We can allocate up to MAX_FRAMES_IN_FLIGHT sets from this pool
-
-    //     DescriptorLayoutBuilder layoutBuilder;
-    //     layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-
-    //     // We only need a single layout since they are all the same for each frame in flight
-    //     sceneDescriptorSetLayouts.push_back(layoutBuilder.buildLayout(device, VK_SHADER_STAGE_FRAGMENT_BIT));
-    //     mainDeletionQueue.push_function([&]() {
-    //             vkDestroyDescriptorSetLayout(device, sceneDescriptorSetLayouts[0], nullptr);
-    //     });
-    //     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    //     {
-    //         sceneDescriptorSets_F.push_back(
-    //             globalDescriptorAllocator.allocate(device, sceneDescriptorSetLayouts[0])
-    //         );
-
-    //         // Update descriptor set(s)
-    //         VkDescriptorBufferInfo pointLightBufferInfo = {
-    //             .buffer = PointLightsBuffers_F[i].buffer,
-    //             .offset = 0,
-    //             .range = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight) // VK_WHOLE_SIZE?
-    //         };
-    //         VkWriteDescriptorSet pointLightDescriptorWrite = {
-    //             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-    //             .pNext = nullptr,
-    //             .dstSet = sceneDescriptorSets_F[i],
-    //             .dstBinding = 0,
-    //             .dstArrayElement = {},
-    //             .descriptorCount = static_cast<uint32_t>(Scene::GetInstance().scenePointLights.size()),
-    //             .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    //             .pImageInfo = nullptr,
-    //             .pBufferInfo = &pointLightBufferInfo,
-    //             .pTexelBufferView = nullptr // ???
-    //         };
-    //         vkUpdateDescriptorSets(device, 1, &pointLightDescriptorWrite, 0, nullptr);
-    //     }
-    // }
-
-    // temp
-    std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
-
-    void createMaterialPipelines() {
-        VkPipelineRenderingCreateInfoKHR pipelineRenderingCI = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
-            .pNext = nullptr,
-            .viewMask = 0,
-            .colorAttachmentCount = 1,
-            .pColorAttachmentFormats = &swapChainFormat,
-            .depthAttachmentFormat = depthImage.imageFormat,
-            .stencilAttachmentFormat = {}
-        };
-
-        GraphicsPipeline defaultPipeline(
-            device, 
-            &pipelineRenderingCI, 
-            std::string("Shaders/triangle_mesh.vert.spv"), 
-            std::string("Shaders/triangle_mesh.frag.spv"), 
-            defaultPushConstantRanges,
-            std::span<const VkDescriptorSetLayout>(sceneDescriptorSetLayouts.data(), 1), // TODO: They're all the same and this only has 1 layout for now
-            {WINDOW_WIDTH, WINDOW_HEIGHT}
-        );
-        create_material(defaultPipeline, "defaultMaterial");
-    }
-
-    void init_imgui() {
-        // Create a descriptor pool for IMGUI
-        // The size of the pool is very oversized, but it's copied from imgui demo
-        VkDescriptorPoolSize poolSizes[] = { 
-            { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-        };
-
-        VkDescriptorPoolCreateInfo poolInfo = {
-            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-            .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-            .maxSets = 1000,
-            .poolSizeCount = static_cast<uint32_t>(std::size(poolSizes)),
-            .pPoolSizes = poolSizes
-        };
-
-        VkDescriptorPool imguiPool;
-        vkCreateDescriptorPool(device, &poolInfo, nullptr, &imguiPool);
-
-        // Initialize core structures of imgui library
-        ImGui::CreateContext();
-
-        // Initialize imgui for SDL
-        ImGui_ImplSDL3_InitForVulkan(window);
-
-        // Initialize imgui for Vulkan
-        ImGui_ImplVulkan_InitInfo initInfo = {
-            .Instance = instance,
-            .PhysicalDevice = physicalDevice,
-            .Device = device,
-            .Queue = graphicsQueue,
-            .DescriptorPool = imguiPool,
-            .MinImageCount = 3,
-            .ImageCount = 3,
-            .UseDynamicRendering = true,
-            .ColorAttachmentFormat = swapChainFormat,
-        };
-
-        initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-
-        ImGui_ImplVulkan_Init(&initInfo, VK_NULL_HANDLE);
-
-        // Execute a gpu command to upload imgui font textures
-        // Update: No longer requires passing a command buffer (builds own pool + buffer internally), also no longer require destroy DestroyFontUploadObjects()
-        // immediate_submit([=]() { 
-            ImGui_ImplVulkan_CreateFontsTexture(); 
-        // });
-
-        // add the destroy the imgui created structures
-        mainDeletionQueue.push_function([=]() {
-            vkDestroyDescriptorPool(device, imguiPool, nullptr);
-        });
-    }
-
-    //void draw_objects() {
-    //    
-
-    //    for (RenderObject renderObject :  Scene::GetInstance().sceneRenderObjects) {
-    //        renderObject.BindAndDraw(commandBuffers_F[currentFrame], viewProjectionMatrix, std::span<const VkDescriptorSet>(sceneDescriptorSets_F.data() + currentFrame, 1));
-    //    }
-    //}
 Diligent::RefCntAutoPtr<Diligent::IRenderDevice>  m_pDevice;
 Diligent::RefCntAutoPtr<Diligent::IDeviceContext> m_pImmediateContext;
 Diligent::RefCntAutoPtr<Diligent::ISwapChain>     m_pSwapChain;
@@ -370,8 +169,6 @@ Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pVSCBConstants;
 Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pFSLightCBConstants;
 
     void init_scene_lights() {
-        // LightManager::GetInstance().scenePointLights.emplace_back(glm::vec4(0.0f, 3.5f, -4.0f, 0.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-        // LightManager::GetInstance().scenePointLights.emplace_back(glm::vec4(0.0f, 3.5f, -4.0f, 0.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
         LightManager::GetInstance().add_point_light({glm::vec4(0.0f, 3.5f, -4.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f)});
         LightManager::GetInstance().add_point_light({glm::vec4(0.0f, 3.5f, -4.0f, 0.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f)});
     }
@@ -580,15 +377,6 @@ struct cb_contents
                 const PointLight& pointLight = LightManager::GetInstance().get_point_light_at(light_i);
                 LightBuffer[light_i] = pointLight;
             }
-           
-        //    Diligent::MapHelper<PointLight> FSLightConstants(m_pImmediateContext, m_pFSLightCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
-
-        //    int lightCircleRadius = 5;
-        //    float lightCircleSpeed = 0.02f;
-
-        //    LightManager::GetInstance().scenePointLights[0].worldSpacePosition = glm::vec4(lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber), 0.0f, lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber), 0.0f);
-
-        //    *FSLightConstants = LightManager::GetInstance().scenePointLights[0];
         }
     }
 
@@ -660,32 +448,6 @@ struct cb_contents
         init_scene_lights();
         buildResources();
         init_scene_meshes();
-        // // createDrawImage();
-        // createSynchronizationStructures();   
-        // createCommandPool();
-        // createCommandBuffers();
-        // retrieveQueues();
-        // init_scene_lights();
-        // init_scene_descriptors();
-        // createMaterialPipelines();
-        // init_scene_meshes();
-        // init_imgui();
-    }
-
-    void draw_imgui(VkImageView targetImageView) {
-        //VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-        VkRenderingAttachmentInfoKHR colorAttachment = rendering_attachment_info(
-            targetImageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, nullptr
-        );
-        VkRenderingInfoKHR renderingInfo = rendering_info_fullscreen(1, &colorAttachment, nullptr);
-
-        PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdBeginRenderingKHR"));
-        vkCmdBeginRenderingKHR(commandBuffers_F[currentFrame], &renderingInfo);
-
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffers_F[currentFrame]);
-
-        PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR"));
-        vkCmdEndRenderingKHR(commandBuffers_F[currentFrame]);
     }
 
     void mainLoop() {
@@ -723,12 +485,6 @@ struct cb_contents
                     camera.process_mouse_movement(xoffset, yoffset, true);
                 }
             }
-            // ImGui_ImplVulkan_NewFrame();
-            // ImGui_ImplSDL3_NewFrame();
-            // ImGui::NewFrame();
-            // ImGui::ShowDemoWindow();
-            // ImGui::Render();
-            // drawFrame();
             update_lights();
             diligent_render();
 
@@ -769,18 +525,6 @@ struct cb_contents
     }
 
     void cleanup() {
-        // vkDeviceWaitIdle(device);
-
-        // ImGui_ImplVulkan_Shutdown();
-        // ImGui_ImplSDL3_Shutdown();
-        // ImGui::DestroyContext();
-
-        // globalDescriptorAllocator.destroy_pool(device);
-
-        // for (auto material : Scene::GetInstance().sceneMaterialMap) {
-        //     vkDestroyPipeline(device, material.second.getPipeline(), nullptr);
-        //     vkDestroyPipelineLayout(device, material.second.getPipelineLayout(), nullptr);
-        // }
         // mainDeletionQueue.flush();
 
         SDL_DestroyWindow(window);

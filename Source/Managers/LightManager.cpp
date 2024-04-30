@@ -25,6 +25,8 @@ void LightManager::update_point_lights(int frameNumber)
     int lightCircleRadius = 5;
     float lightCircleSpeed = 0.02f;
     LightManager::GetInstance().scenePointLights[0].worldSpacePosition = glm::vec4(lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber), 0.0f, lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber), 0.0f);
+
+    LightManager::GetInstance().scenePointLights[1].worldSpacePosition = glm::vec4(lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber), 0.0f, lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber), 0.0f);
 }
 
 PointLight& LightManager::get_point_light_at(int index) const
