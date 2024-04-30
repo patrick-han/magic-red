@@ -1,25 +1,15 @@
-// struct PointLight
-// {
-//     float4 worldSpacePosition;
-//     float4 color;
-// };
-
-cbuffer LightConstants
+struct PointLight
 {
-    // PointLight pointLights;
     float4 worldSpacePosition;
     float4 color;
 };
 
-// cbuffer Constants
-// {
-//     // float4x4 g_WorldViewProj;
-//     float4x4 g_Model;
-//     float4x4 g_View;
-//     float4x4 g_Proj;
-//     float4 worldSpacePosition;
-//     float4 color;
-// };
+cbuffer LightConstants
+{
+    PointLight pointLights[2];
+    // float4 worldSpacePosition;
+    // float4 color;
+};
 
 struct PSInput 
 { 
@@ -37,8 +27,15 @@ struct PSOutput
 
 void main(in PSInput PSIn, out PSOutput PSOut)
 {
-    float3 fragToLightDir = normalize(worldSpacePosition - PSIn.FragWorldPos);
-    float3 norm = normalize(PSIn.Normal);
-    float difference = max(dot(fragToLightDir, norm), 0.0);
-    PSOut.Color = difference * color;
+    float4 finalColor = float4(0.0);
+    for (int light_i = 0; light_i < 2; light_i++)
+    {
+        float3 fragToLightDir = normalize(pointLights[light_i].worldSpacePosition - PSIn.FragWorldPos);
+        float3 norm = normalize(PSIn.Normal);
+        float difference = max(dot(fragToLightDir, norm), 0.0);
+        float4 color = pointLights[light_i].color;
+        finalColor += difference * color;
+    }
+    
+    PSOut.Color = finalColor;
 }

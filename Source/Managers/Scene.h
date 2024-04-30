@@ -45,5 +45,5 @@ public:
     std::unordered_map<std::string, GraphicsPipeline> sceneMaterialMap;
 
     // Lights
-    std::vector<PointLight> scenePointLights;
+    // std::vector<PointLight> scenePointLights;
 };

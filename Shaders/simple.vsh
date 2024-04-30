@@ -1,16 +1,9 @@
-// cbuffer Constants
-// {
-//     float4x4 g_WorldViewProj;
-// };
 
 cbuffer Constants
 {
-    // float4x4 g_WorldViewProj;
     float4x4 g_Model;
     float4x4 g_View;
     float4x4 g_Proj;
-    // float4 worldSpacePosition;
-    // float4 color;
 };
 
 struct VSInput

@@ -38,7 +38,8 @@
 #include <Vertex/Vertex.h>
 #include <Common/Config.h>
 #include <Common/Defaults.h>
-#include <Scene/Scene.h>
+#include <Managers/Scene.h>
+#include <Managers/LightManager.h>
 #include <Pipeline/GraphicsPipeline.h>
 #include <Mesh/MeshPushConstants.h>
 #include <Descriptor/Descriptor.h>
@@ -361,15 +362,19 @@ Diligent::RefCntAutoPtr<Diligent::ISwapChain>     m_pSwapChain;
         #endif
         MRLOG("Op success!");
     }
-    void init_scene_lights() {
-        // Scene::GetInstance().scenePointLights.push_back(PointLight(glm::vec4(0.0f, 3.5f, -4.0f, 0.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)));
-        // Scene::GetInstance().scenePointLights.push_back(PointLight(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)));
-    }
+    
 
 Diligent::RefCntAutoPtr<Diligent::IPipelineState> m_pPSO;
 Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> m_pSRB;
 Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pVSCBConstants;
 Diligent::RefCntAutoPtr<Diligent::IBuffer> m_pFSLightCBConstants;
+
+    void init_scene_lights() {
+        // LightManager::GetInstance().scenePointLights.emplace_back(glm::vec4(0.0f, 3.5f, -4.0f, 0.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+        // LightManager::GetInstance().scenePointLights.emplace_back(glm::vec4(0.0f, 3.5f, -4.0f, 0.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
+        LightManager::GetInstance().add_point_light({glm::vec4(0.0f, 3.5f, -4.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f)});
+        LightManager::GetInstance().add_point_light({glm::vec4(0.0f, 3.5f, -4.0f, 0.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f)});
+    }
 
 struct cb_contents
 {
@@ -394,8 +399,7 @@ struct cb_contents
         // Per scene constant buffer creation, used for lighting info
         Diligent::BufferDesc lightConstantBufferDesc;
         lightConstantBufferDesc.Name = "VS light constants CB";
-        // lightConstantBufferDesc.Size = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight);
-        lightConstantBufferDesc.Size = 1 * sizeof(PointLight);
+        lightConstantBufferDesc.Size = LightManager::GetInstance().get_point_light_count() * sizeof(PointLight);
         lightConstantBufferDesc.Usage = Diligent::USAGE_DYNAMIC;
         lightConstantBufferDesc.BindFlags = Diligent::BIND_UNIFORM_BUFFER;
         lightConstantBufferDesc.CPUAccessFlags = Diligent::CPU_ACCESS_WRITE;
@@ -486,8 +490,6 @@ struct cb_contents
 
         // Bind static variables, in this case just the constant buffer fed to the vertex shader
         m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_VERTEX, "Constants")->Set(m_pVSCBConstants);
-        // m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_PIXEL, "Constants")->Set(m_pVSCBConstants);
-        //m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_VS_PS, "Constants")->Set(m_pVSCBConstants);
         m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_PIXEL, "LightConstants")->Set(m_pFSLightCBConstants);
 
         // Since our vertex shader uses shader resources (constant buffer), we need to create a shader resource binding object that will manage all required resource bindings:
@@ -566,9 +568,32 @@ struct cb_contents
         // Scene::GetInstance().sceneRenderObjects.push_back(helmetObject);
     }
 
-    
+    void update_lights()
+    {
+        // Update point lights
+        {
+            Diligent::MapHelper<PointLight> LightBuffer(m_pImmediateContext, m_pFSLightCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
 
-    void diligentRender()
+            LightManager::GetInstance().update_point_lights(frameNumber);
+            for (uint32_t light_i = 0; light_i < LightManager::GetInstance().get_point_light_count(); light_i++)
+            {
+                const PointLight& pointLight = LightManager::GetInstance().get_point_light_at(light_i);
+                LightBuffer[light_i] = pointLight;
+            }
+           
+        //    Diligent::MapHelper<PointLight> FSLightConstants(m_pImmediateContext, m_pFSLightCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
+
+        //    int lightCircleRadius = 5;
+        //    float lightCircleSpeed = 0.02f;
+
+        //    LightManager::GetInstance().scenePointLights[0].worldSpacePosition = glm::vec4(lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber), 0.0f, lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber), 0.0f);
+
+        //    *FSLightConstants = LightManager::GetInstance().scenePointLights[0];
+        }
+    }
+
+
+    void diligent_render()
     {
         // Calculate view projection matrix
         glm::mat4 view = camera.get_view_matrix();
@@ -580,47 +605,16 @@ struct cb_contents
 
         //glm::mat4 modelViewProjectionMatrix = viewProjectionMatrix * monkeyTranslate;
 
-        // Update vertex shader constant buffer
+        // Update vertex shader constant buffer with matrix constants
         {
-            // Diligent::MapHelper<glm::mat4> VSConstants(m_pImmediateContext, m_pVSCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
-            // *VSConstants = modelViewProjectionMatrix;
             Diligent::MapHelper<cb_contents> VSConstants(m_pImmediateContext, m_pVSCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
             cb_contents contents;
-
-            //float lightCircleRadius = 5.0f;
-            //float lightCircleSpeed = 0.02f;
             contents.model = monkeyTranslate;
             contents.view = view;
             contents.projection = projection;
-            // contents.pos = glm::vec4(lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber), 0.0f, lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber), 0.0f);
-            // contents.color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
             *VSConstants = contents;
-            // MRLOG("--------------------");
-            // MRLOG(contents.pos.x);
-            // MRLOG(contents.pos.y);
-            // MRLOG(contents.pos.z);
-            // MRLOG("--------------------");
         }
-
-        // Update vertex shader light constant buffer
-        {
-           Diligent::MapHelper<PointLight> FSLightConstants(m_pImmediateContext, m_pFSLightCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
-
-           int lightCircleRadius = 5;
-           float lightCircleSpeed = 0.02f;
-           PointLight light(glm::vec4(lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber), 0.0f, lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber), 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-           MRLOG("--------------------");
-           MRLOG(light.worldSpacePosition.x);
-           MRLOG(light.worldSpacePosition.y);
-           MRLOG(light.worldSpacePosition.z);
-           MRLOG("--------------------");
-           *FSLightConstants = light;
-
-           // Scene::GetInstance().scenePointLights[0].worldSpacePosition.x = lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber);
-           // Scene::GetInstance().scenePointLights[0].worldSpacePosition.y = 0.0f;
-           // Scene::GetInstance().scenePointLights[0].worldSpacePosition.z = lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber);
-           // *FSLightConstants = Scene::GetInstance().scenePointLights[0];
-        }
+        
 
         // Bind vertex and index buffers
         Uint64   offset = 0;
@@ -694,170 +688,6 @@ struct cb_contents
         vkCmdEndRenderingKHR(commandBuffers_F[currentFrame]);
     }
 
-    // void update_scene_descriptors(uint32_t frameInFlightIndex) {
-    //     int lightCircleRadius = 5;
-    //     float lightCircleSpeed = 0.02f;
-    //     Scene::GetInstance().scenePointLights[0].worldSpacePosition = glm::vec3(
-    //         lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber),
-    //         0.0,
-    //         lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber)
-    //     );
-        
-
-    //     update_buffer(
-    //         PointLightsBuffers_F[frameInFlightIndex], 
-    //         Scene::GetInstance().scenePointLights.size() * sizeof(PointLight),
-    //         Scene::GetInstance().scenePointLights.data(),
-    //         vmaAllocator
-    //     );
-
-    //     // Update descriptor set(s)
-    //     VkDescriptorBufferInfo pointLightBufferInfo = {
-    //         .buffer = PointLightsBuffers_F[frameInFlightIndex].buffer,
-    //         .offset = 0,
-    //         .range = Scene::GetInstance().scenePointLights.size() * sizeof(PointLight) // VK_WHOLE_SIZE?
-    //     };
-
-    //     VkWriteDescriptorSet pointLightDescriptorWrite = {
-    //         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-    //         .pNext = nullptr,
-    //         .dstSet = sceneDescriptorSets_F[frameInFlightIndex],
-    //         .dstBinding = 0,
-    //         .dstArrayElement = {},
-    //         .descriptorCount = static_cast<uint32_t>(Scene::GetInstance().scenePointLights.size()),
-    //         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    //         .pImageInfo = nullptr,
-    //         .pBufferInfo = &pointLightBufferInfo,
-    //         .pTexelBufferView = nullptr // ???
-    //     };
-    //     vkUpdateDescriptorSets(device, 1, &pointLightDescriptorWrite, 0, nullptr);
-        
-    // }
-
-    void drawFrame() {
-            
-            // Wait for previous frame to finish rendering before allowing us to acquire another image
-            VkResult res = vkWaitForFences(device, 1, &renderFences_F[currentFrame], true, (std::numeric_limits<uint64_t>::max)());
-            vkResetFences(device, 1, &renderFences_F[currentFrame]);
-            //update_scene_descriptors(currentFrame); // Executes immediately
-
-            uint32_t imageIndex;
-            res = vkAcquireNextImageKHR(device, swapChain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphores_F[currentFrame], VK_NULL_HANDLE, &imageIndex);
-            if (!((res == VK_SUCCESS) || (res == VK_SUBOPTIMAL_KHR))) {
-                MRCERR(string_VkResult(res));
-                throw std::runtime_error("Failed to acquire image from Swap Chain!");
-            }
-            vkResetCommandBuffer(commandBuffers_F[currentFrame], {});
-
-            VkCommandBufferBeginInfo beginInfo = {};
-            beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-            vkBeginCommandBuffer(commandBuffers_F[currentFrame], &beginInfo);
-
-            {
-                // Transition swapchain to color attachment write
-                VkImageMemoryBarrier imb = image_memory_barrier(
-                    swapChainImages[imageIndex], 
-                    {}, 
-                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                    VK_IMAGE_LAYOUT_UNDEFINED,
-                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-                );
-                vkCmdPipelineBarrier(
-                    commandBuffers_F[currentFrame], 
-                    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                    {},
-                    0, nullptr,
-                    0, nullptr,
-                    1, &imb
-                );
-            }
-
-            VkRenderingAttachmentInfoKHR colorAttachmentInfo = rendering_attachment_info(
-                swapChainImageViews[imageIndex],
-                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                &DEFAULT_CLEAR_VALUE_COLOR
-            );
-
-            VkRenderingAttachmentInfoKHR depthAttachmentInfo  = rendering_attachment_info(
-                depthImage.imageView,
-                VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                &DEFAULT_CLEAR_VALUE_DEPTH
-            );
-
-            VkRenderingInfoKHR renderingInfo = rendering_info_fullscreen(
-                1, &colorAttachmentInfo, &depthAttachmentInfo
-            );
-
-            PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdBeginRenderingKHR"));
-            vkCmdBeginRenderingKHR(commandBuffers_F[currentFrame], &renderingInfo);
-
-            vkCmdSetViewport(commandBuffers_F[currentFrame], 0, 1, &DEFAULT_VIEWPORT_FULLSCREEN);
-            vkCmdSetScissor(commandBuffers_F[currentFrame], 0, 1, &DEFAULT_SCISSOR_FULLSCREEN);
-            //draw_objects();
-
-            PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR"));
-            vkCmdEndRenderingKHR(commandBuffers_F[currentFrame]);
-
-
-
-            // Draw imgui
-            draw_imgui(swapChainImageViews[imageIndex]);
-
-            {
-                // Transition swapchain to correct presentation layout
-                VkImageMemoryBarrier imb = image_memory_barrier(
-                    swapChainImages[imageIndex], 
-                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                    {},
-                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-                );
-                vkCmdPipelineBarrier(
-                    commandBuffers_F[currentFrame], 
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                    {},
-                    0, nullptr,
-                    0, nullptr,
-                    1,&imb
-                );
-            }
-
-            vkEndCommandBuffer(commandBuffers_F[currentFrame]);
-
-
-            // Submit graphics workload
-            VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            VkSubmitInfo submitInfo = {};
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.waitSemaphoreCount = 1;
-            submitInfo.pWaitSemaphores = &imageAvailableSemaphores_F[currentFrame];
-            submitInfo.pWaitDstStageMask = &waitStageMask;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &commandBuffers_F[currentFrame];
-            submitInfo.signalSemaphoreCount = 1;
-            submitInfo.pSignalSemaphores = &renderFinishedSemaphores_F[currentFrame];
-            vkQueueSubmit(graphicsQueue, 1, &submitInfo, renderFences_F[currentFrame]);
-
-
-            // Present frame
-            VkPresentInfoKHR presentInfo = {};
-            presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-            presentInfo.waitSemaphoreCount = 1;
-            presentInfo.pWaitSemaphores = &renderFinishedSemaphores_F[currentFrame];
-            presentInfo.swapchainCount = 1;
-            presentInfo.pSwapchains = &swapChain;
-            presentInfo.pImageIndices = &imageIndex;
-            // res = vkQueuePresentKHR(presentQueue, &presentInfo);
-            res = vkQueuePresentKHR(graphicsQueue, &presentInfo);
-
-
-            currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-            frameNumber++;
-            
-    }
-
     void mainLoop() {
         SDL_Event sdlEvent;
         bool bQuit = false;
@@ -899,7 +729,8 @@ struct cb_contents
             // ImGui::ShowDemoWindow();
             // ImGui::Render();
             // drawFrame();
-            diligentRender();
+            update_lights();
+            diligent_render();
 
             lastFrameTick = currentFrameTick;
             currentFrameTick = SDL_GetTicks();
