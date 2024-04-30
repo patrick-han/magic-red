@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdlib>
-#include <Common/Platform.h>
+#include <EngineCommon/Platform.h>
 
 #if PLATFORM_WINDOWS
 inline constexpr uint32_t WINDOW_WIDTH = 2500;

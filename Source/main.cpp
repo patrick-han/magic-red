@@ -1,6 +1,5 @@
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_vulkan.h>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -11,19 +10,19 @@
 #include <vk_mem_alloc.h>
 
 #include <vulkan/vk_enum_string_helper.h> // Doesn't work on linux?
-#include <Common/Debug.h>
+#include <EngineCommon/Debug.h>
 
 #include <vector>
 #include <set>
 #include <stdexcept>
 #include <cstdlib>
 
-#include <Common/RootDir.h>
-#include <Common/Platform.h>
-#include <Common/Compiler/DisableWarnings.h>
+#include <EngineCommon/RootDir.h>
+#include <EngineCommon/Platform.h>
+#include <EngineCommon/Compiler/DisableWarnings.h>
 
 #include <Control/Camera.h>
-#include <Common/Log.h>
+#include <EngineCommon/Log.h>
 #include <DeletionQueue.h>
 #include <Rendering/Mesh/Mesh.h>
 
@@ -36,8 +35,8 @@
 #include <Rendering/Mesh/RenderObject.h>
 #include <Rendering/Vertex/VertexDescriptors.h>
 #include <Rendering/Vertex/Vertex.h>
-#include <Common/Config.h>
-#include <Common/Defaults.h>
+#include <EngineCommon/Config.h>
+#include <EngineCommon/Defaults.h>
 #include <Managers/Scene.h>
 #include <Light/LightManager.h>
 #include <Rendering/Pipeline/GraphicsPipeline.h>
@@ -46,17 +45,11 @@
 
 #include <IncludeHelpers/ImguiIncludes.h>
 
-#if PLATFORM_WINDOWS
-typedef void* HWND;
-#elif PLATFORM_MACOS
-extern void* GetNSWindowView(SDL_Window* wnd); // Written in the Objective C++ file SurfaceHelper.mm
-typedef void* NSWindow;
-#endif
 PUSH_CLANG_WARNINGS
 DISABLE_CLANG_WARNING("-Wunused-parameter")
 DISABLE_CLANG_WARNING("-Wgnu-zero-variadic-macro-arguments")
 // Diligent
-#include <EngineFactoryVk.h>
+// #include <EngineFactoryVk.h>
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <Graphics/GraphicsTools/interface/MapHelper.hpp>
 #include <Graphics/GraphicsTools/interface/GraphicsUtilities.h>
@@ -66,6 +59,7 @@ POP_CLANG_WARNINGS
 
 #include <Rendering/Shader/Shader.h>
 
+#include <Rendering/RenderContext.h>
 
 // Frame data
 int frameNumber = 0;
@@ -86,8 +80,7 @@ float lastX = WINDOW_WIDTH / 2, lastY = WINDOW_HEIGHT / 2; // Initial mouse posi
 class Engine {
 public:
     void run() {
-        initWindow();
-        initVulkan();
+        init();
         mainLoop();
         cleanup();
     }
@@ -95,7 +88,6 @@ public:
 PUSH_CLANG_WARNINGS
 DISABLE_CLANG_WARNING("-Wunused-private-field")
 private:
-    SDL_Window *window;
 
     // VulkanMemoryAllocator (VMA)
     VmaAllocator vmaAllocator;
@@ -114,52 +106,12 @@ private:
     // Cleanup
     DeletionQueue mainDeletionQueue; // Contains all deletable vulkan resources except pipelines/pipeline layouts
 POP_CLANG_WARNINGS
-#if PLATFORM_WINDOWS
-    HWND hwnd;
-    Diligent::Win32NativeWindow diligent_hwnd;
-#elif PLATFORM_MACOS
-    Diligent::MacOSNativeWindow diligent_nswindow;
-#endif
 
-    void initWindow() {
-        // We initialize SDL and create a window with it.
-        SDL_Init(SDL_INIT_VIDEO);
+    RenderContext m_renderContext;
 
-        window = SDL_CreateWindow("Magic Red", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_VULKAN);
-        SDL_SetRelativeMouseMode(SDL_TRUE);
-
-#if defined(SDL_PLATFORM_WIN32)
-        hwnd = (HWND)SDL_GetProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
-        diligent_hwnd = Diligent::Win32NativeWindow(hwnd);
-#elif defined(SDL_PLATFORM_MACOS)
-        NSWindow *nswindow = (NSWindow *)GetNSWindowView(window);
-        diligent_nswindow = Diligent::MacOSNativeWindow(nswindow);
-#endif
-    }
-
-Diligent::RefCntAutoPtr<Diligent::IRenderDevice>  m_pDevice;
-Diligent::RefCntAutoPtr<Diligent::IDeviceContext> m_pImmediateContext;
-Diligent::RefCntAutoPtr<Diligent::ISwapChain>     m_pSwapChain;
-    void engineInit()
+    void init_render_context()
     {
-        Diligent::SwapChainDesc swapchainDesc = Diligent::SwapChainDesc(
-            WINDOW_WIDTH, WINDOW_HEIGHT, 
-            Diligent::TEXTURE_FORMAT::TEX_FORMAT_BGRA8_UNORM, Diligent::TEXTURE_FORMAT::TEX_FORMAT_D32_FLOAT,
-            3, //swapChainImageCount,
-            1.f, // Default depth value
-            0,   // Default stencil value
-            true // Is primary
-        );
-        Diligent::EngineVkCreateInfo engineCI;
-        auto* pFactoryVk = Diligent::GetEngineFactoryVk();
-        pFactoryVk->CreateDeviceAndContextsVk(engineCI, &m_pDevice, &m_pImmediateContext);
-        
-        #if PLATFORM_WINDOWS
-        pFactoryVk->CreateSwapChainVk(m_pDevice, m_pImmediateContext, swapchainDesc, diligent_hwnd, &m_pSwapChain);
-        #elif PLATFORM_MACOS
-        pFactoryVk->CreateSwapChainVk(m_pDevice, m_pImmediateContext, swapchainDesc, diligent_nswindow, &m_pSwapChain);
-        #endif
-        MRLOG("Op success!");
+        m_renderContext.Init();
     }
     
 
@@ -181,16 +133,16 @@ struct cb_contents
     // glm::vec4 pos;
     // glm::vec4 color;
 };
-    void buildResources()
+    void build_resources()
     {
         // Per object onstant buffer creation, frequently updated by the CPU, used for our transformation matrices
-         Diligent::BufferDesc constantBufferDesc;
-         constantBufferDesc.Name = "VS constants CB";
-         constantBufferDesc.Size = sizeof(cb_contents);
-         constantBufferDesc.Usage = Diligent::USAGE_DYNAMIC;
-         constantBufferDesc.BindFlags = Diligent::BIND_UNIFORM_BUFFER;
-         constantBufferDesc.CPUAccessFlags = Diligent::CPU_ACCESS_WRITE;
-         m_pDevice->CreateBuffer(constantBufferDesc, nullptr, &m_pVSCBConstants);
+        Diligent::BufferDesc constantBufferDesc;
+        constantBufferDesc.Name = "VS constants CB";
+        constantBufferDesc.Size = sizeof(cb_contents);
+        constantBufferDesc.Usage = Diligent::USAGE_DYNAMIC;
+        constantBufferDesc.BindFlags = Diligent::BIND_UNIFORM_BUFFER;
+        constantBufferDesc.CPUAccessFlags = Diligent::CPU_ACCESS_WRITE;
+        m_renderContext.Device()->CreateBuffer(constantBufferDesc, nullptr, &m_pVSCBConstants);
         //CreateUniformBuffer(m_pDevice, sizeof(glm::mat4), "VS constants CB", &m_pVSCBConstants);
 
         // Per scene constant buffer creation, used for lighting info
@@ -200,7 +152,7 @@ struct cb_contents
         lightConstantBufferDesc.Usage = Diligent::USAGE_DYNAMIC;
         lightConstantBufferDesc.BindFlags = Diligent::BIND_UNIFORM_BUFFER;
         lightConstantBufferDesc.CPUAccessFlags = Diligent::CPU_ACCESS_WRITE;
-        m_pDevice->CreateBuffer(lightConstantBufferDesc, nullptr, &m_pFSLightCBConstants);
+        m_renderContext.Device()->CreateBuffer(lightConstantBufferDesc, nullptr, &m_pFSLightCBConstants);
         //CreateUniformBuffer(m_pDevice, /*Scene::GetInstance().scenePointLights.size() * */sizeof(PointLight), "VS light constants CB", &m_pFSLightCBConstants);
 
         // Define how vertex attributes are fetched from the vertex buffer
@@ -233,8 +185,8 @@ struct cb_contents
         psoCreateInfo.PSODesc.Name = "Simple Triangle PSO";
         psoCreateInfo.PSODesc.PipelineType = Diligent::PIPELINE_TYPE_GRAPHICS;
         psoCreateInfo.GraphicsPipeline.NumRenderTargets = 1;
-        psoCreateInfo.GraphicsPipeline.RTVFormats[0] = m_pSwapChain->GetDesc().ColorBufferFormat;
-        psoCreateInfo.GraphicsPipeline.DSVFormat = m_pSwapChain->GetDesc().DepthBufferFormat;
+        psoCreateInfo.GraphicsPipeline.RTVFormats[0] = m_renderContext.SwapChain()->GetDesc().ColorBufferFormat;
+        psoCreateInfo.GraphicsPipeline.DSVFormat = m_renderContext.SwapChain()->GetDesc().DepthBufferFormat;
         psoCreateInfo.GraphicsPipeline.DepthStencilDesc.DepthEnable = Diligent::True;
 
         psoCreateInfo.GraphicsPipeline.RasterizerDesc.CullMode = Diligent::CULL_MODE_BACK;
@@ -267,7 +219,7 @@ struct cb_contents
             //shaderCI.ByteCode = VS_source.data();
             //shaderCI.ByteCodeSize = VS_byteCount;
             shaderCI.Source = VS_source.data();
-            m_pDevice->CreateShader(shaderCI, &pVS);
+            m_renderContext.Device()->CreateShader(shaderCI, &pVS);
         }
         Diligent::RefCntAutoPtr<Diligent::IShader> pPS;
         {
@@ -277,13 +229,13 @@ struct cb_contents
             //shaderCI.ByteCode = PS_source.data();
             //shaderCI.ByteCodeSize = PS_byteCount;
             shaderCI.Source = PS_source.data();
-            m_pDevice->CreateShader(shaderCI, &pPS);
+            m_renderContext.Device()->CreateShader(shaderCI, &pPS);
         }
 
         // Finally, create the pipeline state
         psoCreateInfo.pVS = pVS;
         psoCreateInfo.pPS = pPS;
-        m_pDevice->CreateGraphicsPipelineState(psoCreateInfo, &m_pPSO);
+        m_renderContext.Device()->CreateGraphicsPipelineState(psoCreateInfo, &m_pPSO);
 
         // Bind static variables, in this case just the constant buffer fed to the vertex shader
         m_pPSO->GetStaticVariableByName(Diligent::SHADER_TYPE_VERTEX, "Constants")->Set(m_pVSCBConstants);
@@ -325,7 +277,7 @@ struct cb_contents
             Diligent::BufferData monkeyVBData;
             monkeyVBData.pData = monkeyMesh.vertices.data();
             monkeyVBData.DataSize = monkeyMesh.vertices.size() * Vertex::sizeInBytes();
-            m_pDevice->CreateBuffer(monkeyVertexBuffDesc, &monkeyVBData, &m_pMonkeyVertexBuffer);
+            m_renderContext.Device()->CreateBuffer(monkeyVertexBuffDesc, &monkeyVBData, &m_pMonkeyVertexBuffer);
         }
 
 
@@ -339,7 +291,7 @@ struct cb_contents
             Diligent::BufferData monkeyIBData;
             monkeyIBData.pData = monkeyMesh.indices.data();
             monkeyIBData.DataSize = monkeyMesh.indices.size() * sizeof(uint32_t);
-            m_pDevice->CreateBuffer(monkeyIndexBuffDesc, &monkeyIBData, &m_pMonkeyIndexBuffer);
+            m_renderContext.Device()->CreateBuffer(monkeyIndexBuffDesc, &monkeyIBData, &m_pMonkeyIndexBuffer);
         }
 
         numIndicesTemp = static_cast<uint32_t>(monkeyMesh.indices.size());
@@ -369,7 +321,7 @@ struct cb_contents
     {
         // Update point lights
         {
-            Diligent::MapHelper<PointLight> LightBuffer(m_pImmediateContext, m_pFSLightCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
+            Diligent::MapHelper<PointLight> LightBuffer(m_renderContext.Context(), m_pFSLightCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
 
             LightManager::GetInstance().update_point_lights(frameNumber);
             for (uint32_t light_i = 0; light_i < LightManager::GetInstance().get_point_light_count(); light_i++)
@@ -395,7 +347,7 @@ struct cb_contents
 
         // Update vertex shader constant buffer with matrix constants
         {
-            Diligent::MapHelper<cb_contents> VSConstants(m_pImmediateContext, m_pVSCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
+            Diligent::MapHelper<cb_contents> VSConstants(m_renderContext.Context(), m_pVSCBConstants, Diligent::MAP_WRITE, Diligent::MAP_FLAG_DISCARD);
             cb_contents contents;
             contents.model = monkeyTranslate;
             contents.view = view;
@@ -407,25 +359,25 @@ struct cb_contents
         // Bind vertex and index buffers
         Uint64   offset = 0;
         Diligent::IBuffer* pBuffs[] = { m_pMonkeyVertexBuffer };
-        m_pImmediateContext->SetVertexBuffers(0, 1, pBuffs, &offset, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION, Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
-        m_pImmediateContext->SetIndexBuffer(m_pMonkeyIndexBuffer, 0, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        m_renderContext.Context()->SetVertexBuffers(0, 1, pBuffs, &offset, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION, Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
+        m_renderContext.Context()->SetIndexBuffer(m_pMonkeyIndexBuffer, 0, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
         
 
 
         // Clear the back buffer
         const float ClearColor[] = { 0.350f, 0.350f, 0.350f, 1.0f };
         // Let the engine perform required state transitions
-        auto* pRTV = m_pSwapChain->GetCurrentBackBufferRTV();
-        auto* pDSV = m_pSwapChain->GetDepthBufferDSV();
-        m_pImmediateContext->SetRenderTargets(1, &pRTV, pDSV, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-        m_pImmediateContext->ClearRenderTarget(pRTV, ClearColor, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-        m_pImmediateContext->ClearDepthStencil(pDSV, Diligent::CLEAR_DEPTH_FLAG, 1.f, 0, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        auto* pRTV = m_renderContext.SwapChain()->GetCurrentBackBufferRTV();
+        auto* pDSV = m_renderContext.SwapChain()->GetDepthBufferDSV();
+        m_renderContext.Context()->SetRenderTargets(1, &pRTV, pDSV, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        m_renderContext.Context()->ClearRenderTarget(pRTV, ClearColor, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        m_renderContext.Context()->ClearDepthStencil(pDSV, Diligent::CLEAR_DEPTH_FLAG, 1.f, 0, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
         // Set the pipeline state in the immediate context
-        m_pImmediateContext->SetPipelineState(m_pPSO);
+        m_renderContext.Context()->SetPipelineState(m_pPSO);
 
         // Very important: Commit shader resources
-        m_pImmediateContext->CommitShaderResources(m_pSRB, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        m_renderContext.Context()->CommitShaderResources(m_pSRB, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
         //Diligent::DrawAttribs drawAttrs;
         //drawAttrs.NumVertices = 3; // We will render 3 vertices
@@ -437,16 +389,16 @@ struct cb_contents
         // Verify the state of vertex and index buffers as well as consistence of 
         // render targets and correctness of draw command arguments
         drawIndexAttrs.Flags = Diligent::DRAW_FLAG_VERIFY_ALL;
-        m_pImmediateContext->DrawIndexed(drawIndexAttrs);
+        m_renderContext.Context()->DrawIndexed(drawIndexAttrs);
 
-        m_pSwapChain->Present(true ? 1 : 0);
+        m_renderContext.SwapChain()->Present(true ? 1 : 0);
         frameNumber++;
     }
 
-    void initVulkan() {
-        engineInit();
+    void init() {
+        init_render_context();
         init_scene_lights();
-        buildResources();
+        build_resources();
         init_scene_meshes();
     }
 
@@ -526,8 +478,7 @@ struct cb_contents
 
     void cleanup() {
         // mainDeletionQueue.flush();
-
-        SDL_DestroyWindow(window);
+        m_renderContext.DestroyWindow();
         SDL_Quit();
     }
 };

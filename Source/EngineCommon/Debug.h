@@ -1,7 +1,7 @@
 #pragma once
 #include <vulkan/vulkan.h>
-#include <Common/Log.h>
-#include <Common/Compiler/Unused.h>
+#include <EngineCommon/Log.h>
+#include <EngineCommon/Compiler/Unused.h>
 
 // Debug and platform build defines
 

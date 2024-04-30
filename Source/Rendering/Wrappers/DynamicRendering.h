@@ -1,6 +1,6 @@
 #pragma once
 #include <vulkan/vulkan.h>
-#include <Common/Config.h>
+#include <EngineCommon/Config.h>
 
 [[nodiscard]] VkRenderingAttachmentInfoKHR rendering_attachment_info(
     VkImageView imageView,

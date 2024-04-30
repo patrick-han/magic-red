@@ -1,5 +1,5 @@
 #pragma once
-#include <Common/Platform.h>
+#include <EngineCommon/Platform.h>
 #if PLATFORM_WINDOWS
 #define PUSH_MSVC_WARNINGS __pragma(warning( push ))
 #define DISABLE_MSVC_WARNING( warningNumber ) __pragma(warning( disable : warningNumber))

@@ -1,5 +1,5 @@
 #include <Rendering/Pipeline/MaterialFunctions.h>
-#include <Common/Log.h>
+#include <EngineCommon/Log.h>
 #include <Managers/Scene.h>
 
 void create_material(GraphicsPipeline graphicsPipeline, const std::string& materialName) {

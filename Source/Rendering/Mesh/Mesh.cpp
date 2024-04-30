@@ -1,13 +1,13 @@
-#include <Common/Compiler/DisableWarnings.h>
+#include <EngineCommon/Compiler/DisableWarnings.h>
 PUSH_MSVC_WARNINGS
 DISABLE_MSVC_WARNING(4267) // conversion from 'size_t' to 'uint32_t', possible loss of data
 DISABLE_MSVC_WARNING(4201) // nonstandard extension used : nameless struct / union (glm library)
 
-#include <Common/Compiler/Unused.h>
+#include <EngineCommon/Compiler/Unused.h>
 
 #include <Rendering/Mesh/Mesh.h>
 #include <vulkan/vulkan.h>
-#include <Common/Log.h>
+#include <EngineCommon/Log.h>
 #include <span>
 
 PUSH_CLANG_WARNINGS

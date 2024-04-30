@@ -1,5 +1,5 @@
 #include "LightManager.h"
-#include <Common/Log.h>
+#include <EngineCommon/Log.h>
 #include <glm/gtx/transform.hpp>
 
 void LightManager::add_point_light(PointLight&& pointLight)
