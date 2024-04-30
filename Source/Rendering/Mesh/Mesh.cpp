@@ -5,7 +5,7 @@ DISABLE_MSVC_WARNING(4201) // nonstandard extension used : nameless struct / uni
 
 #include <Common/Compiler/Unused.h>
 
-#include <Mesh/Mesh.h>
+#include <Rendering/Mesh/Mesh.h>
 #include <vulkan/vulkan.h>
 #include <Common/Log.h>
 #include <span>

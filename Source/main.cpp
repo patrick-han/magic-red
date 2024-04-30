@@ -25,24 +25,24 @@
 #include <Control/Camera.h>
 #include <Common/Log.h>
 #include <DeletionQueue.h>
-#include <Mesh/Mesh.h>
+#include <Rendering/Mesh/Mesh.h>
 
-#include <Wrappers/Buffer.h>
-#include <Wrappers/Image.h>
-#include <Wrappers/ImageMemoryBarrier.h>
-#include <Wrappers/DynamicRendering.h>
+#include <Rendering/Wrappers/Buffer.h>
+#include <Rendering/Wrappers/Image.h>
+#include <Rendering/Wrappers/ImageMemoryBarrier.h>
+#include <Rendering/Wrappers/DynamicRendering.h>
 
-#include <Pipeline/MaterialFunctions.h>
-#include <Mesh/RenderObject.h>
-#include <Vertex/VertexDescriptors.h>
-#include <Vertex/Vertex.h>
+#include <Rendering/Pipeline/MaterialFunctions.h>
+#include <Rendering/Mesh/RenderObject.h>
+#include <Rendering/Vertex/VertexDescriptors.h>
+#include <Rendering/Vertex/Vertex.h>
 #include <Common/Config.h>
 #include <Common/Defaults.h>
 #include <Managers/Scene.h>
-#include <Managers/LightManager.h>
-#include <Pipeline/GraphicsPipeline.h>
-#include <Mesh/MeshPushConstants.h>
-#include <Descriptor/Descriptor.h>
+#include <Light/LightManager.h>
+#include <Rendering/Pipeline/GraphicsPipeline.h>
+#include <Rendering/Mesh/MeshPushConstants.h>
+#include <Rendering/Descriptor/Descriptor.h>
 
 #include <IncludeHelpers/ImguiIncludes.h>
 
@@ -64,7 +64,7 @@ DISABLE_CLANG_WARNING("-Wgnu-zero-variadic-macro-arguments")
 POP_CLANG_WARNINGS
 
 
-#include <Shader/Shader.h>
+#include <Rendering/Shader/Shader.h>
 
 
 // Frame data

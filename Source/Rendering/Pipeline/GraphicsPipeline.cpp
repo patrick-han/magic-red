@@ -1,6 +1,6 @@
-#include <Pipeline/GraphicsPipeline.h>
-#include <Shader/Shader.h>
-#include <Vertex/VertexDescriptors.h> // Temp
+#include <Rendering/Pipeline/GraphicsPipeline.h>
+#include <Rendering/Shader/Shader.h>
+#include <Rendering/Vertex/VertexDescriptors.h> // Temp
 #include <Common/RootDir.h>
 
 GraphicsPipeline::GraphicsPipeline() {

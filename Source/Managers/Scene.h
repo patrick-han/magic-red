@@ -2,9 +2,9 @@
 
 #include <vector>
 #include <unordered_map>
-#include <Mesh/RenderObject.h>
-#include <Pipeline/MaterialFunctions.h>
-#include <Mesh/Mesh.h>
+#include <Rendering/Mesh/RenderObject.h>
+#include <Rendering/Pipeline/MaterialFunctions.h>
+#include <Rendering/Mesh/Mesh.h>
 #include <Light/PointLight.h>
 
 // Singleton Scene
