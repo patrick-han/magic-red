@@ -1,12 +1,13 @@
 #include "LightManager.h"
 #include <EngineCommon/Log.h>
 #include <glm/gtx/transform.hpp>
+#include <utility>
 
 void LightManager::add_point_light(PointLight&& pointLight)
 {
     if(LightManager::GetInstance().pointLightCount < LightManager::MAX_POINT_LIGHTS)
     {
-        LightManager::GetInstance().scenePointLights.emplace_back(pointLight);
+        LightManager::GetInstance().scenePointLights.emplace_back(std::forward<PointLight>(pointLight));
         LightManager::GetInstance().pointLightCount++;
     }
     else

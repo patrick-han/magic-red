@@ -38,7 +38,7 @@ public:
     //       before deleted status
 
     // Many RenderObjects could use the same mesh
-    std::vector<RenderObject> sceneRenderObjects;
+//    std::vector<RenderObject> sceneRenderObjects;
     std::unordered_map<std::string, Mesh> sceneMeshMap;
 
     // A material is a pipeline

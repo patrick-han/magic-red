@@ -6,8 +6,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 
-#define VMA_IMPLEMENTATION
-#include <vk_mem_alloc.h>
 
 #include <vulkan/vk_enum_string_helper.h> // Doesn't work on linux?
 #include <EngineCommon/Debug.h>
@@ -26,18 +24,13 @@
 #include <DeletionQueue.h>
 #include <Rendering/Mesh/Mesh.h>
 
-#include <Rendering/Wrappers/Buffer.h>
-#include <Rendering/Wrappers/Image.h>
-#include <Rendering/Wrappers/ImageMemoryBarrier.h>
-#include <Rendering/Wrappers/DynamicRendering.h>
-
 #include <Rendering/Pipeline/MaterialFunctions.h>
 #include <Rendering/Mesh/RenderObject.h>
 #include <Rendering/Vertex/VertexDescriptors.h>
 #include <Rendering/Vertex/Vertex.h>
 #include <EngineCommon/Config.h>
 #include <EngineCommon/Defaults.h>
-#include <Managers/Scene.h>
+// #include <Scene/Scene.h>
 #include <Light/LightManager.h>
 #include <Rendering/Pipeline/GraphicsPipeline.h>
 #include <Rendering/Mesh/MeshPushConstants.h>
@@ -88,20 +81,6 @@ public:
 PUSH_CLANG_WARNINGS
 DISABLE_CLANG_WARNING("-Wunused-private-field")
 private:
-
-    // VulkanMemoryAllocator (VMA)
-    VmaAllocator vmaAllocator;
-
-    // Instance
-    std::vector<const char*> extensionsVector;
-    std::vector<const char*> layers;
-    VkInstance instance;
-    VkDebugUtilsMessengerEXT debugMessenger;
-
-    // Surface and devices
-    VkSurfaceKHR surface;
-    VkPhysicalDevice physicalDevice;
-    VkDevice device;
 
     // Cleanup
     DeletionQueue mainDeletionQueue; // Contains all deletable vulkan resources except pipelines/pipeline layouts

@@ -221,15 +221,6 @@ void load_mesh_from_gltf(Mesh& mesh, const char* fileName, bool isBinary) {
     );
 }
 
-[[nodiscard]] Mesh& upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue& deletionQueue) {
-    upload_buffer(mesh.vertexBuffer, mesh.vertices.size() * sizeof(Vertex), mesh.vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, allocator, deletionQueue);
-
-    if (mesh.indices.size() > 0) {
-        upload_buffer(mesh.indexBuffer, mesh.indices.size() * sizeof(uint32_t), mesh.indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, allocator, deletionQueue);
-    }
-    return mesh;
-}
-
 [[nodiscard]] Mesh* get_mesh(const std::string& meshName, std::unordered_map<std::string, Mesh>& meshMap) {
     // Search for the mesh, and return nullptr if not found
     auto it = meshMap.find(meshName);
