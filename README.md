@@ -43,3 +43,22 @@ cmake -S . -B build -G "Unix Makefiles"
 cd build
 make -j `sysctl -n hw.ncpu` magic-red
 ```
+
+# Immediate Roadmap:
+- [x] Mesh loading and drawing
+- [ ] Diffuse texture loading and drawing
+- [ ] Blinn-Phong lighting
+- [ ] Gamma-correction
+- [ ] Directional light shadowmaps
+- [ ] Point light shadowmaps
+- [ ] Other texture maps (specular, normal, etc.)
+- [ ] Bloom in compute
+- [ ] SSAO
+- [ ] PBR
+- [ ] Forward+
+
+
+# Non-essential for now:
+- [ ] HDR
+- [ ] Hybrid RT
+- [ ] DoF
