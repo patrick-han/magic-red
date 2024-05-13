@@ -26,15 +26,12 @@
 
 #include <Rendering/Pipeline/MaterialFunctions.h>
 #include <Rendering/Mesh/RenderObject.h>
-#include <Rendering/Vertex/VertexDescriptors.h>
 #include <Rendering/Vertex/Vertex.h>
 #include <EngineCommon/Config.h>
 #include <EngineCommon/Defaults.h>
 // #include <Scene/Scene.h>
 #include <Light/LightManager.h>
 #include <Rendering/Pipeline/GraphicsPipeline.h>
-#include <Rendering/Mesh/MeshPushConstants.h>
-#include <Rendering/Descriptor/Descriptor.h>
 
 #include <IncludeHelpers/ImguiIncludes.h>
 
