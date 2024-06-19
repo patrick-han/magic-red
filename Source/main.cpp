@@ -82,12 +82,7 @@ private:
     VkDescriptorPool m_imguiPool;
     uint32_t m_currentFrame = 0;
 
-    // Many RenderObjects could use the same mesh
     std::vector<RenderObject> m_sceneRenderObjects;
-//    std::unordered_map<std::string, Mesh> m_sceneMeshMap;
-
-    // A material is a pipeline
-    std::unordered_map<std::string, GraphicsPipeline> m_sceneMaterialMap;
 
     // Lights
     std::vector<PointLight> m_scenePointLights;
@@ -623,16 +618,8 @@ private:
 
         m_globalDescriptorAllocator.destroy_pool(m_GfxDevice);
 
-        // for (auto material : m_sceneMaterialMap) {
-        //     vkDestroyPipeline(m_GfxDevice, material.second.getPipeline(), nullptr);
-        //     vkDestroyPipelineLayout(m_GfxDevice, material.second.getPipelineLayout(), nullptr);
-        // }
         m_PipelineCache.cleanup(m_GfxDevice);
-        // for (auto & [key, value] : m_sceneMeshMap) {
-        //     value.cleanup(m_GfxDevice.m_vmaAllocator);
-        // }
         m_MeshCache.cleanup(m_GfxDevice);
-        // m_sceneMeshMap["sponza"].cleanup();
         m_GfxDevice.cleanup();
 
         SDL_DestroyWindow(m_window);
