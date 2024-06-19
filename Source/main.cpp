@@ -26,6 +26,7 @@
 #include <Mesh/Mesh.h>
 
 #include <Mesh/MeshCache.h>
+#include <Pipeline/PipelineCache.h>
 
 #include <Wrappers/Buffer.h>
 #include <Wrappers/Image.h>
@@ -76,6 +77,7 @@ private:
     SDL_Window *m_window;
     GfxDevice m_GfxDevice;
     MeshCache m_MeshCache;
+    GraphicsPipelineCache m_PipelineCache;
 
     VkDescriptorPool m_imguiPool;
     uint32_t m_currentFrame = 0;
@@ -166,7 +168,7 @@ private:
     // temp
     std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
 
-    void createMaterialPipelines() {
+    void init_scene() {
         VkPipelineRenderingCreateInfoKHR pipelineRenderingCI = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
             .pNext = nullptr,
@@ -186,15 +188,14 @@ private:
             std::span<const VkDescriptorSetLayout>(m_sceneDescriptorSetLayouts.data(), 1), // TODO: They're all the same and this only has 1 layout for now
             {WINDOW_WIDTH, WINDOW_HEIGHT}
         );
-        create_material(m_sceneMaterialMap, defaultPipeline, "defaultMaterial");
-    }
 
-    void init_scene_meshes() {
+        GraphicsPipelineId defaultPipelineId = m_PipelineCache.add_pipeline(m_GfxDevice, defaultPipeline);
+
         {
             // Sponza mesh
             CPUMesh sponzaMesh(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false);
             MeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, sponzaMesh);
-            RenderObject sponzaObject(&m_sceneMaterialMap["defaultMaterial"], sponzaMeshId, m_MeshCache);
+            RenderObject sponzaObject(defaultPipelineId, sponzaMeshId, m_PipelineCache, m_MeshCache);
             glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
             glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
             sponzaObject.set_transform(translate * scale);
@@ -205,7 +206,7 @@ private:
             // Suzanne mesh
             CPUMesh suzanneMesh(ROOT_DIR "/Assets/Meshes/suzanne.glb", true);
             MeshId suzanneMeshId = m_MeshCache.add_mesh(m_GfxDevice, suzanneMesh);
-            RenderObject suzanneObject(&m_sceneMaterialMap["defaultMaterial"], suzanneMeshId, m_MeshCache);
+            RenderObject suzanneObject(defaultPipelineId, suzanneMeshId, m_PipelineCache, m_MeshCache);
             glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
             suzanneObject.set_transform(monkeyTranslate);
             m_sceneRenderObjects.push_back(suzanneObject);
@@ -215,7 +216,7 @@ private:
             // Helemt mesh
             CPUMesh helmetMesh(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true);
             MeshId helmetMeshId = m_MeshCache.add_mesh(m_GfxDevice, helmetMesh);
-            RenderObject helmetObject(&m_sceneMaterialMap["defaultMaterial"], helmetMeshId, m_MeshCache);
+            RenderObject helmetObject(defaultPipelineId, helmetMeshId, m_PipelineCache, m_MeshCache);
             glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
             helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
             helmetObject.set_transform(helmetTransform);
@@ -332,8 +333,7 @@ private:
         m_GfxDevice.init(m_window);
         init_scene_lights();
         init_scene_descriptors();
-        createMaterialPipelines();
-        init_scene_meshes();
+        init_scene();
         init_imgui();
     }
 
@@ -623,10 +623,11 @@ private:
 
         m_globalDescriptorAllocator.destroy_pool(m_GfxDevice);
 
-        for (auto material : m_sceneMaterialMap) {
-            vkDestroyPipeline(m_GfxDevice, material.second.getPipeline(), nullptr);
-            vkDestroyPipelineLayout(m_GfxDevice, material.second.getPipelineLayout(), nullptr);
-        }
+        // for (auto material : m_sceneMaterialMap) {
+        //     vkDestroyPipeline(m_GfxDevice, material.second.getPipeline(), nullptr);
+        //     vkDestroyPipelineLayout(m_GfxDevice, material.second.getPipelineLayout(), nullptr);
+        // }
+        m_PipelineCache.cleanup(m_GfxDevice);
         // for (auto & [key, value] : m_sceneMeshMap) {
         //     value.cleanup(m_GfxDevice.m_vmaAllocator);
         // }
