@@ -1,7 +1,6 @@
 #pragma once
 #include <Vertex/Vertex.h>
 #include <Wrappers/Buffer.h>
-#include <DeletionQueue.h>
 #include <vector>
 #include <unordered_map>
 
@@ -13,20 +12,16 @@ enum class MeshColor {
 };
 
 
-struct Mesh {
-    std::vector<Vertex> vertices;
-    std::vector<uint32_t> indices;
+struct CPUMesh {
+    CPUMesh(const char* fileName, bool isBinary);
+    std::vector<Vertex> m_vertices;
+    std::vector<uint32_t> m_indices;
+};
+
+struct GPUMesh {
     AllocatedBuffer vertexBuffer;
     AllocatedBuffer  indexBuffer;
+    uint32_t indexCount;
 
     void cleanup(VmaAllocator allocator);
 };
-
-/* Load Mesh data from an .gltf or .glb file */
-void load_mesh_from_gltf(Mesh& mesh, const char* fileName, bool isBinary);
-
-/* Upload an instantiated Mesh to the GPU using a created VMA allocator */
-[[nodiscard]] Mesh& upload_mesh(Mesh& mesh, VmaAllocator allocator);
-
-/* Get a mesh from a scene mesh map */
-[[nodiscard]] Mesh* get_mesh(const std::string& meshName, std::unordered_map<std::string, Mesh>& meshMap);

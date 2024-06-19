@@ -25,6 +25,8 @@
 #include <DeletionQueue.h>
 #include <Mesh/Mesh.h>
 
+#include <Mesh/MeshCache.h>
+
 #include <Wrappers/Buffer.h>
 #include <Wrappers/Image.h>
 #include <Wrappers/ImageMemoryBarrier.h>
@@ -73,13 +75,14 @@ public:
 private:
     SDL_Window *m_window;
     GfxDevice m_GfxDevice;
+    MeshCache m_MeshCache;
 
     VkDescriptorPool m_imguiPool;
     uint32_t m_currentFrame = 0;
 
     // Many RenderObjects could use the same mesh
     std::vector<RenderObject> m_sceneRenderObjects;
-    std::unordered_map<std::string, Mesh> m_sceneMeshMap;
+//    std::unordered_map<std::string, Mesh> m_sceneMeshMap;
 
     // A material is a pipeline
     std::unordered_map<std::string, GraphicsPipeline> m_sceneMaterialMap;
@@ -187,41 +190,37 @@ private:
     }
 
     void init_scene_meshes() {
+        {
+            // Sponza mesh
+            CPUMesh sponzaMesh(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false);
+            MeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, sponzaMesh);
+            RenderObject sponzaObject(&m_sceneMaterialMap["defaultMaterial"], sponzaMeshId, m_MeshCache);
+            glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
+            glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
+            sponzaObject.set_transform(translate * scale);
+            m_sceneRenderObjects.push_back(sponzaObject);
+        }
+        
+        {
+            // Suzanne mesh
+            CPUMesh suzanneMesh(ROOT_DIR "/Assets/Meshes/suzanne.glb", true);
+            MeshId suzanneMeshId = m_MeshCache.add_mesh(m_GfxDevice, suzanneMesh);
+            RenderObject suzanneObject(&m_sceneMaterialMap["defaultMaterial"], suzanneMeshId, m_MeshCache);
+            glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
+            suzanneObject.set_transform(monkeyTranslate);
+            m_sceneRenderObjects.push_back(suzanneObject);
+        }
 
-        // Sponza mesh
-        Mesh sponzaMesh;
-        load_mesh_from_gltf(sponzaMesh, ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false);
-        m_sceneMeshMap["sponza"] = upload_mesh(sponzaMesh, m_GfxDevice.m_vmaAllocator);
-
-        RenderObject sponzaObject(&m_sceneMaterialMap["defaultMaterial"], &m_sceneMeshMap["sponza"]);
-        glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
-        glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
-        sponzaObject.transformMatrix = translate * scale;
-
-        m_sceneRenderObjects.push_back(sponzaObject);
-
-
-        // Suzanne mesh
-        Mesh monkeyMesh;
-        load_mesh_from_gltf(monkeyMesh, ROOT_DIR "/Assets/Meshes/suzanne.glb", true);
-        m_sceneMeshMap["suzanne"] = upload_mesh(monkeyMesh, m_GfxDevice.m_vmaAllocator);
-
-        RenderObject monkeyObject(&m_sceneMaterialMap["defaultMaterial"], &m_sceneMeshMap["suzanne"]);
-        glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
-        monkeyObject.transformMatrix = monkeyTranslate;
-
-        m_sceneRenderObjects.push_back(monkeyObject);
-
-        // Helmet mesh
-        Mesh helmetMesh;
-        load_mesh_from_gltf(helmetMesh, ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true);
-        m_sceneMeshMap["helmet"] = upload_mesh(helmetMesh, m_GfxDevice.m_vmaAllocator);
-        RenderObject helmetObject(&m_sceneMaterialMap["defaultMaterial"], &m_sceneMeshMap["helmet"]);
-        glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
-        helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
-        helmetObject.transformMatrix = helmetTransform;
-
-        m_sceneRenderObjects.push_back(helmetObject);
+        {
+            // Helemt mesh
+            CPUMesh helmetMesh(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true);
+            MeshId helmetMeshId = m_MeshCache.add_mesh(m_GfxDevice, helmetMesh);
+            RenderObject helmetObject(&m_sceneMaterialMap["defaultMaterial"], helmetMeshId, m_MeshCache);
+            glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
+            helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
+            helmetObject.set_transform(helmetTransform);
+            m_sceneRenderObjects.push_back(helmetObject);
+        }
     }
 
     void init_imgui() {
@@ -628,9 +627,10 @@ private:
             vkDestroyPipeline(m_GfxDevice, material.second.getPipeline(), nullptr);
             vkDestroyPipelineLayout(m_GfxDevice, material.second.getPipelineLayout(), nullptr);
         }
-        for (auto & [key, value] : m_sceneMeshMap) {
-            value.cleanup(m_GfxDevice.m_vmaAllocator);
-        }
+        // for (auto & [key, value] : m_sceneMeshMap) {
+        //     value.cleanup(m_GfxDevice.m_vmaAllocator);
+        // }
+        m_MeshCache.cleanup(m_GfxDevice);
         // m_sceneMeshMap["sponza"].cleanup();
         m_GfxDevice.cleanup();
 

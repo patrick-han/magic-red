@@ -165,7 +165,7 @@ void load_node(const tinygltf::Node& node, const tinygltf::Model& model, NodeLoa
     }
 }
 
-void load_mesh_from_gltf(Mesh& mesh, const char* fileName, bool isBinary) {
+CPUMesh::CPUMesh(const char* fileName, bool isBinary) {
     tinygltf::Model gltfModel;
     tinygltf::TinyGLTF gltfLoader;
     std::string err;
@@ -202,9 +202,9 @@ void load_mesh_from_gltf(Mesh& mesh, const char* fileName, bool isBinary) {
         get_node_properties(gltfModel.nodes[scene.nodes[i]], gltfModel, vertexCount, indexCount);
     }
 
-    mesh.vertices.resize(vertexCount);
-    mesh.indices.resize(indexCount);
-    NodeLoadingData nodeLoadingData = {mesh.vertices, mesh.indices};
+    m_vertices.resize(vertexCount);
+    m_indices.resize(indexCount);
+    NodeLoadingData nodeLoadingData = {m_vertices, m_indices};
 
     for (size_t i = 0; i < scene.nodes.size(); i++)
     {
@@ -215,33 +215,12 @@ void load_mesh_from_gltf(Mesh& mesh, const char* fileName, bool isBinary) {
     MRLOG(
         "Finished loading gltf: " 
         << fileName << " \n"
-        << "Number of vertices: " << mesh.vertices.size() << " \n"
-        << "Number of indices: " << mesh.indices.size() << " \n"
+        << "Number of vertices: " << m_vertices.size() << " \n"
+        << "Number of indices: " << m_indices.size() << " \n"
     );
 }
 
-[[nodiscard]] Mesh& upload_mesh(Mesh& mesh, VmaAllocator allocator) {
-    upload_buffer(mesh.vertexBuffer, mesh.vertices.size() * sizeof(Vertex), mesh.vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, allocator);
-
-    if (mesh.indices.size() > 0) {
-        upload_buffer(mesh.indexBuffer, mesh.indices.size() * sizeof(uint32_t), mesh.indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, allocator);
-    }
-    return mesh;
-}
-
-[[nodiscard]] Mesh* get_mesh(const std::string& meshName, std::unordered_map<std::string, Mesh>& meshMap) {
-    // Search for the mesh, and return nullptr if not found
-    auto it = meshMap.find(meshName);
-    if (it == meshMap.end()) {
-        MRCERR("Could not find mesh: " << meshName);
-        return nullptr;
-    }
-    else {
-        return &(*it).second;
-    }
-}
-
-void Mesh::cleanup(VmaAllocator allocator) {
+void GPUMesh::cleanup(VmaAllocator allocator) {
     vertexBuffer.cleanup(allocator);
     indexBuffer.cleanup(allocator);
 }
