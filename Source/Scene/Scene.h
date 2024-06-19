@@ -38,12 +38,12 @@ public:
     //       before deleted status
 
     // Many RenderObjects could use the same mesh
-    std::vector<RenderObject> sceneRenderObjects;
-    std::unordered_map<std::string, Mesh> sceneMeshMap;
+    // std::vector<RenderObject> sceneRenderObjects;
+    // std::unordered_map<std::string, Mesh> sceneMeshMap;
 
     // A material is a pipeline
-    std::unordered_map<std::string, GraphicsPipeline> sceneMaterialMap;
+    // std::unordered_map<std::string, GraphicsPipeline> sceneMaterialMap;
 
     // Lights
-    std::vector<PointLight> scenePointLights;
+    // std::vector<PointLight> scenePointLights;
 };

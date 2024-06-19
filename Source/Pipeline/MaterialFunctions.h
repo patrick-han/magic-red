@@ -5,7 +5,7 @@
 #include <Pipeline/GraphicsPipeline.h>
 
 /* Add a material to a scene material map */
-void create_material(GraphicsPipeline graphicsPipeline, const std::string& materialName);
+void create_material(std::unordered_map<std::string, GraphicsPipeline> &sceneMaterialMap, GraphicsPipeline graphicsPipeline, const std::string& materialName);
 
 /* Get a material from a scene material map */
 [[nodiscard]] GraphicsPipeline* get_material(const std::string& materialName, std::unordered_map<std::string, GraphicsPipeline>& materialMap);

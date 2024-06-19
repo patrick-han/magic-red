@@ -220,11 +220,11 @@ void load_mesh_from_gltf(Mesh& mesh, const char* fileName, bool isBinary) {
     );
 }
 
-[[nodiscard]] Mesh& upload_mesh(Mesh& mesh, VmaAllocator allocator, DeletionQueue& deletionQueue) {
-    upload_buffer(mesh.vertexBuffer, mesh.vertices.size() * sizeof(Vertex), mesh.vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, allocator, deletionQueue);
+[[nodiscard]] Mesh& upload_mesh(Mesh& mesh, VmaAllocator allocator) {
+    upload_buffer(mesh.vertexBuffer, mesh.vertices.size() * sizeof(Vertex), mesh.vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, allocator);
 
     if (mesh.indices.size() > 0) {
-        upload_buffer(mesh.indexBuffer, mesh.indices.size() * sizeof(uint32_t), mesh.indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, allocator, deletionQueue);
+        upload_buffer(mesh.indexBuffer, mesh.indices.size() * sizeof(uint32_t), mesh.indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, allocator);
     }
     return mesh;
 }
@@ -240,5 +240,12 @@ void load_mesh_from_gltf(Mesh& mesh, const char* fileName, bool isBinary) {
         return &(*it).second;
     }
 }
+
+void Mesh::cleanup(VmaAllocator allocator) {
+    vertexBuffer.cleanup(allocator);
+    indexBuffer.cleanup(allocator);
+}
+
+
 POP_CLANG_WARNINGS
 POP_MSVC_WARNINGS

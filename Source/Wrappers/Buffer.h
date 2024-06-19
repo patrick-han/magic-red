@@ -5,12 +5,12 @@
 struct AllocatedBuffer {
     VkBuffer buffer;
     VmaAllocation allocation;
+
+    void cleanup(VmaAllocator allocator);
 };
 
-struct DeletionQueue;
-
 /* Given the raw desired data, upload a buffer to the GPU */
-void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const void* bufferData, VkBufferUsageFlags bufferUsage, VmaAllocator allocator, DeletionQueue& deletionQueue);
+void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const void* bufferData, VkBufferUsageFlags bufferUsage, VmaAllocator allocator);
 
 /* Update a buffer's data */
 void update_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const void* bufferData, VmaAllocator allocator);

@@ -2,8 +2,8 @@
 #include <Common/Log.h>
 #include <Scene/Scene.h>
 
-void create_material(GraphicsPipeline graphicsPipeline, const std::string& materialName) {
-    Scene::GetInstance().sceneMaterialMap[materialName] = graphicsPipeline;
+void create_material(std::unordered_map<std::string, GraphicsPipeline> &sceneMaterialMap, GraphicsPipeline graphicsPipeline, const std::string& materialName) {
+    sceneMaterialMap[materialName] = graphicsPipeline;
 }
 
 [[nodiscard]] GraphicsPipeline* get_material(const std::string& materialName, std::unordered_map<std::string, GraphicsPipeline>& materialMap) {

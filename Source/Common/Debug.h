@@ -6,9 +6,9 @@
 // Debug and platform build defines
 
 #ifdef NDEBUG
-    constexpr bool enableValidationLayers = false;
+    constexpr bool bEnableValidationLayers = false;
 #else
-    constexpr bool enableValidationLayers = true;
+    constexpr bool bEnableValidationLayers = true;
 #endif
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

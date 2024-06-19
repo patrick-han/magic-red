@@ -8,7 +8,7 @@ struct Mesh;
 class GraphicsPipeline;
 
 struct RenderObject {
-    RenderObject(const char* materialName, const char* meshName);
+    RenderObject(GraphicsPipeline* _material, Mesh* _mesh);
     void BindAndDraw(VkCommandBuffer commandBuffer, const glm::mat4& viewProjectionMatrix, std::span<VkDescriptorSet const> descriptorSets) const;
     Mesh* mesh;
     GraphicsPipeline* material;
