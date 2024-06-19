@@ -29,7 +29,6 @@
 #include <Rendering/Vertex/Vertex.h>
 #include <EngineCommon/Config.h>
 #include <EngineCommon/Defaults.h>
-// #include <Scene/Scene.h>
 #include <Light/LightManager.h>
 #include <Rendering/Pipeline/GraphicsPipeline.h>
 

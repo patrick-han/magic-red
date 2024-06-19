@@ -1,6 +1,5 @@
 #include <Rendering/Pipeline/GraphicsPipeline.h>
 #include <Rendering/Shader/Shader.h>
-#include <Rendering/Vertex/VertexDescriptors.h> // Temp
 #include <EngineCommon/RootDir.h>
 
 GraphicsPipeline::GraphicsPipeline() {
@@ -34,12 +33,15 @@ GraphicsPipeline::GraphicsPipeline(
     std::vector<VkPipelineShaderStageCreateInfo> pipelineShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
     
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, VkPipelineVertexInputStateCreateFlags(), 0u, nullptr, 0u, nullptr };
-    VertexInputDescription vertexDescription = VertexInputDescription::get_default_vertex_description();
-    vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexDescription.bindings.size());
-    vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
-    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexDescription.attributes.size());
-    vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
-    
+//    VertexInputDescription vertexDescription = VertexInputDescription::get_default_vertex_description();
+//    vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexDescription.bindings.size());
+//    vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
+//    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexDescription.attributes.size());
+//    vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
+        vertexInputInfo.vertexBindingDescriptionCount = 0;
+        vertexInputInfo.pVertexBindingDescriptions = nullptr;
+        vertexInputInfo.vertexAttributeDescriptionCount = 0;
+        vertexInputInfo.pVertexAttributeDescriptions = nullptr;
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, nullptr, VkPipelineInputAssemblyStateCreateFlags(), VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE };
     VkViewport viewport = { 0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height), 0.0f, 1.0f };
     VkRect2D scissor = { { 0, 0 }, {extent.width, extent.height}};

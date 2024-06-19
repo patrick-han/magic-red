@@ -1,9 +1,11 @@
 #include <Rendering/Pipeline/MaterialFunctions.h>
 #include <EngineCommon/Log.h>
-#include <Scene/Scene.h>
+#include <EngineCommon/Compiler/Unused.h>
 
 void create_material(GraphicsPipeline graphicsPipeline, const std::string& materialName) {
-    Scene::GetInstance().sceneMaterialMap[materialName] = graphicsPipeline;
+    UNUSED(graphicsPipeline);
+    UNUSED(materialName);
+    // Scene::GetInstance().sceneMaterialMap[materialName] = graphicsPipeline;
 }
 
 [[nodiscard]] GraphicsPipeline* get_material(const std::string& materialName, std::unordered_map<std::string, GraphicsPipeline>& materialMap) {
