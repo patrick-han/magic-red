@@ -17,7 +17,7 @@ void RenderObject::set_transform(glm::mat4 _transformMatrix) {
     m_transformMatrix = _transformMatrix;
 }
 
-void RenderObject::BindAndDraw(VkCommandBuffer commandBuffer, const glm::mat4& viewProjectionMatrix, std::span<VkDescriptorSet const> descriptorSets) const {
+void RenderObject::bind_and_draw(VkCommandBuffer commandBuffer, const glm::mat4& viewProjectionMatrix, std::span<VkDescriptorSet const> descriptorSets) const {
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material->getPipeline());
 
     VkDeviceSize offset = 0;

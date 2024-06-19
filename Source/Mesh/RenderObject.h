@@ -11,7 +11,7 @@ class GraphicsPipeline;
 
 struct RenderObject {
     RenderObject(GraphicsPipeline* _material, MeshId _meshId, const MeshCache& _meshCache);
-    void BindAndDraw(VkCommandBuffer commandBuffer, const glm::mat4& viewProjectionMatrix, std::span<VkDescriptorSet const> descriptorSets) const;
+    void bind_and_draw(VkCommandBuffer commandBuffer, const glm::mat4& viewProjectionMatrix, std::span<VkDescriptorSet const> descriptorSets) const;
     void set_transform(glm::mat4 _transformMatrix);
 
 private:

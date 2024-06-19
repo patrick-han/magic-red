@@ -324,7 +324,7 @@ private:
         VkCommandBuffer cmdBuffer = m_GfxDevice.get_frame_command_buffer(m_currentFrame);
 
         for (RenderObject renderObject :  m_sceneRenderObjects) {
-            renderObject.BindAndDraw(cmdBuffer, viewProjectionMatrix, std::span<const VkDescriptorSet>(m_sceneDescriptorSets_F.data() + m_currentFrame, 1));
+            renderObject.bind_and_draw(cmdBuffer, viewProjectionMatrix, std::span<const VkDescriptorSet>(m_sceneDescriptorSets_F.data() + m_currentFrame, 1));
         }
     }
 
