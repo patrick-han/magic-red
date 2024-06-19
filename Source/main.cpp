@@ -21,7 +21,7 @@
 #include <Common/RootDir.h>
 #include <Common/Platform.h>
 
-#include <Control/Camera.h>
+#include <Camera/Camera.h>
 #include <Common/Log.h>
 #include <DeletionQueue.h>
 #include <Mesh/Mesh.h>
@@ -1028,10 +1028,10 @@ private:
                         interactableUI = !interactableUI;
                         if (!interactableUI) {
                             SDL_SetRelativeMouseMode(SDL_FALSE);
-                            camera.freezeCamera();
+                            camera.freeze_camera();
                         } else {
                             SDL_SetRelativeMouseMode(SDL_TRUE);
-                            camera.unfreezeCamera();
+                            camera.unfreeze_camera();
                         }
                     }
                 }
