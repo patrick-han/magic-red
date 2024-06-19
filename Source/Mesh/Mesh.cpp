@@ -2,6 +2,9 @@
 PUSH_MSVC_WARNINGS
 DISABLE_MSVC_WARNING(4267) // conversion from 'size_t' to 'uint32_t', possible loss of data
 DISABLE_MSVC_WARNING(4201) // nonstandard extension used : nameless struct / union (glm library)
+PUSH_CLANG_WARNINGS
+DISABLE_CLANG_WARNING("-Wmissing-field-initializers")
+DISABLE_CLANG_WARNING("-Wshorten-64-to-32")
 #include <Common/Compiler/Unused.h>
 
 #include <Mesh/Mesh.h>
@@ -237,4 +240,5 @@ void load_mesh_from_gltf(Mesh& mesh, const char* fileName, bool isBinary) {
         return &(*it).second;
     }
 }
+POP_CLANG_WARNINGS
 POP_MSVC_WARNINGS
