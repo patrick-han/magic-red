@@ -3,8 +3,6 @@
 #include <Pipeline/GraphicsPipeline.h>
 #include <Mesh/Mesh.h>
 #include <glm/glm.hpp>
-#include <Pipeline/MaterialFunctions.h>
-#include <Scene/Scene.h>
 #include <Mesh/MeshCache.h>
 #include <Pipeline/PipelineCache.h>
 

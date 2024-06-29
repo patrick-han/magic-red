@@ -33,7 +33,6 @@
 #include <Wrappers/ImageMemoryBarrier.h>
 #include <Wrappers/DynamicRendering.h>
 
-#include <Pipeline/MaterialFunctions.h>
 #include <Mesh/RenderObject.h>
 #include <Vertex/VertexDescriptors.h>
 #include <Common/Config.h>
