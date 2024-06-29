@@ -1,5 +1,5 @@
 # Magic Red
-Magic Red is a cross-platform 3D rendering engine built on top of the Diligent Core library.
+Magic Red is a cross-platform 3D rendering engine built on top of Vulkan.
 
 # Requirements
 This project requires from you:
@@ -43,6 +43,11 @@ cmake -S . -B build -G "Unix Makefiles"
 cd build
 make -j `sysctl -n hw.ncpu` magic-red
 ```
+
+# Vulkan extensions used:
+- Dynamic rendering
+- Buffer device address
+- Scalar block layout
 
 # Immediate Roadmap:
 - [x] Mesh loading and drawing
