@@ -89,6 +89,11 @@ glm::mat4 Camera::get_view_matrix()
     return view;
 }
 
+glm::vec3 Camera::get_world_position()
+{
+    return m_position;
+}
+
 void Camera::freeze_camera() 
 {
     m_bAllowMovement = false;

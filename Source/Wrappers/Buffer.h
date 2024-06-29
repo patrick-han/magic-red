@@ -5,6 +5,7 @@
 struct AllocatedBuffer {
     VkBuffer buffer;
     VmaAllocation allocation;
+    VkDeviceAddress gpuAddress;
 
     void cleanup(VmaAllocator allocator);
 };

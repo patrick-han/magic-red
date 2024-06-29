@@ -179,20 +179,35 @@ void GfxDevice::create_device() {
     }
 
     // Device extensions
-    std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_KHR_dynamic_rendering" };
+    std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_KHR_dynamic_rendering", "VK_KHR_buffer_device_address", "VK_EXT_scalar_block_layout"};
 #if PLATFORM_MACOS
     deviceExtensions.push_back("VK_KHR_portability_subset");
 #endif
     
     // Needed to enable dynamic rendering extension
-    constexpr VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature {
+    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
         .dynamicRendering = VK_TRUE,
     };
 
+    VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device_address_feature {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_KHR,
+        .pNext = &dynamic_rendering_feature,
+        .bufferDeviceAddress = VK_TRUE,
+#ifdef NDEBUG
+        .bufferDeviceAddressCaptureReplay = VK_TRUE,
+#endif
+    };
+
+    VkPhysicalDeviceScalarBlockLayoutFeatures scalar_block_layout_feature {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES_EXT,
+        .pNext = &buffer_device_address_feature,
+        .scalarBlockLayout = VK_TRUE
+    };
+
     VkDeviceCreateInfo deviceCreateInfo = {
         VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        &dynamic_rendering_feature,
+        &scalar_block_layout_feature,
         VkDeviceCreateFlags(),
         static_cast<uint32_t>(queueCreateInfos.size()),
         queueCreateInfos.data(),
@@ -427,6 +442,7 @@ void GfxDevice::init_VMA() {
     allocatorInfo.physicalDevice = m_physicalDevice;
     allocatorInfo.device = m_device;
     allocatorInfo.instance = m_instance;
+    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     VkResult res = vmaCreateAllocator(&allocatorInfo, &m_vmaAllocator);
     if (res != VK_SUCCESS) {
         MRCERR(string_VkResult(res));
