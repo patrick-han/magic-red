@@ -111,7 +111,7 @@ private:
         SDL_SetRelativeMouseMode(SDL_TRUE);
     }
 
-    void init_scene_lights() {
+    void init_lights() {
          m_CPUPointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), 0, glm::vec3(1.0f, 0.0f, 0.0f), 1.0));
 
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)  
@@ -205,7 +205,7 @@ private:
     // temp
     std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
 
-    void init_scene() {
+    void init_assets() {
         VkPipelineRenderingCreateInfoKHR pipelineRenderingCI = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
             .pNext = nullptr,
@@ -240,15 +240,15 @@ private:
         //     m_sceneRenderObjects.push_back(sponzaObject);
         // }
         
-        {
-            // Suzanne mesh
-            CPUMesh suzanneMesh(ROOT_DIR "/Assets/Meshes/suzanne.glb", true);
-            MeshId suzanneMeshId = m_MeshCache.add_mesh(m_GfxDevice, suzanneMesh);
-            RenderObject suzanneObject(defaultPipelineId, suzanneMeshId, m_PipelineCache, m_MeshCache);
-            glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
-            suzanneObject.set_transform(monkeyTranslate);
-            m_sceneRenderObjects.push_back(suzanneObject);
-        }
+        // {
+        //     // Suzanne mesh
+        //     CPUMesh suzanneMesh(ROOT_DIR "/Assets/Meshes/suzanne.glb", true);
+        //     MeshId suzanneMeshId = m_MeshCache.add_mesh(m_GfxDevice, suzanneMesh);
+        //     RenderObject suzanneObject(defaultPipelineId, suzanneMeshId, m_PipelineCache, m_MeshCache);
+        //     glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
+        //     suzanneObject.set_transform(monkeyTranslate);
+        //     m_sceneRenderObjects.push_back(suzanneObject);
+        // }
 
         {
             // Helemt mesh
@@ -364,10 +364,10 @@ private:
 
     void init_graphics() {
         m_GfxDevice.init(m_window);
-        init_scene_lights();
+        init_lights();
         init_scene_data();
         init_scene_descriptors();
-        init_scene();
+        init_assets();
         init_imgui();
     }
 

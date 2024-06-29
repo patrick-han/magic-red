@@ -4,9 +4,8 @@
 
 #include "scene_data.glsl"
 
-layout(location = 0) in vec3 fragColor;
-layout(location = 1) in vec3 fragWorldPos;
-layout(location = 2) in vec3 fragWorldNormal;
+layout(location = 0) in vec3 fragWorldPos;
+layout(location = 1) in vec3 fragWorldNormal;
 
 layout(location = 0) out vec4 outColor;
 
@@ -30,7 +29,7 @@ void main() {
     float specularDifference = pow(max(dot(viewDir, reflectDir), 0.0), 32);
     vec3 specular = specularStrength * specularDifference * lightColor;
 
-
+    vec3 fragColor = vec3(0.4, 0.8, 0.3);
     vec3 result = (ambient + diffuse + specular) * fragColor;
     
 
