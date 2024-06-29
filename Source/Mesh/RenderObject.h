@@ -12,7 +12,7 @@ class GraphicsPipelineCache;
 
 struct RenderObject {
     RenderObject(GraphicsPipelineId _pipelineId, MeshId _meshId, const GraphicsPipelineCache& _pipelineCache, const MeshCache& _meshCache);
-    void bind_and_draw(VkCommandBuffer commandBuffer, const glm::mat4& viewProjectionMatrix, std::span<VkDescriptorSet const> descriptorSets) const;
+    void bind_and_draw(VkCommandBuffer commandBuffer, std::span<VkDescriptorSet const> descriptorSets) const;
     void set_transform(glm::mat4 _transformMatrix);
 
 private:

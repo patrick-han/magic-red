@@ -35,6 +35,8 @@ public:
 
 	glm::mat4 get_view_matrix();
 
+	glm::vec3 get_world_position();
+
 	void freeze_camera();
 
 	void unfreeze_camera();

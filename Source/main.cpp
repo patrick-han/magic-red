@@ -47,6 +47,7 @@
 
 #include <Rendering/GfxDevice.h>
 #include <Light/PointLight.h>
+#include <SceneData.h>
 
 // Frame data
 int frameNumber = 0;
@@ -68,7 +69,7 @@ class Engine {
 public:
     void run() {
         initWindow();
-        initVulkan();
+        init_graphics();
         mainLoop();
         cleanup();
     }
@@ -85,13 +86,22 @@ private:
     std::vector<RenderObject> m_sceneRenderObjects;
 
     // Lights
-    std::vector<PointLight> m_scenePointLights;
-    std::vector<AllocatedBuffer> m_PointLightsBuffers_F;
+    std::vector<PointLight> m_CPUPointLights;
+    std::vector<AllocatedBuffer> m_GPUPointLightsBuffers_F;
+
+    // SceneData
+    CPUSceneData m_CPUSceneData;
+    std::vector<AllocatedBuffer> m_GPUSceneDataBuffers_F;
 
     // Descriptors
     DescriptorAllocator m_globalDescriptorAllocator;
-    std::vector<VkDescriptorSetLayout> m_sceneDescriptorSetLayouts;
-    std::vector<VkDescriptorSet> m_sceneDescriptorSets_F;
+    // std::vector<VkDescriptorSetLayout> m_sceneDataDescriptorSetLayouts;
+    VkDescriptorSetLayout m_sceneDataDescriptorSetLayout;
+    std::vector<VkDescriptorSet> m_sceneDataDescriptorSets_F;
+    std::vector<DescriptorAllocator::DescriptorTypeCount> m_descriptorTypeCounts = {
+            // Point light buffer
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT } // We want 1 buffer for each frame in flight
+    };
 
     void initWindow() {
         // We initialize SDL and create a window with it.
@@ -102,16 +112,49 @@ private:
     }
 
     void init_scene_lights() {
-        m_scenePointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), glm::vec3(1.0f, 1.0f, 1.0f)));
+         m_CPUPointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), 1.0));
+//        m_CPUPointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), glm::vec3(1.0f, 1.0f, 1.0f)));
 
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)  
         {
             AllocatedBuffer pointLightBuffer;
-            m_PointLightsBuffers_F.push_back(pointLightBuffer);
+            m_GPUPointLightsBuffers_F.push_back(pointLightBuffer);
             upload_buffer(
-                m_PointLightsBuffers_F[i],
-                m_scenePointLights.size() * sizeof(PointLight),
-                m_scenePointLights.data(),
+                m_GPUPointLightsBuffers_F[i],
+                m_CPUPointLights.size() * sizeof(PointLight),
+                m_CPUPointLights.data(),
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR,
+                m_GfxDevice.m_vmaAllocator
+            );
+        }
+
+        for (auto &lightBuffer : m_GPUPointLightsBuffers_F)
+        {
+            VkBufferDeviceAddressInfoKHR addressInfo{
+                .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
+                .buffer = lightBuffer.buffer
+            };
+            lightBuffer.gpuAddress  = vkGetBufferDeviceAddress(m_GfxDevice, &addressInfo);
+        }
+    }
+
+    void init_scene_data() {
+        m_CPUSceneData.view = camera.get_view_matrix();
+        glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
+        projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
+        m_CPUSceneData.projection = projection;
+        // m_CPUSceneData.cameraWorldPosition = camera.get_world_position();
+        // m_CPUSceneData.numPointLights = static_cast<uint32_t>(m_CPUPointLights.size());
+        m_CPUSceneData.lightBufferAddress = 0; // TODO
+
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)  
+        {
+            AllocatedBuffer sceneDataBuffer;
+            m_GPUSceneDataBuffers_F.push_back(sceneDataBuffer);
+            upload_buffer(
+                m_GPUSceneDataBuffers_F[i],
+                sizeof(CPUSceneData),
+                &m_CPUSceneData,
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 m_GfxDevice.m_vmaAllocator
             );
@@ -121,42 +164,42 @@ private:
     void init_scene_descriptors() {
         // Describe what and how many descriptors we want and create our pool
         // These may be distributed in any combination among our sets
-        std::vector<DescriptorAllocator::DescriptorTypeCount> descriptorTypeCounts = {
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT } // We want 1 buffer for each frame in flight
-        };
-        m_globalDescriptorAllocator.init_pool(m_GfxDevice, MAX_FRAMES_IN_FLIGHT, descriptorTypeCounts); // We can allocate up to MAX_FRAMES_IN_FLIGHT sets from this pool
+        
+        m_globalDescriptorAllocator.init_pool(m_GfxDevice, MAX_FRAMES_IN_FLIGHT, m_descriptorTypeCounts); // We can allocate up to MAX_FRAMES_IN_FLIGHT sets from this pool
 
         DescriptorLayoutBuilder layoutBuilder;
         layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
         // We only need a single layout since they are all the same for each frame in flight
-        m_sceneDescriptorSetLayouts.push_back(layoutBuilder.buildLayout(m_GfxDevice, VK_SHADER_STAGE_FRAGMENT_BIT));
+        // m_sceneDataDescriptorSetLayouts.push_back(layoutBuilder.buildLayout(m_GfxDevice, VK_SHADER_STAGE_FRAGMENT_BIT));
+        m_sceneDataDescriptorSetLayout = layoutBuilder.buildLayout(m_GfxDevice, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
+        // Scene Data buffer init
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
-            m_sceneDescriptorSets_F.push_back(
-                m_globalDescriptorAllocator.allocate(m_GfxDevice, m_sceneDescriptorSetLayouts[0])
+            m_sceneDataDescriptorSets_F.push_back(
+                m_globalDescriptorAllocator.allocate(m_GfxDevice, m_sceneDataDescriptorSetLayout)
             );
 
             // Update descriptor set(s)
-            VkDescriptorBufferInfo pointLightBufferInfo = {
-                .buffer = m_PointLightsBuffers_F[i].buffer,
+            VkDescriptorBufferInfo sceneDataBufferInfo = {
+                .buffer = m_GPUSceneDataBuffers_F[i].buffer,
                 .offset = 0,
-                .range = m_scenePointLights.size() * sizeof(PointLight) // VK_WHOLE_SIZE?
+                .range = sizeof(CPUSceneData)
             };
-            VkWriteDescriptorSet pointLightDescriptorWrite = {
+            VkWriteDescriptorSet sceneDataDescriptorWrite = {
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 .pNext = nullptr,
-                .dstSet = m_sceneDescriptorSets_F[i],
+                .dstSet = m_sceneDataDescriptorSets_F[i],
                 .dstBinding = 0,
                 .dstArrayElement = {},
-                .descriptorCount = static_cast<uint32_t>(m_scenePointLights.size()),
+                .descriptorCount = 1,
                 .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                 .pImageInfo = nullptr,
-                .pBufferInfo = &pointLightBufferInfo,
+                .pBufferInfo = &sceneDataBufferInfo,
                 .pTexelBufferView = nullptr // ???
             };
-            vkUpdateDescriptorSets(m_GfxDevice, 1, &pointLightDescriptorWrite, 0, nullptr);
+            vkUpdateDescriptorSets(m_GfxDevice, 1, &sceneDataDescriptorWrite, 0, nullptr);
         }
     }
 
@@ -180,7 +223,8 @@ private:
             std::string("Shaders/triangle_mesh.vert.spv"), 
             std::string("Shaders/triangle_mesh.frag.spv"), 
             defaultPushConstantRanges,
-            std::span<const VkDescriptorSetLayout>(m_sceneDescriptorSetLayouts.data(), 1), // TODO: They're all the same and this only has 1 layout for now
+            // std::span<const VkDescriptorSetLayout>(m_sceneDataDescriptorSetLayouts.data(), 1), // TODO: They're all the same and this only has 1 layout for now
+            std::span<const VkDescriptorSetLayout>(&m_sceneDataDescriptorSetLayout, 1),
             {WINDOW_WIDTH, WINDOW_HEIGHT}
         );
 
@@ -312,21 +356,17 @@ private:
     // }
 
     void draw_objects() {
-        glm::mat4 view = camera.get_view_matrix();
-        glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
-        projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
-        glm::mat4 viewProjectionMatrix = projection * view;
-
         VkCommandBuffer cmdBuffer = m_GfxDevice.get_frame_command_buffer(m_currentFrame);
 
         for (RenderObject renderObject :  m_sceneRenderObjects) {
-            renderObject.bind_and_draw(cmdBuffer, viewProjectionMatrix, std::span<const VkDescriptorSet>(m_sceneDescriptorSets_F.data() + m_currentFrame, 1));
+            renderObject.bind_and_draw(cmdBuffer, std::span<const VkDescriptorSet>(m_sceneDataDescriptorSets_F.data() + m_currentFrame, 1));
         }
     }
 
-    void initVulkan() {
+    void init_graphics() {
         m_GfxDevice.init(m_window);
         init_scene_lights();
+        init_scene_data();
         init_scene_descriptors();
         init_scene();
         init_imgui();
@@ -351,10 +391,10 @@ private:
         vkCmdEndRenderingKHR(cmdBuffer);
     }
 
-    void update_scene_descriptors(uint32_t frameInFlightIndex) {
+    void update_lights(uint32_t frameInFlightIndex) {
         int lightCircleRadius = 5;
         float lightCircleSpeed = 0.02f;
-        m_scenePointLights[0].worldSpacePosition = glm::vec3(
+        m_CPUPointLights[0].worldSpacePosition = glm::vec3(
             lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber),
             0.0,
             lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber)
@@ -362,33 +402,49 @@ private:
         
 
         update_buffer(
-            m_PointLightsBuffers_F[frameInFlightIndex], 
-            m_scenePointLights.size() * sizeof(PointLight),
-            m_scenePointLights.data(),
+            m_GPUPointLightsBuffers_F[frameInFlightIndex], 
+            m_CPUPointLights.size() * sizeof(PointLight),
+            m_CPUPointLights.data(),
+            m_GfxDevice.m_vmaAllocator
+        );
+    }
+
+    void update_scene_data_descriptors(uint32_t frameInFlightIndex) {
+        m_CPUSceneData.view = camera.get_view_matrix();
+        glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
+        projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
+        m_CPUSceneData.projection = projection;
+        // m_CPUSceneData.cameraWorldPosition = camera.get_world_position();
+        // m_CPUSceneData.numPointLights = static_cast<uint32_t>(m_CPUPointLights.size());
+        m_CPUSceneData.lightBufferAddress = m_GPUPointLightsBuffers_F[frameInFlightIndex].gpuAddress;
+        
+        update_buffer(
+            m_GPUSceneDataBuffers_F[frameInFlightIndex], 
+            sizeof(CPUSceneData),
+            &m_CPUSceneData,
             m_GfxDevice.m_vmaAllocator
         );
 
         // Update descriptor set(s)
-        VkDescriptorBufferInfo pointLightBufferInfo = {
-            .buffer = m_PointLightsBuffers_F[frameInFlightIndex].buffer,
+        VkDescriptorBufferInfo sceneDataBufferInfo = {
+            .buffer = m_GPUSceneDataBuffers_F[frameInFlightIndex].buffer,
             .offset = 0,
-            .range = m_scenePointLights.size() * sizeof(PointLight) // VK_WHOLE_SIZE?
+            .range = sizeof(CPUSceneData)
         };
 
-        VkWriteDescriptorSet pointLightDescriptorWrite = {
+        VkWriteDescriptorSet sceneDataDescriptorWrite = {
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = nullptr,
-            .dstSet = m_sceneDescriptorSets_F[frameInFlightIndex],
+            .dstSet = m_sceneDataDescriptorSets_F[frameInFlightIndex],
             .dstBinding = 0,
             .dstArrayElement = {},
-            .descriptorCount = static_cast<uint32_t>(m_scenePointLights.size()),
+            .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
             .pImageInfo = nullptr,
-            .pBufferInfo = &pointLightBufferInfo,
+            .pBufferInfo = &sceneDataBufferInfo,
             .pTexelBufferView = nullptr // ???
         };
-        vkUpdateDescriptorSets(m_GfxDevice, 1, &pointLightDescriptorWrite, 0, nullptr);
-        
+        vkUpdateDescriptorSets(m_GfxDevice, 1, &sceneDataDescriptorWrite, 0, nullptr);
     }
 
     void drawFrame() {
@@ -397,7 +453,8 @@ private:
             VkFence renderFence = m_GfxDevice.get_frame_fence(m_currentFrame);
             VkResult res = vkWaitForFences(m_GfxDevice, 1, &renderFence, true, (std::numeric_limits<uint64_t>::max)());
             vkResetFences(m_GfxDevice, 1, &renderFence);
-            update_scene_descriptors(m_currentFrame); // Executes immediately
+            update_lights(m_currentFrame); // Executes immediately
+            update_scene_data_descriptors(m_currentFrame); // Executes immediately
 
 
             VkSemaphore imageAvaliableSemaphore = m_GfxDevice.get_frame_imageAvailableSemaphore(m_currentFrame);
@@ -609,11 +666,13 @@ private:
         ImGui::DestroyContext();
         vkDestroyDescriptorPool(m_GfxDevice, m_imguiPool, nullptr);
 
-        vkDestroyDescriptorSetLayout(m_GfxDevice, m_sceneDescriptorSetLayouts[0], nullptr);
+//        vkDestroyDescriptorSetLayout(m_GfxDevice, m_sceneDataDescriptorSetLayouts[0], nullptr);
+        vkDestroyDescriptorSetLayout(m_GfxDevice, m_sceneDataDescriptorSetLayout, nullptr);
 
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
-            m_PointLightsBuffers_F[i].cleanup(m_GfxDevice.m_vmaAllocator);
+            m_GPUPointLightsBuffers_F[i].cleanup(m_GfxDevice.m_vmaAllocator);
+            m_GPUSceneDataBuffers_F[i].cleanup(m_GfxDevice.m_vmaAllocator);
         }
 
         m_globalDescriptorAllocator.destroy_pool(m_GfxDevice);
