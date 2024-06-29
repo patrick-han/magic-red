@@ -128,7 +128,7 @@ private:
             );
         }
 
-        for (auto lightBuffer : m_GPUPointLightsBuffers_F)
+        for (auto &lightBuffer : m_GPUPointLightsBuffers_F)
         {
             VkBufferDeviceAddressInfoKHR addressInfo{
                 .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
@@ -230,16 +230,16 @@ private:
 
         GraphicsPipelineId defaultPipelineId = m_PipelineCache.add_pipeline(m_GfxDevice, defaultPipeline);
 
-        // {
-        //     // Sponza mesh
-        //     CPUMesh sponzaMesh(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false);
-        //     MeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, sponzaMesh);
-        //     RenderObject sponzaObject(defaultPipelineId, sponzaMeshId, m_PipelineCache, m_MeshCache);
-        //     glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
-        //     glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
-        //     sponzaObject.set_transform(translate * scale);
-        //     m_sceneRenderObjects.push_back(sponzaObject);
-        // }
+        {
+            // Sponza mesh
+            CPUMesh sponzaMesh(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false);
+            MeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, sponzaMesh);
+            RenderObject sponzaObject(defaultPipelineId, sponzaMeshId, m_PipelineCache, m_MeshCache);
+            glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
+            glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
+            sponzaObject.set_transform(translate * scale);
+            m_sceneRenderObjects.push_back(sponzaObject);
+        }
         
         {
             // Suzanne mesh

@@ -1,6 +1,7 @@
 #pragma once
 #include <Common/IdTypes.h>
 #include <Pipeline/GraphicsPipeline.h>
+#include <vector>
 
 class GfxDevice;
 
