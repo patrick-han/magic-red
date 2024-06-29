@@ -12,7 +12,6 @@ layout(location = 0) out vec4 outColor;
 
 void main() {
     vec3 fragToLightDir = normalize(sceneDataBuffer.pointLights.data[0].worldSpacePosition - fragWorldPos);
-    // vec3 fragToLightDir = normalize(vec3(0.0,0.0,0.0)- fragWorldPos);
 
     vec3 norm = normalize(fragWorldNormal);
     float difference = max(dot(fragToLightDir, norm), 0.0);
