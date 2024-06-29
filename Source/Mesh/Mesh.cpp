@@ -107,7 +107,7 @@ void load_node(const tinygltf::Node& node, const tinygltf::Model& model, NodeLoa
             {
                 glm::vec3 position = glm::make_vec3(&positionBufferData[vertex_i * positionByteStride]);
                 glm::vec3 normal = glm::normalize(glm::make_vec3(&normalBufferData[vertex_i * normalByteStride]));
-                Vertex new_vertex = { position, normal, glm::vec3(0.0, 0.8, 1.0)}; // Green default
+                Vertex new_vertex = { position, normal, glm::vec3(0.4, 0.8, 0.3)};
                 nodeLoadingData.vertices[nodeLoadingData.vertexPos] = new_vertex;
                 nodeLoadingData.vertexPos++;
             }

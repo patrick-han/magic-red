@@ -112,8 +112,7 @@ private:
     }
 
     void init_scene_lights() {
-         m_CPUPointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), 0, glm::vec3(1.0f, 1.0f, 1.0f), 1.0));
-//        m_CPUPointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), glm::vec3(1.0f, 1.0f, 1.0f)));
+         m_CPUPointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), 0, glm::vec3(1.0f, 0.0f, 0.0f), 1.0));
 
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)  
         {
@@ -143,7 +142,7 @@ private:
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
         projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
         m_CPUSceneData.projection = projection;
-        // m_CPUSceneData.cameraWorldPosition = camera.get_world_position();
+        m_CPUSceneData.cameraWorldPosition = camera.get_world_position();
         // m_CPUSceneData.numPointLights = static_cast<uint32_t>(m_CPUPointLights.size());
         m_CPUSceneData.lightBufferAddress = 0; // TODO
 
@@ -230,16 +229,16 @@ private:
 
         GraphicsPipelineId defaultPipelineId = m_PipelineCache.add_pipeline(m_GfxDevice, defaultPipeline);
 
-        {
-            // Sponza mesh
-            CPUMesh sponzaMesh(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false);
-            MeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, sponzaMesh);
-            RenderObject sponzaObject(defaultPipelineId, sponzaMeshId, m_PipelineCache, m_MeshCache);
-            glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
-            glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
-            sponzaObject.set_transform(translate * scale);
-            m_sceneRenderObjects.push_back(sponzaObject);
-        }
+        // {
+        //     // Sponza mesh
+        //     CPUMesh sponzaMesh(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false);
+        //     MeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, sponzaMesh);
+        //     RenderObject sponzaObject(defaultPipelineId, sponzaMeshId, m_PipelineCache, m_MeshCache);
+        //     glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
+        //     glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
+        //     sponzaObject.set_transform(translate * scale);
+        //     m_sceneRenderObjects.push_back(sponzaObject);
+        // }
         
         {
             // Suzanne mesh
@@ -414,7 +413,7 @@ private:
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
         projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
         m_CPUSceneData.projection = projection;
-        // m_CPUSceneData.cameraWorldPosition = camera.get_world_position();
+        m_CPUSceneData.cameraWorldPosition = camera.get_world_position();
         // m_CPUSceneData.numPointLights = static_cast<uint32_t>(m_CPUPointLights.size());
         m_CPUSceneData.lightBufferAddress = m_GPUPointLightsBuffers_F[frameInFlightIndex].gpuAddress;
         

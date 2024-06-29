@@ -24,7 +24,7 @@ layout (set = 0, binding = 0, scalar) uniform SceneDataBuffer {
     mat4 view;
     mat4 projection;
     // mat4 viewProjection;
-    // vec4 cameraWorldPosition;
+    vec3 cameraWorldPosition;
     
 
     // // ambient
