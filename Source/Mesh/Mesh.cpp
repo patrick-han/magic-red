@@ -102,12 +102,25 @@ void load_node(const tinygltf::Node& node, const tinygltf::Model& model, NodeLoa
             const float* normalBufferData = reinterpret_cast<const float*>(&(normalBuffer.data[normalAccessor.byteOffset + normalBufferView.byteOffset]));
             size_t normalByteStride = normalAccessor.ByteStride(normalBufferView) ? (normalAccessor.ByteStride(normalBufferView) / sizeof(float)) : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC3);
 
+            // Vertex UVs
+            const tinygltf::Accessor &texcoordAccessor = model.accessors[nodeMeshPrimitive.attributes.find("TEXCOORD_0")->second];
+            if (texcoordAccessor.type != TINYGLTF_TYPE_VEC2)
+            {
+                MRCERR("Texcoord accessor isn't VEC2 type!");
+                exit(1);
+            }
+            const tinygltf::BufferView& texcoordBufferView = model.bufferViews[texcoordAccessor.bufferView];
+            const tinygltf::Buffer& texcoordBuffer = model.buffers[texcoordBufferView.buffer];
+            const float* texcoordBufferData = reinterpret_cast<const float*>(&(texcoordBuffer.data[texcoordAccessor.byteOffset + texcoordBufferView.byteOffset]));
+            size_t texcoordByteStride = texcoordAccessor.ByteStride(texcoordBufferView) ? (texcoordAccessor.ByteStride(texcoordBufferView) / sizeof(float)) : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC2);
+
             // Create vertices
             for (size_t vertex_i = 0; vertex_i < vertexCount; vertex_i++)
             {
                 glm::vec3 position = glm::make_vec3(&positionBufferData[vertex_i * positionByteStride]);
                 glm::vec3 normal = glm::normalize(glm::make_vec3(&normalBufferData[vertex_i * normalByteStride]));
-                Vertex new_vertex = { position, 0.0, normal, 0.0, glm::vec4(0.0)}; // TODO
+                glm::vec2 texcoord = glm::make_vec2(&texcoordBufferData[vertex_i * texcoordByteStride]);
+                Vertex new_vertex = { position, texcoord.x, normal, texcoord.y, glm::vec4(0.0)}; // TODO
                 nodeLoadingData.vertices[nodeLoadingData.vertexPos] = new_vertex;
                 nodeLoadingData.vertexPos++;
             }
