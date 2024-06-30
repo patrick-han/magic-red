@@ -18,11 +18,14 @@ struct TextureSize {
 class TextureCache
 {
 public:
-    [[nodiscard]] GPUTextureId add_texture(const GfxDevice& gfxDevice, const void* textureData, const TextureSize& textureSize);
+    TextureCache(const GfxDevice& gfxDevice);
+    TextureCache() = delete; 
+    [[nodiscard]] GPUTextureId add_texture(const void* textureData, const TextureSize& textureSize);
     [[nodiscard]] const GPUTexture& get_texture(GPUTextureId id) const;
-    void cleanup(const GfxDevice& gfxDevice);
+    void cleanup();
 
 private:
-    void upload_texture(const void* textureData, const GfxDevice& gfxDevice, const TextureSize& textureSize);
+    void upload_texture(const void* textureData, const TextureSize& textureSize);
     std::vector<GPUTexture> m_gpuTextures;
+    const GfxDevice& m_gfxDevice;
 };

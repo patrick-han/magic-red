@@ -193,7 +193,7 @@ void load_node(const tinygltf::Node& node, const tinygltf::Model& model, NodeLoa
     }
 }
 
-CPUModel::CPUModel(const char* fileName, bool isBinary, GfxDevice& _gfxDevice, TextureCache& _textureCache) : m_gfxDevice(_gfxDevice), m_textureCache(_textureCache) {
+CPUModel::CPUModel(const char* fileName, bool isBinary, TextureCache& _textureCache) : m_textureCache(_textureCache) {
     tinygltf::Model gltfModel;
     tinygltf::TinyGLTF gltfLoader;
     std::string err;
@@ -247,13 +247,16 @@ CPUModel::CPUModel(const char* fileName, bool isBinary, GfxDevice& _gfxDevice, T
         << "Number of indices: " << m_cpuMesh.m_indices.size() << " \n"
     );
 
-    // Upload textures
-    TextureSize diffuseTextureSize;
-    diffuseTextureSize.x = nodeLoadingData.diffuseTextureSizeX;
-    diffuseTextureSize.y = nodeLoadingData.diffuseTextureSizeY;
-    diffuseTextureSize.z = nodeLoadingData.diffuseTextureSizeZ;
-    GPUTextureId textureID = m_textureCache.add_texture(m_gfxDevice, nodeLoadingData.diffuseTextureData, diffuseTextureSize);
-    UNUSED(textureID);
+    if (!(nodeLoadingData.diffuseTextureSizeX == -1))
+    {
+        // Upload textures
+        TextureSize diffuseTextureSize;
+        diffuseTextureSize.x = nodeLoadingData.diffuseTextureSizeX;
+        diffuseTextureSize.y = nodeLoadingData.diffuseTextureSizeY;
+        diffuseTextureSize.z = nodeLoadingData.diffuseTextureSizeZ;
+        GPUTextureId textureID = m_textureCache.add_texture(nodeLoadingData.diffuseTextureData, diffuseTextureSize);
+        UNUSED(textureID);
+    }
 }
 
 POP_CLANG_WARNINGS
