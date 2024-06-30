@@ -2,13 +2,13 @@
 #include <Rendering/GfxDevice.h>
 
 
-[[nodiscard]] MeshId MeshCache::add_mesh(const GfxDevice& gfxDevice, const CPUMesh& mesh) {
-    const MeshId meshId = m_meshes.size();
+[[nodiscard]] GPUMeshId MeshCache::add_mesh(const GfxDevice& gfxDevice, const CPUMesh& mesh) {
+    const GPUMeshId meshId = m_meshes.size();
     upload_mesh(mesh, gfxDevice.m_vmaAllocator);
     return meshId;
 }
 
-[[nodiscard]] const GPUMesh& MeshCache::get_mesh(MeshId id) const {
+[[nodiscard]] const GPUMesh& MeshCache::get_mesh(GPUMeshId id) const {
     return m_meshes[id];
 }
 

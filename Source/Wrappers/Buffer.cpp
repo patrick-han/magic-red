@@ -30,7 +30,7 @@ void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const vo
         throw std::runtime_error("Could not allocate buffer!");
     }
 
-    // Copy vertex data into mapped memory
+    // Copy data into mapped memory
     void* data;
     vmaMapMemory(allocator, allocatedBuffer.allocation, &data);
     memcpy(data, bufferData, bufferSize);

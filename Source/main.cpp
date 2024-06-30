@@ -24,9 +24,11 @@
 #include <Common/Log.h>
 #include <DeletionQueue.h>
 #include <Mesh/Mesh.h>
+#include <Model/Model.h>
 
 #include <Mesh/MeshCache.h>
 #include <Pipeline/PipelineCache.h>
+#include <Texture/TextureCache.h>
 
 #include <Wrappers/Buffer.h>
 #include <Wrappers/Image.h>
@@ -78,6 +80,8 @@ private:
     GfxDevice m_GfxDevice;
     MeshCache m_MeshCache;
     GraphicsPipelineCache m_PipelineCache;
+//    MaterialCache m_MaterialCache;
+    TextureCache m_TextureCache;
 
     VkDescriptorPool m_imguiPool;
     uint32_t m_currentFrame = 0;
@@ -231,7 +235,7 @@ private:
         // {
         //     // Sponza mesh
         //     CPUMesh sponzaMesh(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false);
-        //     MeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, sponzaMesh);
+        //     GPUMeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, sponzaMesh);
         //     RenderObject sponzaObject(defaultPipelineId, sponzaMeshId, m_PipelineCache, m_MeshCache);
         //     glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
         //     glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
@@ -242,7 +246,7 @@ private:
         // {
         //     // Suzanne mesh
         //     CPUMesh suzanneMesh(ROOT_DIR "/Assets/Meshes/suzanne.glb", true);
-        //     MeshId suzanneMeshId = m_MeshCache.add_mesh(m_GfxDevice, suzanneMesh);
+        //     GPUMeshId suzanneMeshId = m_MeshCache.add_mesh(m_GfxDevice, suzanneMesh);
         //     RenderObject suzanneObject(defaultPipelineId, suzanneMeshId, m_PipelineCache, m_MeshCache);
         //     glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
         //     suzanneObject.set_transform(monkeyTranslate);
@@ -251,8 +255,8 @@ private:
 
         {
             // Helemt mesh
-            CPUMesh helmetMesh(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true);
-            MeshId helmetMeshId = m_MeshCache.add_mesh(m_GfxDevice, helmetMesh);
+            CPUModel helmetModel(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true, m_GfxDevice, m_TextureCache);
+            GPUMeshId helmetMeshId = m_MeshCache.add_mesh(m_GfxDevice, helmetModel.m_cpuMesh);
             RenderObject helmetObject(defaultPipelineId, helmetMeshId, m_PipelineCache, m_MeshCache);
             glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
             helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
@@ -318,40 +322,6 @@ private:
 
         // add the destroy the imgui created structures
     }
-
-    // Used for data uploads and other "instant operations" not synced with the swapchain
-    // void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function) { // Lambda should take a command buffer and return nothing
-        
-    //     vkResetFences(m_GfxDevice, 1, &immediateFence);
-    //     vkResetCommandBuffer(immediateCommandBuffer, {});
-
-    //     VkCommandBufferBeginInfo beginInfo = {
-    //         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-    //         .pNext = nullptr,
-    //         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    //         .pInheritanceInfo = {}
-    //     };
-    //     vkBeginCommandBuffer(immediateCommandBuffer, &beginInfo);
-
-    //     function(immediateCommandBuffer);
-
-    //     vkEndCommandBuffer(immediateCommandBuffer);
-
-    //     // Submit immediate workload
-    //     VkSubmitInfo submitInfo = {
-    //         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-    //         .waitSemaphoreCount = 0,
-    //         .pWaitSemaphores = nullptr,
-    //         .pWaitDstStageMask = nullptr,
-    //         .commandBufferCount = 1,
-    //         .pCommandBuffers = &immediateCommandBuffer,
-    //         .signalSemaphoreCount = 0,
-    //         .pSignalSemaphores = nullptr
-    //     };
-    //     vkQueueSubmit(graphicsQueue, 1, &submitInfo, immediateFence);
-
-    //     vkWaitForFences(device, 1, &immediateFence, true, (std::numeric_limits<uint64_t>::max)());
-    // }
 
     void draw_objects() {
         VkCommandBuffer cmdBuffer = m_GfxDevice.get_frame_command_buffer(m_currentFrame);
@@ -675,6 +645,7 @@ private:
 
         m_globalDescriptorAllocator.destroy_pool(m_GfxDevice);
 
+        m_TextureCache.cleanup(m_GfxDevice);
         m_PipelineCache.cleanup(m_GfxDevice);
         m_MeshCache.cleanup(m_GfxDevice);
         m_GfxDevice.cleanup();

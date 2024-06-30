@@ -7,8 +7,8 @@ class GfxDevice;
 class MeshCache
 {
 public:
-    [[nodiscard]] MeshId add_mesh(const GfxDevice& gfxDevice, const CPUMesh& mesh);
-    [[nodiscard]] const GPUMesh& get_mesh(MeshId id) const;
+    [[nodiscard]] GPUMeshId add_mesh(const GfxDevice& gfxDevice, const CPUMesh& mesh);
+    [[nodiscard]] const GPUMesh& get_mesh(GPUMeshId id) const;
     void cleanup(const GfxDevice& gfxDevice);
 
 private:

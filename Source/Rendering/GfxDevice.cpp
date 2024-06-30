@@ -346,7 +346,7 @@ void GfxDevice::create_swapChain() {
     m_depthImage.imageExtent = VkExtent3D{ WINDOW_WIDTH, WINDOW_HEIGHT, 1 };
     m_depthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
 
-    VkImageCreateInfo depthImageCreateInfo = image_create_info(m_depthImage.imageFormat, m_depthImage.imageExtent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    VkImageCreateInfo depthImageCreateInfo = image_create_info(m_depthImage.imageFormat, m_depthImage.imageExtent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_TYPE_2D);
 
     VmaAllocationCreateInfo vmaAllocInfo = {};
     vmaAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -470,6 +470,41 @@ void GfxDevice::init(SDL_Window * const window) {
     create_command_pool();
     create_command_buffers();
     retrieve_queues();
+}
+
+// Used for data uploads and other "instant operations" not synced with the swapchain
+// From vkguide.dev: https://vkguide.dev/docs/new_chapter_2/vulkan_imgui_setup/
+void GfxDevice::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function) const { // Lambda should take a command buffer and return nothing
+    
+    vkResetFences(m_device, 1, &m_immediateFence);
+    vkResetCommandBuffer(m_immediateCommandBuffer, {});
+
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .pNext = nullptr,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        .pInheritanceInfo = {}
+    };
+    vkBeginCommandBuffer(m_immediateCommandBuffer, &beginInfo);
+
+    function(m_immediateCommandBuffer);
+
+    vkEndCommandBuffer(m_immediateCommandBuffer);
+
+    // Submit immediate workload
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .waitSemaphoreCount = 0,
+        .pWaitSemaphores = nullptr,
+        .pWaitDstStageMask = nullptr,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &m_immediateCommandBuffer,
+        .signalSemaphoreCount = 0,
+        .pSignalSemaphores = nullptr
+    };
+    vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_immediateFence);
+
+    vkWaitForFences(m_device, 1, &m_immediateFence, true, (std::numeric_limits<uint64_t>::max)());
 }
 
 VkInstance GfxDevice::get_instance() const { return m_instance; }

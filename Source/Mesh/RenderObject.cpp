@@ -1,12 +1,11 @@
 #include <Mesh/RenderObject.h>
 #include <vulkan/vulkan.h>
 #include <Pipeline/GraphicsPipeline.h>
-#include <Mesh/Mesh.h>
 #include <glm/glm.hpp>
 #include <Mesh/MeshCache.h>
 #include <Pipeline/PipelineCache.h>
 
-RenderObject::RenderObject(GraphicsPipelineId _pipelineId, MeshId _meshId, const GraphicsPipelineCache& _pipelineCache, const MeshCache& _meshCache) : 
+RenderObject::RenderObject(GraphicsPipelineId _pipelineId, GPUMeshId _meshId, const GraphicsPipelineCache& _pipelineCache, const MeshCache& _meshCache) : 
     m_pipelineId(_pipelineId),
     m_meshId(_meshId),
     m_pipelineCache(_pipelineCache),

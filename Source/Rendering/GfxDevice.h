@@ -5,6 +5,7 @@
 #include <Wrappers/Buffer.h>
 #include <Descriptor/Descriptor.h>
 #include <set>
+#include <DeletionQueue.h>
 
 #include <vk_mem_alloc.h>
 
@@ -88,6 +89,7 @@ public:
     VkInstance get_instance() const;
     VkQueue get_graphics_queue() const;
     VkPhysicalDevice get_physical_device() const;
+    void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function) const;
 
 
     VkCommandBuffer get_frame_command_buffer(uint32_t currentFrameIndex) const;

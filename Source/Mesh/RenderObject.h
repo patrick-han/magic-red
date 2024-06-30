@@ -11,14 +11,14 @@ class MeshCache;
 class GraphicsPipelineCache;
 
 struct RenderObject {
-    RenderObject(GraphicsPipelineId _pipelineId, MeshId _meshId, const GraphicsPipelineCache& _pipelineCache, const MeshCache& _meshCache);
+    RenderObject(GraphicsPipelineId _pipelineId, GPUMeshId _meshId, const GraphicsPipelineCache& _pipelineCache, const MeshCache& _meshCache);
     void bind_and_draw(VkCommandBuffer commandBuffer, std::span<VkDescriptorSet const> descriptorSets) const;
     void set_transform(glm::mat4 _transformMatrix);
 
 private:
     glm::mat4 m_transformMatrix;
     GraphicsPipelineId m_pipelineId;
-    MeshId m_meshId;
+    GPUMeshId m_meshId;
     const GraphicsPipelineCache &m_pipelineCache;
     const MeshCache &m_meshCache;
 };
