@@ -53,7 +53,7 @@ bool firstMouse = true;
 float lastX = WINDOW_WIDTH / 2, lastY = WINDOW_HEIGHT / 2; // Initial mouse positions
 
 
-Engine::Engine() : m_TextureCache(m_GfxDevice)
+Engine::Engine()
 {}
 
 void Engine::run() {
@@ -221,7 +221,7 @@ void Engine::init_assets() {
 
     {
         // Helemt mesh
-        CPUModel helmetModel(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true, m_TextureCache);
+        CPUModel helmetModel(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true, m_TextureCache, m_GfxDevice);
         GPUMeshId helmetMeshId = m_MeshCache.add_mesh(m_GfxDevice, helmetModel.m_cpuMesh);
         RenderObject helmetObject(defaultPipelineId, helmetMeshId, m_PipelineCache, m_MeshCache);
         glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
@@ -602,7 +602,7 @@ void Engine::cleanup() {
 
     m_globalDescriptorAllocator.destroy_pool(m_GfxDevice);
 
-    m_TextureCache.cleanup();
+    m_TextureCache.cleanup(m_GfxDevice);
     m_PipelineCache.cleanup(m_GfxDevice);
     m_MeshCache.cleanup(m_GfxDevice);
     m_GfxDevice.cleanup();

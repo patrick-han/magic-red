@@ -20,7 +20,8 @@ struct NodeLoadingData {
 };
 
 struct CPUModel {
-    CPUModel(const char* fileName, bool isBinary, TextureCache& _textureCache);
+    CPUModel(const char* fileName, bool isBinary, TextureCache& _textureCache, const GfxDevice& _gfxDevice);
     CPUMesh m_cpuMesh;
     TextureCache& m_textureCache;
+    const GfxDevice& m_gfxDevice;
 };
