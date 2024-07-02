@@ -9,6 +9,8 @@ DISABLE_CLANG_WARNING("-Wshorten-64-to-32")
 
 #include "Model.h"
 #include <Texture/TextureCache.h>
+#include <Material/MaterialCache.h>
+#include <Material/Material.h>
 #include <vulkan/vulkan.h>
 #include <Common/Log.h>
 #include <span>
@@ -193,7 +195,7 @@ void load_node(const tinygltf::Node& node, const tinygltf::Model& model, NodeLoa
     }
 }
 
-CPUModel::CPUModel(const char* fileName, bool isBinary, TextureCache& _textureCache, const GfxDevice& _gfxDevice) : m_textureCache(_textureCache), m_gfxDevice(_gfxDevice) {
+CPUModel::CPUModel(const char* fileName, bool isBinary, MaterialCache& _materialCache, TextureCache& _textureCache, const GfxDevice& _gfxDevice) : m_materialCache(_materialCache), m_textureCache(_textureCache), m_gfxDevice(_gfxDevice) {
     tinygltf::Model gltfModel;
     tinygltf::TinyGLTF gltfLoader;
     std::string err;
@@ -254,8 +256,11 @@ CPUModel::CPUModel(const char* fileName, bool isBinary, TextureCache& _textureCa
         diffuseTextureSize.x = nodeLoadingData.diffuseTextureSizeX;
         diffuseTextureSize.y = nodeLoadingData.diffuseTextureSizeY;
         diffuseTextureSize.z = nodeLoadingData.diffuseTextureSizeZ;
-        GPUTextureId textureID = m_textureCache.add_texture(m_gfxDevice, nodeLoadingData.diffuseTextureData, diffuseTextureSize);
-        UNUSED(textureID);
+        GPUTextureId textureId = m_textureCache.add_texture(m_gfxDevice, nodeLoadingData.diffuseTextureData, diffuseTextureSize);
+
+        Material defaultMaterial;
+        defaultMaterial.diffuseImageId = textureId;
+        m_materialId = m_materialCache.add_material(defaultMaterial);
     }
 }
 

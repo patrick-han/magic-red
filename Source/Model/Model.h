@@ -4,6 +4,7 @@
 
 class GfxDevice;
 class TextureCache;
+class MaterialCache;
 
 struct NodeLoadingData {
     std::vector<Vertex>& vertices;
@@ -20,8 +21,12 @@ struct NodeLoadingData {
 };
 
 struct CPUModel {
-    CPUModel(const char* fileName, bool isBinary, TextureCache& _textureCache, const GfxDevice& _gfxDevice);
+    CPUModel(const char* fileName, bool isBinary, MaterialCache& _materialCache, TextureCache& _textureCache, const GfxDevice& _gfxDevice);
     CPUMesh m_cpuMesh;
+    MaterialId m_materialId;
+private:
+    MaterialCache& m_materialCache;
     TextureCache& m_textureCache;
     const GfxDevice& m_gfxDevice;
+    
 };

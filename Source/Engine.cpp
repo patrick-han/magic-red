@@ -75,8 +75,10 @@ void Engine::init_graphics() {
     m_GfxDevice.init(m_window);
     init_lights();
     init_scene_data();
-    init_scene_descriptors();
+    // init_scene_descriptors();
     init_assets();
+    // build_pipelines();
+    // build_render_objects();
     init_imgui();
 }
 
@@ -123,56 +125,65 @@ void Engine::init_scene_data() {
             m_GPUSceneDataBuffers_F[i],
             sizeof(CPUSceneData),
             &m_CPUSceneData,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR,
             m_GfxDevice.m_vmaAllocator
         );
     }
-}
 
-void Engine::init_scene_descriptors() {
-    // Describe what and how many descriptors we want and create our pool
-    // These may be distributed in any combination among our sets
-    
-    m_globalDescriptorAllocator.init_pool(m_GfxDevice, MAX_FRAMES_IN_FLIGHT, m_descriptorTypeCounts); // We can allocate up to MAX_FRAMES_IN_FLIGHT sets from this pool
-
-    DescriptorLayoutBuilder layoutBuilder;
-    layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-
-    // We only need a single layout since they are all the same for each frame in flight
-    // m_sceneDataDescriptorSetLayouts.push_back(layoutBuilder.buildLayout(m_GfxDevice, VK_SHADER_STAGE_FRAGMENT_BIT));
-    m_sceneDataDescriptorSetLayout = layoutBuilder.buildLayout(m_GfxDevice, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-
-    // Scene Data buffer init
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    for (auto &sceneDataBuffer : m_GPUSceneDataBuffers_F)
     {
-        m_sceneDataDescriptorSets_F.push_back(
-            m_globalDescriptorAllocator.allocate(m_GfxDevice, m_sceneDataDescriptorSetLayout)
-        );
-
-        // Update descriptor set(s)
-        VkDescriptorBufferInfo sceneDataBufferInfo = {
-            .buffer = m_GPUSceneDataBuffers_F[i].buffer,
-            .offset = 0,
-            .range = sizeof(CPUSceneData)
+        VkBufferDeviceAddressInfoKHR addressInfo{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
+            .buffer = sceneDataBuffer.buffer
         };
-        VkWriteDescriptorSet sceneDataDescriptorWrite = {
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .pNext = nullptr,
-            .dstSet = m_sceneDataDescriptorSets_F[i],
-            .dstBinding = 0,
-            .dstArrayElement = {},
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .pImageInfo = nullptr,
-            .pBufferInfo = &sceneDataBufferInfo,
-            .pTexelBufferView = nullptr // ???
-        };
-        vkUpdateDescriptorSets(m_GfxDevice, 1, &sceneDataDescriptorWrite, 0, nullptr);
+        sceneDataBuffer.gpuAddress  = vkGetBufferDeviceAddress(m_GfxDevice, &addressInfo);
     }
 }
 
+// void Engine::init_scene_descriptors() {
+//     // Describe what and how many descriptors we want and create our pool
+//     // These may be distributed in any combination among our sets
+    
+//     m_globalDescriptorAllocator.init_pool(m_GfxDevice, MAX_FRAMES_IN_FLIGHT, m_descriptorTypeCounts); // We can allocate up to MAX_FRAMES_IN_FLIGHT sets from this pool
+
+//     DescriptorLayoutBuilder layoutBuilder;
+//     layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+
+//     // We only need a single layout since they are all the same for each frame in flight
+//     // m_sceneDataDescriptorSetLayouts.push_back(layoutBuilder.buildLayout(m_GfxDevice, VK_SHADER_STAGE_FRAGMENT_BIT));
+//     m_sceneDataDescriptorSetLayout = layoutBuilder.buildLayout(m_GfxDevice, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+
+//     // Scene Data buffer init
+//     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+//     {
+//         m_sceneDataDescriptorSets_F.push_back(
+//             m_globalDescriptorAllocator.allocate(m_GfxDevice, m_sceneDataDescriptorSetLayout)
+//         );
+
+//         // Update descriptor set(s)
+//         VkDescriptorBufferInfo sceneDataBufferInfo = {
+//             .buffer = m_GPUSceneDataBuffers_F[i].buffer,
+//             .offset = 0,
+//             .range = sizeof(CPUSceneData)
+//         };
+//         VkWriteDescriptorSet sceneDataDescriptorWrite = {
+//             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+//             .pNext = nullptr,
+//             .dstSet = m_sceneDataDescriptorSets_F[i],
+//             .dstBinding = 0,
+//             .dstArrayElement = {},
+//             .descriptorCount = 1,
+//             .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+//             .pImageInfo = nullptr,
+//             .pBufferInfo = &sceneDataBufferInfo,
+//             .pTexelBufferView = nullptr // ???
+//         };
+//         vkUpdateDescriptorSets(m_GfxDevice, 1, &sceneDataDescriptorWrite, 0, nullptr);
+//     }
+// }
+
 // temp
-std::vector<VkPushConstantRange> defaultPushConstantRanges = {MeshPushConstants::range()};
+std::vector<VkPushConstantRange> defaultPushConstantRanges = {DefaultPushConstants::range()};
 
 void Engine::init_assets() {
     VkPipelineRenderingCreateInfoKHR pipelineRenderingCI = {
@@ -192,7 +203,8 @@ void Engine::init_assets() {
         std::string("Shaders/triangle_mesh.frag.spv"), 
         defaultPushConstantRanges,
         // std::span<const VkDescriptorSetLayout>(m_sceneDataDescriptorSetLayouts.data(), 1), // TODO: They're all the same and this only has 1 layout for now
-        std::span<const VkDescriptorSetLayout>(&m_sceneDataDescriptorSetLayout, 1),
+        // std::span<const VkDescriptorSetLayout>(&m_sceneDataDescriptorSetLayout, 1),
+        std::span<const VkDescriptorSetLayout>(),
         {WINDOW_WIDTH, WINDOW_HEIGHT}
     );
 
@@ -221,15 +233,31 @@ void Engine::init_assets() {
 
     {
         // Helemt mesh
-        CPUModel helmetModel(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true, m_TextureCache, m_GfxDevice);
+        UNUSED(m_materialDataBuffer);
+        CPUModel helmetModel(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true, m_MaterialCache, m_TextureCache, m_GfxDevice);
         GPUMeshId helmetMeshId = m_MeshCache.add_mesh(m_GfxDevice, helmetModel.m_cpuMesh);
-        RenderObject helmetObject(defaultPipelineId, helmetMeshId, m_PipelineCache, m_MeshCache);
+        RenderObject helmetObject(defaultPipelineId, helmetMeshId, helmetModel.m_materialId, m_PipelineCache, m_MeshCache);
         glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
         helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
         helmetObject.set_transform(helmetTransform);
         m_sceneRenderObjects.push_back(helmetObject);
     }
 }
+
+// void Engine::init_material_buffer() {
+//     upload_buffer(
+//         m_materialDataBuffer,
+        
+//     );
+// }
+
+// void build_pipelines() {
+
+// }
+
+// void build_render_objects() {
+    
+// }
 
 void Engine::init_imgui() {
     // Create a descriptor pool for IMGUI
@@ -291,9 +319,11 @@ void Engine::init_imgui() {
 
 void Engine::draw_objects() {
     VkCommandBuffer cmdBuffer = m_GfxDevice.get_frame_command_buffer(m_currentFrame);
+    VkDeviceAddress sceneDataBufferAddress = m_GPUSceneDataBuffers_F[m_currentFrame].gpuAddress;
 
     for (RenderObject renderObject :  m_sceneRenderObjects) {
-        renderObject.bind_and_draw(cmdBuffer, std::span<const VkDescriptorSet>(m_sceneDataDescriptorSets_F.data() + m_currentFrame, 1));
+//        renderObject.bind_and_draw(cmdBuffer, std::span<const VkDescriptorSet>(m_sceneDataDescriptorSets_F.data() + m_currentFrame, 1), sceneDataBufferAddress);
+        renderObject.bind_and_draw(cmdBuffer, std::span<const VkDescriptorSet>(), sceneDataBufferAddress);
     }
 }
 
@@ -334,7 +364,7 @@ void Engine::update_lights(uint32_t frameInFlightIndex) {
     );
 }
 
-void Engine::update_scene_data_descriptors(uint32_t frameInFlightIndex) {
+void Engine::update_scene_data(uint32_t frameInFlightIndex) {
     m_CPUSceneData.view = camera.get_view_matrix();
     glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
     projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
@@ -342,35 +372,52 @@ void Engine::update_scene_data_descriptors(uint32_t frameInFlightIndex) {
     m_CPUSceneData.cameraWorldPosition = camera.get_world_position();
     // m_CPUSceneData.numPointLights = static_cast<uint32_t>(m_CPUPointLights.size());
     m_CPUSceneData.lightBufferAddress = m_GPUPointLightsBuffers_F[frameInFlightIndex].gpuAddress;
-    
+
     update_buffer(
         m_GPUSceneDataBuffers_F[frameInFlightIndex], 
         sizeof(CPUSceneData),
         &m_CPUSceneData,
         m_GfxDevice.m_vmaAllocator
     );
-
-    // Update descriptor set(s)
-    VkDescriptorBufferInfo sceneDataBufferInfo = {
-        .buffer = m_GPUSceneDataBuffers_F[frameInFlightIndex].buffer,
-        .offset = 0,
-        .range = sizeof(CPUSceneData)
-    };
-
-    VkWriteDescriptorSet sceneDataDescriptorWrite = {
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .pNext = nullptr,
-        .dstSet = m_sceneDataDescriptorSets_F[frameInFlightIndex],
-        .dstBinding = 0,
-        .dstArrayElement = {},
-        .descriptorCount = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .pImageInfo = nullptr,
-        .pBufferInfo = &sceneDataBufferInfo,
-        .pTexelBufferView = nullptr // ???
-    };
-    vkUpdateDescriptorSets(m_GfxDevice, 1, &sceneDataDescriptorWrite, 0, nullptr);
 }
+
+// void Engine::update_scene_data_descriptors(uint32_t frameInFlightIndex) {
+//     m_CPUSceneData.view = camera.get_view_matrix();
+//     glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
+//     projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
+//     m_CPUSceneData.projection = projection;
+//     m_CPUSceneData.cameraWorldPosition = camera.get_world_position();
+//     // m_CPUSceneData.numPointLights = static_cast<uint32_t>(m_CPUPointLights.size());
+//     m_CPUSceneData.lightBufferAddress = m_GPUPointLightsBuffers_F[frameInFlightIndex].gpuAddress;
+    
+//     update_buffer(
+//         m_GPUSceneDataBuffers_F[frameInFlightIndex], 
+//         sizeof(CPUSceneData),
+//         &m_CPUSceneData,
+//         m_GfxDevice.m_vmaAllocator
+//     );
+
+//     // Update descriptor set(s)
+//     VkDescriptorBufferInfo sceneDataBufferInfo = {
+//         .buffer = m_GPUSceneDataBuffers_F[frameInFlightIndex].buffer,
+//         .offset = 0,
+//         .range = sizeof(CPUSceneData)
+//     };
+
+//     VkWriteDescriptorSet sceneDataDescriptorWrite = {
+//         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+//         .pNext = nullptr,
+//         .dstSet = m_sceneDataDescriptorSets_F[frameInFlightIndex],
+//         .dstBinding = 0,
+//         .dstArrayElement = {},
+//         .descriptorCount = 1,
+//         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+//         .pImageInfo = nullptr,
+//         .pBufferInfo = &sceneDataBufferInfo,
+//         .pTexelBufferView = nullptr // ???
+//     };
+//     vkUpdateDescriptorSets(m_GfxDevice, 1, &sceneDataDescriptorWrite, 0, nullptr);
+// }
 
 void Engine::drawFrame() {
         
@@ -379,7 +426,7 @@ void Engine::drawFrame() {
         VkResult res = vkWaitForFences(m_GfxDevice, 1, &renderFence, true, (std::numeric_limits<uint64_t>::max)());
         vkResetFences(m_GfxDevice, 1, &renderFence);
         update_lights(m_currentFrame); // Executes immediately
-        update_scene_data_descriptors(m_currentFrame); // Executes immediately
+        update_scene_data(m_currentFrame);
 
 
         VkSemaphore imageAvaliableSemaphore = m_GfxDevice.get_frame_imageAvailableSemaphore(m_currentFrame);
@@ -592,7 +639,7 @@ void Engine::cleanup() {
     vkDestroyDescriptorPool(m_GfxDevice, m_imguiPool, nullptr);
 
 //        vkDestroyDescriptorSetLayout(m_GfxDevice, m_sceneDataDescriptorSetLayouts[0], nullptr);
-    vkDestroyDescriptorSetLayout(m_GfxDevice, m_sceneDataDescriptorSetLayout, nullptr);
+    // vkDestroyDescriptorSetLayout(m_GfxDevice, m_sceneDataDescriptorSetLayout, nullptr);
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
@@ -600,7 +647,7 @@ void Engine::cleanup() {
         m_GPUSceneDataBuffers_F[i].cleanup(m_GfxDevice.m_vmaAllocator);
     }
 
-    m_globalDescriptorAllocator.destroy_pool(m_GfxDevice);
+    // m_globalDescriptorAllocator.destroy_pool(m_GfxDevice);
 
     m_TextureCache.cleanup(m_GfxDevice);
     m_PipelineCache.cleanup(m_GfxDevice);

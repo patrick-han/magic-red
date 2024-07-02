@@ -9,14 +9,16 @@ layout(location = 1) in vec3 fragWorldNormal;
 
 layout(location = 0) out vec4 outColor;
 
+#include "mesh_push_constants.glsl"
+
 void main() {
     // Ambient
-    vec3 lightColor = sceneDataBuffer.pointLights.data[0].color;
+    vec3 lightColor = pushConstants.sceneData.pointLights.data[0].color;
     float ambientStrength = 0.1;
     vec3 ambient = ambientStrength * lightColor;
 
     // Diffuse
-    vec3 fragToLightDir = normalize(sceneDataBuffer.pointLights.data[0].worldSpacePosition - fragWorldPos);
+    vec3 fragToLightDir = normalize(pushConstants.sceneData.pointLights.data[0].worldSpacePosition - fragWorldPos);
     vec3 norm = normalize(fragWorldNormal);
     float difference = max(dot(fragToLightDir, norm), 0.0);
     vec3 diffuse = difference * lightColor;
@@ -24,7 +26,7 @@ void main() {
 
     // Specular
     float specularStrength = 0.5;
-    vec3 viewDir = normalize(sceneDataBuffer.cameraWorldPosition.xyz - fragWorldPos);
+    vec3 viewDir = normalize(pushConstants.sceneData.cameraWorldPosition.xyz - fragWorldPos);
     vec3 reflectDir = reflect(-fragToLightDir, norm);
     float specularDifference = pow(max(dot(viewDir, reflectDir), 0.0), 32);
     vec3 specular = specularStrength * specularDifference * lightColor;

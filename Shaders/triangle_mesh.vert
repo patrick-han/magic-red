@@ -13,14 +13,10 @@ layout (location = 4) in vec3  vTangent;
 layout (location = 0) out vec3 fragWorldPos;
 layout (location = 1) out vec3 fragWorldNormal;
 
-// Push constants block
-layout (push_constant) uniform PushConstants
-{
-    mat4 modelMatrix;
-} pushConstants;
+#include "mesh_push_constants.glsl"
 
 void main() {
     fragWorldPos = vec3(pushConstants.modelMatrix * vec4(vPosition, 1.0));
     fragWorldNormal = mat3(transpose(inverse(pushConstants.modelMatrix))) * vNormal;
-    gl_Position = sceneDataBuffer.projection * sceneDataBuffer.view * vec4(fragWorldPos, 1.0);
+    gl_Position = pushConstants.sceneData.projection * pushConstants.sceneData.view * vec4(fragWorldPos, 1.0);
 }
