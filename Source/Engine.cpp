@@ -272,8 +272,8 @@ void Engine::init_assets() {
 void Engine::update_texture_descriptors() {
     // Update descriptor set
     VkDescriptorImageInfo texture0Info = {
+        .imageView = m_TextureCache.get_texture(0).allocatedImage.imageView, // TODO
         .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, // TODO
-        .imageView = m_TextureCache.get_texture(0).allocatedImage.imageView, // TOOD
     };
 
     VkDescriptorImageInfo linearSamplerInfo = {
