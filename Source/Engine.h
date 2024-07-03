@@ -48,21 +48,30 @@ private:
     std::vector<AllocatedBuffer> m_GPUSceneDataBuffers_F;
 
     // Descriptors
-//    DescriptorAllocator m_globalDescriptorAllocator;
+    DescriptorAllocator m_bindlessDescriptorAllocator;
     // std::vector<VkDescriptorSetLayout> m_sceneDataDescriptorSetLayouts;
-    // VkDescriptorSetLayout m_sceneDataDescriptorSetLayout;
+    VkDescriptorSetLayout m_bindlessDescriptorSetLayout;
     // std::vector<VkDescriptorSet> m_sceneDataDescriptorSets_F;
-    // std::vector<DescriptorAllocator::DescriptorTypeCount> m_descriptorTypeCounts = {
-    //         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT } // We want 1 buffer for each frame in flight
-    // };
+    VkDescriptorSet m_bindlessDescriptorSet;
+    std::vector<DescriptorAllocator::DescriptorTypeCount> m_descriptorTypeCounts = {
+            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1 },
+            { VK_DESCRIPTOR_TYPE_SAMPLER, 1}
+    };
+
+    // Samplers
+    VkSampler m_linearSampler;
+    VkSampler m_nearestSampler;
 
     void initWindow();
     void init_graphics();
 
     void init_lights();
     void init_scene_data();
-    // void init_scene_descriptors();
+    
+    void create_samplers();
+    void init_texture_descriptors();
     void init_assets();
+    void update_texture_descriptors();
     // void init_material_buffer();
     void init_imgui();
     

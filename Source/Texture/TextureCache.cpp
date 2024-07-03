@@ -11,6 +11,10 @@ TextureCache::TextureCache()
    return textureId;
 }
 
+[[nodiscard]] const GPUTexture& TextureCache::get_texture(GPUTextureId id) const {
+    return m_gpuTextures[id];
+}
+
 void TextureCache::cleanup(const GfxDevice& gfxDevice) {
     for (auto &texture : m_gpuTextures)
     {

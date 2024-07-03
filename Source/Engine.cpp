@@ -75,15 +75,18 @@ void Engine::init_graphics() {
     m_GfxDevice.init(m_window);
     init_lights();
     init_scene_data();
-    // init_scene_descriptors();
+    create_samplers();
+    init_texture_descriptors();
     init_assets();
+    update_texture_descriptors();
+    
     // build_pipelines();
     // build_render_objects();
     init_imgui();
 }
 
 void Engine::init_lights() {
-        m_CPUPointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), 0, glm::vec3(1.0f, 0.0f, 0.0f), 1.0));
+        m_CPUPointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), 0, glm::vec3(1.0f, 223.0f/255.0f, 188.0f/255.0f), 1.0));
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)  
     {
@@ -140,47 +143,69 @@ void Engine::init_scene_data() {
     }
 }
 
-// void Engine::init_scene_descriptors() {
-//     // Describe what and how many descriptors we want and create our pool
-//     // These may be distributed in any combination among our sets
+void Engine::create_samplers() {
+    VkSamplerCreateInfo linearCI = {
+            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .magFilter = VK_FILTER_LINEAR,
+            .minFilter = VK_FILTER_LINEAR,
+            .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+            .anisotropyEnable = VK_FALSE,
+            // .maxAnisotropy = maxAnisotropy,
+        };
+    vkCreateSampler(m_GfxDevice, &linearCI, nullptr, &m_linearSampler);
+    VkSamplerCreateInfo nearestCI = {
+            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .magFilter = VK_FILTER_NEAREST,
+            .minFilter = VK_FILTER_NEAREST,
+            .mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST,
+        };
+    vkCreateSampler(m_GfxDevice, &nearestCI, nullptr, &m_nearestSampler);
+}
+
+void Engine::init_texture_descriptors() {
+    // Describe what and how many descriptors we want and create our pool
+    // These may be distributed in any combination among our sets
     
-//     m_globalDescriptorAllocator.init_pool(m_GfxDevice, MAX_FRAMES_IN_FLIGHT, m_descriptorTypeCounts); // We can allocate up to MAX_FRAMES_IN_FLIGHT sets from this pool
+    m_bindlessDescriptorAllocator.init_pool(m_GfxDevice, 1, m_descriptorTypeCounts);
 
-//     DescriptorLayoutBuilder layoutBuilder;
-//     layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    DescriptorLayoutBuilder layoutBuilder;
+    layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+    layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_SAMPLER);
 
-//     // We only need a single layout since they are all the same for each frame in flight
-//     // m_sceneDataDescriptorSetLayouts.push_back(layoutBuilder.buildLayout(m_GfxDevice, VK_SHADER_STAGE_FRAGMENT_BIT));
-//     m_sceneDataDescriptorSetLayout = layoutBuilder.buildLayout(m_GfxDevice, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    // We only need a single layout since they are all the same for each frame in flight
+    // m_sceneDataDescriptorSetLayouts.push_back(layoutBuilder.buildLayout(m_GfxDevice, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_bindlessDescriptorSetLayout = layoutBuilder.buildLayout(m_GfxDevice, VK_SHADER_STAGE_FRAGMENT_BIT);
 
-//     // Scene Data buffer init
-//     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-//     {
-//         m_sceneDataDescriptorSets_F.push_back(
-//             m_globalDescriptorAllocator.allocate(m_GfxDevice, m_sceneDataDescriptorSetLayout)
-//         );
+    m_bindlessDescriptorSet = m_bindlessDescriptorAllocator.allocate(m_GfxDevice, m_bindlessDescriptorSetLayout);
 
-//         // Update descriptor set(s)
-//         VkDescriptorBufferInfo sceneDataBufferInfo = {
-//             .buffer = m_GPUSceneDataBuffers_F[i].buffer,
-//             .offset = 0,
-//             .range = sizeof(CPUSceneData)
-//         };
-//         VkWriteDescriptorSet sceneDataDescriptorWrite = {
-//             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-//             .pNext = nullptr,
-//             .dstSet = m_sceneDataDescriptorSets_F[i],
-//             .dstBinding = 0,
-//             .dstArrayElement = {},
-//             .descriptorCount = 1,
-//             .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-//             .pImageInfo = nullptr,
-//             .pBufferInfo = &sceneDataBufferInfo,
-//             .pTexelBufferView = nullptr // ???
-//         };
-//         vkUpdateDescriptorSets(m_GfxDevice, 1, &sceneDataDescriptorWrite, 0, nullptr);
-//     }
-// }
+    // // Scene Data buffer init
+    // for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    // {
+    //     m_sceneDataDescriptorSets_F.push_back(
+    //         m_globalDescriptorAllocator.allocate(m_GfxDevice, m_sceneDataDescriptorSetLayout)
+    //     );
+
+    //     // Update descriptor set(s)
+    //     VkDescriptorBufferInfo sceneDataBufferInfo = {
+    //         .buffer = m_GPUSceneDataBuffers_F[i].buffer,
+    //         .offset = 0,
+    //         .range = sizeof(CPUSceneData)
+    //     };
+    //     VkWriteDescriptorSet sceneDataDescriptorWrite = {
+    //         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    //         .pNext = nullptr,
+    //         .dstSet = m_sceneDataDescriptorSets_F[i],
+    //         .dstBinding = 0,
+    //         .dstArrayElement = {},
+    //         .descriptorCount = 1,
+    //         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    //         .pImageInfo = nullptr,
+    //         .pBufferInfo = &sceneDataBufferInfo,
+    //         .pTexelBufferView = nullptr // ???
+    //     };
+    //     vkUpdateDescriptorSets(m_GfxDevice, 1, &sceneDataDescriptorWrite, 0, nullptr);
+    // }
+}
 
 // temp
 std::vector<VkPushConstantRange> defaultPushConstantRanges = {DefaultPushConstants::range()};
@@ -203,8 +228,8 @@ void Engine::init_assets() {
         std::string("Shaders/triangle_mesh.frag.spv"), 
         defaultPushConstantRanges,
         // std::span<const VkDescriptorSetLayout>(m_sceneDataDescriptorSetLayouts.data(), 1), // TODO: They're all the same and this only has 1 layout for now
-        // std::span<const VkDescriptorSetLayout>(&m_sceneDataDescriptorSetLayout, 1),
-        std::span<const VkDescriptorSetLayout>(),
+        std::span<const VkDescriptorSetLayout>(&m_bindlessDescriptorSetLayout, 1),
+        // std::span<const VkDescriptorSetLayout>(),
         {WINDOW_WIDTH, WINDOW_HEIGHT}
     );
 
@@ -243,6 +268,48 @@ void Engine::init_assets() {
         m_sceneRenderObjects.push_back(helmetObject);
     }
 }
+
+void Engine::update_texture_descriptors() {
+    // Update descriptor set
+    VkDescriptorImageInfo texture0Info = {
+        .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, // TODO
+        .imageView = m_TextureCache.get_texture(0).allocatedImage.imageView, // TOOD
+    };
+
+    VkDescriptorImageInfo linearSamplerInfo = {
+        .sampler = m_linearSampler
+    };
+
+    VkWriteDescriptorSet texture0DescriptorWrite = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = m_bindlessDescriptorSet,
+        .dstBinding = 0,
+        .dstArrayElement = {},
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+        .pImageInfo = &texture0Info,
+        .pBufferInfo = nullptr,
+        .pTexelBufferView = nullptr
+    };
+
+    VkWriteDescriptorSet linearSamplerDescriptorWrite = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = m_bindlessDescriptorSet,
+        .dstBinding = 1,
+        .dstArrayElement = {},
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+        .pImageInfo = &linearSamplerInfo,
+        .pBufferInfo = nullptr,
+        .pTexelBufferView = nullptr
+    };
+
+    VkWriteDescriptorSet writes[2] = {texture0DescriptorWrite, linearSamplerDescriptorWrite};
+    vkUpdateDescriptorSets(m_GfxDevice, 2, &writes[0], 0, nullptr);
+}
+
 
 // void Engine::init_material_buffer() {
 //     upload_buffer(
@@ -322,8 +389,7 @@ void Engine::draw_objects() {
     VkDeviceAddress sceneDataBufferAddress = m_GPUSceneDataBuffers_F[m_currentFrame].gpuAddress;
 
     for (RenderObject renderObject :  m_sceneRenderObjects) {
-//        renderObject.bind_and_draw(cmdBuffer, std::span<const VkDescriptorSet>(m_sceneDataDescriptorSets_F.data() + m_currentFrame, 1), sceneDataBufferAddress);
-        renderObject.bind_and_draw(cmdBuffer, std::span<const VkDescriptorSet>(), sceneDataBufferAddress);
+       renderObject.bind_and_draw(cmdBuffer, std::span<const VkDescriptorSet>(&m_bindlessDescriptorSet, 1), sceneDataBufferAddress);
     }
 }
 
@@ -639,7 +705,7 @@ void Engine::cleanup() {
     vkDestroyDescriptorPool(m_GfxDevice, m_imguiPool, nullptr);
 
 //        vkDestroyDescriptorSetLayout(m_GfxDevice, m_sceneDataDescriptorSetLayouts[0], nullptr);
-    // vkDestroyDescriptorSetLayout(m_GfxDevice, m_sceneDataDescriptorSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(m_GfxDevice, m_bindlessDescriptorSetLayout, nullptr);
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
@@ -647,7 +713,10 @@ void Engine::cleanup() {
         m_GPUSceneDataBuffers_F[i].cleanup(m_GfxDevice.m_vmaAllocator);
     }
 
-    // m_globalDescriptorAllocator.destroy_pool(m_GfxDevice);
+    m_bindlessDescriptorAllocator.destroy_pool(m_GfxDevice);
+
+    vkDestroySampler(m_GfxDevice, m_linearSampler, nullptr);
+    vkDestroySampler(m_GfxDevice, m_nearestSampler, nullptr);
 
     m_TextureCache.cleanup(m_GfxDevice);
     m_PipelineCache.cleanup(m_GfxDevice);

@@ -33,7 +33,7 @@ void RenderObject::bind_and_draw(VkCommandBuffer commandBuffer, [[maybe_unused]]
 
     vkCmdPushConstants(commandBuffer, m_pipelineCache.get_pipeline(m_pipelineId).getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
 
-//    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineCache.get_pipeline(m_pipelineId).getPipelineLayout(), 0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
+   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineCache.get_pipeline(m_pipelineId).getPipelineLayout(), 0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
 
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_meshCache.get_mesh(m_meshId).indexCount), 1, 0, 0, 0);
 }
