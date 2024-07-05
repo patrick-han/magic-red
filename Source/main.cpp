@@ -1,10 +1,10 @@
-#include <Engine.h>
+#include <Renderer.h>
 
 int main() {
-    Engine engine;
+    Renderer renderer;
 
     try {
-        engine.run();
+        renderer.run();
     } catch (const std::exception& e) {
         std::cerr << "[EXCEPTION] " << e.what() << std::endl;
         return EXIT_FAILURE;

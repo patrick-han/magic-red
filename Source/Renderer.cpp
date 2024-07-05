@@ -1,4 +1,4 @@
-#include "Engine.h"
+#include "Renderer.h"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
@@ -53,17 +53,17 @@ bool firstMouse = true;
 float lastX = WINDOW_WIDTH / 2, lastY = WINDOW_HEIGHT / 2; // Initial mouse positions
 
 
-Engine::Engine()
+Renderer::Renderer()
 {}
 
-void Engine::run() {
+void Renderer::run() {
     initWindow();
     init_graphics();
     mainLoop();
     cleanup();
 }
 
-void Engine::initWindow() {
+void Renderer::initWindow() {
     // We initialize SDL and create a window with it.
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -71,7 +71,7 @@ void Engine::initWindow() {
     SDL_SetRelativeMouseMode(SDL_TRUE);
 }
 
-void Engine::init_graphics() {
+void Renderer::init_graphics() {
     m_GfxDevice.init(m_window);
     init_lights();
     init_scene_data();
@@ -85,7 +85,7 @@ void Engine::init_graphics() {
     init_imgui();
 }
 
-void Engine::init_lights() {
+void Renderer::init_lights() {
         m_CPUPointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), 0, glm::vec3(1.0f, 223.0f/255.0f, 188.0f/255.0f), 1.0));
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)  
@@ -111,7 +111,7 @@ void Engine::init_lights() {
     }
 }
 
-void Engine::init_scene_data() {
+void Renderer::init_scene_data() {
     m_CPUSceneData.view = camera.get_view_matrix();
     glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
     projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
@@ -143,7 +143,7 @@ void Engine::init_scene_data() {
     }
 }
 
-void Engine::create_samplers() {
+void Renderer::create_samplers() {
     VkSamplerCreateInfo linearCI = {
             .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
             .magFilter = VK_FILTER_LINEAR,
@@ -162,7 +162,7 @@ void Engine::create_samplers() {
     vkCreateSampler(m_GfxDevice, &nearestCI, nullptr, &m_nearestSampler);
 }
 
-void Engine::init_texture_descriptors() {
+void Renderer::init_texture_descriptors() {
     // Describe what and how many descriptors we want and create our pool
     // These may be distributed in any combination among our sets
     
@@ -210,7 +210,7 @@ void Engine::init_texture_descriptors() {
 // temp
 std::vector<VkPushConstantRange> defaultPushConstantRanges = {DefaultPushConstants::range()};
 
-void Engine::init_assets() {
+void Renderer::init_assets() {
     VkPipelineRenderingCreateInfoKHR pipelineRenderingCI = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
         .pNext = nullptr,
@@ -269,7 +269,7 @@ void Engine::init_assets() {
     }
 }
 
-void Engine::update_texture_descriptors() {
+void Renderer::update_texture_descriptors() {
     // Update descriptor set
     VkDescriptorImageInfo texture0Info = {
         .imageView = m_TextureCache.get_texture(0).allocatedImage.imageView, // TODO
@@ -311,7 +311,7 @@ void Engine::update_texture_descriptors() {
 }
 
 
-// void Engine::init_material_buffer() {
+// void Renderer::init_material_buffer() {
 //     upload_buffer(
 //         m_materialDataBuffer,
         
@@ -326,7 +326,7 @@ void Engine::update_texture_descriptors() {
     
 // }
 
-void Engine::init_imgui() {
+void Renderer::init_imgui() {
     // Create a descriptor pool for IMGUI
     // The size of the pool is very oversized, but it's copied from imgui demo
     VkDescriptorPoolSize poolSizes[] = { 
@@ -384,7 +384,7 @@ void Engine::init_imgui() {
     // add the destroy the imgui created structures
 }
 
-void Engine::draw_objects() {
+void Renderer::draw_objects() {
     VkCommandBuffer cmdBuffer = m_GfxDevice.get_frame_command_buffer(m_currentFrame);
     VkDeviceAddress sceneDataBufferAddress = m_GPUSceneDataBuffers_F[m_currentFrame].gpuAddress;
 
@@ -393,7 +393,7 @@ void Engine::draw_objects() {
     }
 }
 
-void Engine::draw_imgui(VkImageView targetImageView) {
+void Renderer::draw_imgui(VkImageView targetImageView) {
     //VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
     VkRenderingAttachmentInfoKHR colorAttachment = rendering_attachment_info(
         targetImageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, nullptr
@@ -412,7 +412,7 @@ void Engine::draw_imgui(VkImageView targetImageView) {
     vkCmdEndRenderingKHR(cmdBuffer);
 }
 
-void Engine::update_lights(uint32_t frameInFlightIndex) {
+void Renderer::update_lights(uint32_t frameInFlightIndex) {
     int lightCircleRadius = 5;
     float lightCircleSpeed = 0.02f;
     m_CPUPointLights[0].worldSpacePosition = glm::vec3(
@@ -430,7 +430,7 @@ void Engine::update_lights(uint32_t frameInFlightIndex) {
     );
 }
 
-void Engine::update_scene_data(uint32_t frameInFlightIndex) {
+void Renderer::update_scene_data(uint32_t frameInFlightIndex) {
     m_CPUSceneData.view = camera.get_view_matrix();
     glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
     projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
@@ -447,7 +447,7 @@ void Engine::update_scene_data(uint32_t frameInFlightIndex) {
     );
 }
 
-// void Engine::update_scene_data_descriptors(uint32_t frameInFlightIndex) {
+// void Renderer::update_scene_data_descriptors(uint32_t frameInFlightIndex) {
 //     m_CPUSceneData.view = camera.get_view_matrix();
 //     glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
 //     projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
@@ -485,7 +485,7 @@ void Engine::update_scene_data(uint32_t frameInFlightIndex) {
 //     vkUpdateDescriptorSets(m_GfxDevice, 1, &sceneDataDescriptorWrite, 0, nullptr);
 // }
 
-void Engine::drawFrame() {
+void Renderer::drawFrame() {
         
         // Wait for previous frame to finish rendering before allowing us to acquire another image
         VkFence renderFence = m_GfxDevice.get_frame_fence(m_currentFrame);
@@ -616,7 +616,7 @@ void Engine::drawFrame() {
         
 }
 
-void Engine::mainLoop() {
+void Renderer::mainLoop() {
     SDL_Event sdlEvent;
     bool bQuit = false;
     ImGuiIO& io = ImGui::GetIO();
@@ -696,7 +696,7 @@ void Engine::mainLoop() {
     }
 }
 
-void Engine::cleanup() {
+void Renderer::cleanup() {
     vkDeviceWaitIdle(m_GfxDevice);
 
     ImGui_ImplVulkan_Shutdown();

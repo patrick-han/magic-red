@@ -19,9 +19,9 @@
 
 class SDL_window;
 
-class Engine {
+class Renderer {
 public:
-    Engine();
+    Renderer();
     void run();
 private:
     SDL_Window *m_window;
