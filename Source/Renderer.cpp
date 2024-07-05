@@ -257,7 +257,7 @@ void Renderer::init_assets() {
     // }
 
     {
-        // Helemt mesh
+        // Helmet mesh
         UNUSED(m_materialDataBuffer);
         CPUModel helmetModel(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true, m_MaterialCache, m_TextureCache, m_GfxDevice);
         GPUMeshId helmetMeshId = m_MeshCache.add_mesh(m_GfxDevice, helmetModel.m_cpuMesh);
@@ -272,7 +272,7 @@ void Renderer::init_assets() {
 void Renderer::update_texture_descriptors() {
     // Update descriptor set
     VkDescriptorImageInfo texture0Info = {
-        .imageView = m_TextureCache.get_texture(0).allocatedImage.imageView, // TODO
+        .imageView = m_TextureCache.get_texture(1).allocatedImage.imageView, // TODO
         .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, // TODO
     };
 

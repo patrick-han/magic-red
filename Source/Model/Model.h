@@ -1,6 +1,7 @@
 #pragma once
 #include <Mesh/Mesh.h>
 #include <Common/IdTypes.h>
+#include <Texture/TextureData.h>
 
 class GfxDevice;
 class TextureCache;
@@ -14,10 +15,12 @@ struct NodeLoadingData {
     // Each node has a single mesh?
     // TODO: Technically a mesh could have multiple materials (each "primitive" could have a different material)
     // but lets keep it simple for now
-    const void *diffuseTextureData;
-    int diffuseTextureSizeX;
-    int diffuseTextureSizeY;
-    int diffuseTextureSizeZ;
+    TextureLoadingData diffuseTex;
+    TextureLoadingData metRoughTex;
+    // const void *diffuseTextureData;
+    // int diffuseTextureSizeX;
+    // int diffuseTextureSizeY;
+    // int diffuseTextureSizeZ;
 };
 
 struct CPUModel {

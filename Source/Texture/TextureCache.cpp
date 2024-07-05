@@ -5,9 +5,9 @@
 TextureCache::TextureCache()
 {}
 
-[[nodiscard]] GPUTextureId TextureCache::add_texture(const GfxDevice& gfxDevice, const void* textureData, const TextureSize& textureSize) {
+[[nodiscard]] GPUTextureId TextureCache::add_texture(const GfxDevice& gfxDevice, const TextureLoadingData& texLoadingData) {
    const GPUTextureId textureId = static_cast<uint32_t>(m_gpuTextures.size());
-   upload_texture(gfxDevice, textureData, textureSize);
+   upload_texture(gfxDevice, texLoadingData);
    return textureId;
 }
 
@@ -23,13 +23,13 @@ void TextureCache::cleanup(const GfxDevice& gfxDevice) {
     }
 }
 
-void TextureCache::upload_texture(const GfxDevice& gfxDevice, const void* textureData, const TextureSize& textureSize) {
+void TextureCache::upload_texture(const GfxDevice& gfxDevice, const TextureLoadingData& texLoadingData) {
 
    GPUTexture gpuTexture;
 
    VkExtent3D imageExtent; 
-   imageExtent.width = textureSize.x;
-   imageExtent.height = textureSize.y;
+   imageExtent.width = texLoadingData.texSize.x;
+   imageExtent.height = texLoadingData.texSize.y;
    imageExtent.depth = 1;
    gpuTexture.allocatedImage.imageExtent = imageExtent;
 
@@ -37,7 +37,7 @@ void TextureCache::upload_texture(const GfxDevice& gfxDevice, const void* textur
    VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
    gpuTexture.allocatedImage.imageFormat = format;
    VkImageCreateInfo imageCreateInfo = image_create_info(format, imageExtent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
-   upload_image(static_cast<const void *>(textureData), gpuTexture.allocatedImage, imageCreateInfo, gfxDevice);
+   upload_image(static_cast<const void *>(texLoadingData.data), gpuTexture.allocatedImage, imageCreateInfo, gfxDevice);
    VkImageViewCreateInfo imageViewCreateInfo = imageview_create_info(gpuTexture.allocatedImage.image, format, {}, VK_IMAGE_ASPECT_COLOR_BIT);
 
    VkImageView imageView;

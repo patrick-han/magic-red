@@ -182,10 +182,25 @@ void load_node(const tinygltf::Node& node, const tinygltf::Model& model, NodeLoa
                 const tinygltf::Image &diffuseImage = model.images[diffuseTexture.source];
                 const tinygltf::Sampler &diffuseSampler = model.samplers[diffuseTexture.sampler];
                 UNUSED(diffuseSampler);
-                nodeLoadingData.diffuseTextureData = &diffuseImage.image.at(0);
-                nodeLoadingData.diffuseTextureSizeX = diffuseImage.width;
-                nodeLoadingData.diffuseTextureSizeY = diffuseImage.height;
-                nodeLoadingData.diffuseTextureSizeZ = diffuseImage.component;
+                // nodeLoadingData.diffuseTextureData = &diffuseImage.image.at(0);
+                // nodeLoadingData.diffuseTextureSizeX = diffuseImage.width;
+                // nodeLoadingData.diffuseTextureSizeY = diffuseImage.height;
+                // nodeLoadingData.diffuseTextureSizeZ = diffuseImage.component;
+                nodeLoadingData.diffuseTex.data = &diffuseImage.image.at(0);
+                nodeLoadingData.diffuseTex.texSize.x = diffuseImage.width;
+                nodeLoadingData.diffuseTex.texSize.y = diffuseImage.height;
+                nodeLoadingData.diffuseTex.texSize.ch = diffuseImage.component;
+
+                // Metallic-Roughness
+                const tinygltf::Texture &metRoughTexture = model.textures[primMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index];
+                const tinygltf::Image &metRoughImage= model.images[metRoughTexture.source];
+                const tinygltf::Sampler &metRoughSampler = model.samplers[metRoughTexture.sampler];
+                UNUSED(metRoughSampler);
+                nodeLoadingData.metRoughTex.data = &metRoughImage.image.at(0);
+                nodeLoadingData.metRoughTex.texSize.x = metRoughImage.width;
+                nodeLoadingData.metRoughTex.texSize.y = metRoughImage.height;
+                nodeLoadingData.metRoughTex.texSize.ch = metRoughImage.component;
+
             }
             else
             {
@@ -234,7 +249,7 @@ CPUModel::CPUModel(const char* fileName, bool isBinary, MaterialCache& _material
 
     m_cpuMesh.m_vertices.resize(vertexCount);
     m_cpuMesh.m_indices.resize(indexCount);
-    NodeLoadingData nodeLoadingData = {m_cpuMesh.m_vertices, m_cpuMesh.m_indices, 0, 0, nullptr, -1, -1, -1};
+    NodeLoadingData nodeLoadingData = {m_cpuMesh.m_vertices, m_cpuMesh.m_indices, 0, 0, {}, {}};
 
     for (size_t i = 0; i < scene.nodes.size(); i++)
     {
@@ -249,19 +264,18 @@ CPUModel::CPUModel(const char* fileName, bool isBinary, MaterialCache& _material
         << "Number of indices: " << m_cpuMesh.m_indices.size() << " \n"
     );
 
-    if (!(nodeLoadingData.diffuseTextureSizeX == -1))
-    {
-        // Upload textures
-        TextureSize diffuseTextureSize;
-        diffuseTextureSize.x = nodeLoadingData.diffuseTextureSizeX;
-        diffuseTextureSize.y = nodeLoadingData.diffuseTextureSizeY;
-        diffuseTextureSize.z = nodeLoadingData.diffuseTextureSizeZ;
-        GPUTextureId textureId = m_textureCache.add_texture(m_gfxDevice, nodeLoadingData.diffuseTextureData, diffuseTextureSize);
+    // Material/Textures
+    Material defaultMaterial;
 
-        Material defaultMaterial;
-        defaultMaterial.diffuseImageId = textureId;
-        m_materialId = m_materialCache.add_material(defaultMaterial);
+    if (nodeLoadingData.diffuseTex.texSize.x != -1)
+    {
+        defaultMaterial.diffuseImageId = m_textureCache.add_texture(m_gfxDevice, nodeLoadingData.diffuseTex);
     }
+    if (nodeLoadingData.metRoughTex.texSize.x != -1)
+    {
+        defaultMaterial.metallicRoughnessImageId = m_textureCache.add_texture(m_gfxDevice, nodeLoadingData.metRoughTex);
+    }
+    m_materialId = m_materialCache.add_material(defaultMaterial);
 }
 
 POP_CLANG_WARNINGS
