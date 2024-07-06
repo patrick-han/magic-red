@@ -19,7 +19,7 @@ layout (buffer_reference, scalar) readonly buffer PointLightsDataBuffer {
     PointLight data[];
 };
 
-// #include "material.glsl"
+#include "material.glsl"
 
 layout (buffer_reference, scalar) readonly buffer SceneDataBuffer {
     // camera
@@ -47,7 +47,7 @@ layout (buffer_reference, scalar) readonly buffer SceneDataBuffer {
     // int numLights;
     // int sunlightIndex; // if -1, there's no sun
 
-    // MaterialDataBuffer materials;
+    MaterialDataBuffer materials;
 } sceneDataBuffer;
 
 #endif // SCENE_DATA_GLSL

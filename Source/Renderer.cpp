@@ -74,10 +74,12 @@ void Renderer::initWindow() {
 void Renderer::init_graphics() {
     m_GfxDevice.init(m_window);
     init_lights();
-    init_scene_data();
     create_samplers();
     init_texture_descriptors();
     init_assets();
+    init_material_data();
+    init_scene_data();
+
     update_texture_descriptors();
     
     // build_pipelines();
@@ -108,38 +110,6 @@ void Renderer::init_lights() {
             .buffer = lightBuffer.buffer
         };
         lightBuffer.gpuAddress  = vkGetBufferDeviceAddress(m_GfxDevice, &addressInfo);
-    }
-}
-
-void Renderer::init_scene_data() {
-    m_CPUSceneData.view = camera.get_view_matrix();
-    glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
-    projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
-    m_CPUSceneData.projection = projection;
-    m_CPUSceneData.cameraWorldPosition = camera.get_world_position();
-    // m_CPUSceneData.numPointLights = static_cast<uint32_t>(m_CPUPointLights.size());
-    m_CPUSceneData.lightBufferAddress = 0; // TODO
-
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)  
-    {
-        AllocatedBuffer sceneDataBuffer;
-        m_GPUSceneDataBuffers_F.push_back(sceneDataBuffer);
-        upload_buffer(
-            m_GPUSceneDataBuffers_F[i],
-            sizeof(CPUSceneData),
-            &m_CPUSceneData,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR,
-            m_GfxDevice.m_vmaAllocator
-        );
-    }
-
-    for (auto &sceneDataBuffer : m_GPUSceneDataBuffers_F)
-    {
-        VkBufferDeviceAddressInfoKHR addressInfo{
-            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
-            .buffer = sceneDataBuffer.buffer
-        };
-        sceneDataBuffer.gpuAddress  = vkGetBufferDeviceAddress(m_GfxDevice, &addressInfo);
     }
 }
 
@@ -269,6 +239,55 @@ void Renderer::init_assets() {
     }
 }
 
+void Renderer::init_material_data() {
+    upload_buffer(
+        m_materialDataBuffer,
+        m_MaterialCache.get_material_count() * sizeof(Material),
+        m_MaterialCache.get_material_data(),
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR,
+        m_GfxDevice.m_vmaAllocator
+    );
+}
+
+void Renderer::init_scene_data() {
+    m_CPUSceneData.view = camera.get_view_matrix();
+    glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
+    projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
+    m_CPUSceneData.projection = projection;
+    m_CPUSceneData.cameraWorldPosition = camera.get_world_position();
+    // m_CPUSceneData.numPointLights = static_cast<uint32_t>(m_CPUPointLights.size());
+    m_CPUSceneData.lightBufferAddress = 0; // TODO during update_scene_data()? or now
+
+    // Material data only set once at the beginning, since for now we are loading all assets in ahead of time
+    VkBufferDeviceAddressInfoKHR addressInfo{
+        .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
+        .buffer = m_materialDataBuffer.buffer
+    };
+    m_CPUSceneData.materialBufferAddress = vkGetBufferDeviceAddress(m_GfxDevice, &addressInfo);
+    
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)  
+    {
+        AllocatedBuffer sceneDataBuffer;
+        m_GPUSceneDataBuffers_F.push_back(sceneDataBuffer);
+        upload_buffer(
+            m_GPUSceneDataBuffers_F[i],
+            sizeof(CPUSceneData),
+            &m_CPUSceneData,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR,
+            m_GfxDevice.m_vmaAllocator
+        );
+    }
+
+    for (auto &sceneDataBuffer : m_GPUSceneDataBuffers_F)
+    {
+        VkBufferDeviceAddressInfoKHR addressInfo{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
+            .buffer = sceneDataBuffer.buffer
+        };
+        sceneDataBuffer.gpuAddress  = vkGetBufferDeviceAddress(m_GfxDevice, &addressInfo);
+    }
+}
+
 void Renderer::update_texture_descriptors() {
     // Update descriptor set
     VkDescriptorImageInfo texture0Info = {
@@ -309,14 +328,6 @@ void Renderer::update_texture_descriptors() {
     VkWriteDescriptorSet writes[2] = {texture0DescriptorWrite, linearSamplerDescriptorWrite};
     vkUpdateDescriptorSets(m_GfxDevice, 2, &writes[0], 0, nullptr);
 }
-
-
-// void Renderer::init_material_buffer() {
-//     upload_buffer(
-//         m_materialDataBuffer,
-        
-//     );
-// }
 
 // void build_pipelines() {
 
@@ -706,6 +717,8 @@ void Renderer::cleanup() {
 
 //        vkDestroyDescriptorSetLayout(m_GfxDevice, m_sceneDataDescriptorSetLayouts[0], nullptr);
     vkDestroyDescriptorSetLayout(m_GfxDevice, m_bindlessDescriptorSetLayout, nullptr);
+
+    m_materialDataBuffer.cleanup(m_GfxDevice.m_vmaAllocator);
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {

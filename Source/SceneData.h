@@ -8,6 +8,7 @@ struct CPUSceneData
     glm::vec3 cameraWorldPosition;
     // uint32_t numPointLights;
     VkDeviceAddress lightBufferAddress;
+    VkDeviceAddress materialBufferAddress;
     // static void build_descriptor_set_layout();
 };
 

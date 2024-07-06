@@ -41,7 +41,7 @@ private:
     std::vector<AllocatedBuffer> m_GPUPointLightsBuffers_F;
 
     // MaterialData
-   AllocatedBuffer m_materialDataBuffer;
+    AllocatedBuffer m_materialDataBuffer;
 
     // SceneData
     CPUSceneData m_CPUSceneData;
@@ -66,13 +66,14 @@ private:
     void init_graphics();
 
     void init_lights();
-    void init_scene_data();
-    
     void create_samplers();
     void init_texture_descriptors();
     void init_assets();
+    void init_material_data();
+    void init_scene_data();
+
     void update_texture_descriptors();
-    // void init_material_buffer();
+    
     void init_imgui();
     
     void draw_objects();

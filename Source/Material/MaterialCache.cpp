@@ -11,6 +11,10 @@
     return m_materials[id];
 }
 
-void MaterialCache::cleanup() {
+[[nodiscard]] const void* MaterialCache::get_material_data() const {
+    return &m_materials.at(0);
+}
 
+[[nodiscard]] int MaterialCache::get_material_count() const {
+    return static_cast<uint32_t>(m_materials.size());
 }
