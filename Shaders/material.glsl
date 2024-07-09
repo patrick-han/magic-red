@@ -10,7 +10,7 @@ struct MaterialData {
     uint normalTex;
     uint metallicRoughnessTex;
     uint emissiveTex;
-}
+};
 
 layout (buffer_reference, std430) readonly buffer MaterialDataBuffer {
     MaterialData data[];

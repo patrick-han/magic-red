@@ -48,6 +48,6 @@ layout (buffer_reference, scalar) readonly buffer SceneDataBuffer {
     // int sunlightIndex; // if -1, there's no sun
 
     MaterialDataBuffer materials;
-} sceneDataBuffer;
+};
 
 #endif // SCENE_DATA_GLSL

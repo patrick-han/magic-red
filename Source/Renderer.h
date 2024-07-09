@@ -48,15 +48,12 @@ private:
     std::vector<AllocatedBuffer> m_GPUSceneDataBuffers_F;
 
     // Descriptors
-    DescriptorAllocator m_bindlessDescriptorAllocator;
-    // std::vector<VkDescriptorSetLayout> m_sceneDataDescriptorSetLayouts;
+    VkDescriptorPool m_bindlessPool;
     VkDescriptorSetLayout m_bindlessDescriptorSetLayout;
+    // DescriptorAllocator m_bindlessDescriptorAllocator;
+    // std::vector<VkDescriptorSetLayout> m_sceneDataDescriptorSetLayouts;
     // std::vector<VkDescriptorSet> m_sceneDataDescriptorSets_F;
     VkDescriptorSet m_bindlessDescriptorSet;
-    std::vector<DescriptorAllocator::DescriptorTypeCount> m_descriptorTypeCounts = {
-            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1 },
-            { VK_DESCRIPTOR_TYPE_SAMPLER, 1}
-    };
 
     // Samplers
     VkSampler m_linearSampler;
