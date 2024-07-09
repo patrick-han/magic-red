@@ -16,6 +16,7 @@
 #include <stdexcept>
 #include <cstdlib>
 #include <span>
+#include <array>
 #include <Common/RootDir.h>
 #include <Common/Platform.h>
 #include <Common/Compiler/Unused.h>
@@ -141,7 +142,8 @@ void Renderer::init_texture_descriptors() {
     constexpr uint32_t maxBindlessResourceCount = 16536;
     constexpr uint32_t maxSamplerCount = 2;
 #else
-    constexpr uint32_t max_bindless_resources = 16536;
+    constexpr uint32_t maxBindlessResourceCount = 16536;
+    constexpr uint32_t maxSamplerCount = 2;
 #endif
     
     // Describe what and how many descriptors we want and create our pool
@@ -166,7 +168,7 @@ void Renderer::init_texture_descriptors() {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .pNext = nullptr,
         .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT, // Allows us to update textures in a bindless array
-        .maxSets = maxBindlessResourceCount * bindlessDescriptorPoolSizes.size(), // ?
+        .maxSets = maxBindlessResourceCount * static_cast<uint32_t>(bindlessDescriptorPoolSizes.size()), // ?
         .poolSizeCount = static_cast<uint32_t>(bindlessDescriptorPoolSizes.size()),
         .pPoolSizes = bindlessDescriptorPoolSizes.data()
     };
@@ -354,11 +356,11 @@ void Renderer::init_scene_data() {
     m_CPUSceneData.lightBufferAddress = 0; // TODO during update_scene_data()? or now
 
     // Material data only set once at the beginning, since for now we are loading all assets in ahead of time
-    VkBufferDeviceAddressInfoKHR addressInfo{
+    VkBufferDeviceAddressInfoKHR materialBufferAddressInfo{
         .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
         .buffer = m_materialDataBuffer.buffer
     };
-    m_CPUSceneData.materialBufferAddress = vkGetBufferDeviceAddress(m_GfxDevice, &addressInfo);
+    m_CPUSceneData.materialBufferAddress = vkGetBufferDeviceAddress(m_GfxDevice, &materialBufferAddressInfo);
     
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)  
     {
@@ -375,11 +377,11 @@ void Renderer::init_scene_data() {
 
     for (auto &sceneDataBuffer : m_GPUSceneDataBuffers_F)
     {
-        VkBufferDeviceAddressInfoKHR addressInfo{
+        VkBufferDeviceAddressInfoKHR sceneDataBufferAddressInfo{
             .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
             .buffer = sceneDataBuffer.buffer
         };
-        sceneDataBuffer.gpuAddress  = vkGetBufferDeviceAddress(m_GfxDevice, &addressInfo);
+        sceneDataBuffer.gpuAddress  = vkGetBufferDeviceAddress(m_GfxDevice, &sceneDataBufferAddressInfo);
     }
 }
 
