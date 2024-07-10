@@ -64,7 +64,7 @@ private:
 
     void init_lights();
     void create_samplers();
-    void init_texture_descriptors();
+    void init_bindless_descriptors();
     void init_assets();
     void init_material_data();
     void init_scene_data();
