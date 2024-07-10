@@ -178,8 +178,11 @@ void GfxDevice::create_device() {
         queueCreateInfos.push_back(VkDeviceQueueCreateInfo{ VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, nullptr, VkDeviceQueueCreateFlags(), static_cast<uint32_t>(queueFamilyIndex), queueCountPerFamily, &queuePriority });
     }
 
+    // TODO:
+    // Actually check if things are supported
+
     // Device extensions
-    std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_KHR_dynamic_rendering", "VK_KHR_buffer_device_address", "VK_EXT_scalar_block_layout"};
+    std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_KHR_dynamic_rendering", "VK_KHR_buffer_device_address", "VK_EXT_scalar_block_layout", "VK_EXT_descriptor_indexing"};
 #if PLATFORM_MACOS
     deviceExtensions.push_back("VK_KHR_portability_subset");
 #endif
@@ -205,9 +208,17 @@ void GfxDevice::create_device() {
         .scalarBlockLayout = VK_TRUE
     };
 
+    VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing_feature {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT,
+        .pNext = &scalar_block_layout_feature,
+        .descriptorBindingPartiallyBound = VK_TRUE, // Indicates whether the implementation supports statically using a descriptor set binding in which some descriptors are not valid
+        .runtimeDescriptorArray = VK_TRUE, // Indicates whether the implementation supports the SPIR-V RuntimeDescriptorArray capability. 
+        .descriptorBindingSampledImageUpdateAfterBind = VK_TRUE
+    };
+
     VkDeviceCreateInfo deviceCreateInfo = {
         VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        &scalar_block_layout_feature,
+        &descriptor_indexing_feature,
         VkDeviceCreateFlags(),
         static_cast<uint32_t>(queueCreateInfos.size()),
         queueCreateInfos.data(),
