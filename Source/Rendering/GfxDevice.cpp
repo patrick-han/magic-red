@@ -211,9 +211,10 @@ void GfxDevice::create_device() {
     VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing_feature {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT,
         .pNext = &scalar_block_layout_feature,
+        .descriptorBindingSampledImageUpdateAfterBind = VK_TRUE,
         .descriptorBindingPartiallyBound = VK_TRUE, // Indicates whether the implementation supports statically using a descriptor set binding in which some descriptors are not valid
-        .runtimeDescriptorArray = VK_TRUE, // Indicates whether the implementation supports the SPIR-V RuntimeDescriptorArray capability. 
-        .descriptorBindingSampledImageUpdateAfterBind = VK_TRUE
+        .runtimeDescriptorArray = VK_TRUE // Indicates whether the implementation supports the SPIR-V RuntimeDescriptorArray capability. 
+   
     };
 
     VkDeviceCreateInfo deviceCreateInfo = {
