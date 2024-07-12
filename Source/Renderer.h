@@ -21,13 +21,13 @@ class SDL_window;
 
 class Renderer {
 public:
-    Renderer();
+    Renderer() = default;
     void run();
 private:
     SDL_Window *m_window;
     GfxDevice m_GfxDevice;
     MeshCache m_MeshCache;
-    GraphicsPipelineCache m_PipelineCache;
+    GraphicsPipelineCache m_GraphicsPipelineCache;
     MaterialCache m_MaterialCache;
     TextureCache m_TextureCache;
 
@@ -38,14 +38,14 @@ private:
 
     // Lights
     std::vector<PointLight> m_CPUPointLights;
-    std::vector<AllocatedBuffer> m_GPUPointLightsBuffers_F;
+    std::array<AllocatedBuffer, MAX_FRAMES_IN_FLIGHT> m_GPUPointLightsBuffers;
 
     // MaterialData
     AllocatedBuffer m_materialDataBuffer;
 
     // SceneData
     CPUSceneData m_CPUSceneData;
-    std::vector<AllocatedBuffer> m_GPUSceneDataBuffers_F;
+    std::array<AllocatedBuffer, MAX_FRAMES_IN_FLIGHT> m_GPUSceneDataBuffers;
 
     // Descriptors
     VkDescriptorPool m_bindlessPool;
@@ -77,7 +77,6 @@ private:
     void draw_imgui(VkImageView targetImageView);
     void update_lights(uint32_t frameInFlightIndex);
     void update_scene_data(uint32_t frameInFlightIndex);
-    // void update_scene_data_descriptors(uint32_t frameInFlightIndex);
     void drawFrame();
     void mainLoop();
     void cleanup();

@@ -1,24 +1,20 @@
 #include <Pipeline/Pipeline.h>
 
-Pipeline::Pipeline() {
-}
+Pipeline::Pipeline(const VkDevice device) : m_logicalDevice(device) {}
 
-Pipeline::Pipeline(const VkDevice device) : m_logicalDevice(device) {
-}
-
-Pipeline::~Pipeline() {}
+Pipeline::~Pipeline() {} // Must be provided since destructors are called in reverse order back to the base class
 
 
-void Pipeline::Destroy() {
+void Pipeline::destroy() {
     vkDestroyPipelineLayout(m_logicalDevice, m_pipelineLayout, nullptr);
     vkDestroyPipeline(m_logicalDevice, m_pipeline, nullptr);
 }
 
-const VkPipeline& Pipeline::getPipeline() const {
+const VkPipeline& Pipeline::get_pipeline() const {
     return m_pipeline;
 }
 
-const VkPipelineLayout& Pipeline::getPipelineLayout() const {
+const VkPipelineLayout& Pipeline::get_pipeline_layout() const {
     return m_pipelineLayout;
 }
 

@@ -4,7 +4,7 @@
 
 class GraphicsPipeline : public Pipeline {
 public:
-    GraphicsPipeline();
+    GraphicsPipeline() = delete;
     GraphicsPipeline(
         const VkDevice logicalDevice,
         const VkPipelineRenderingCreateInfoKHR* pipelineRenderingCreateInfo,
@@ -14,7 +14,9 @@ public:
         std::span<VkDescriptorSetLayout const> descriptorSetLayouts,
         VkExtent2D extent
         );
-    ~GraphicsPipeline();
-protected:
-
+    ~GraphicsPipeline() = default;
+    // GraphicsPipeline(GraphicsPipeline&) = delete;
+    // GraphicsPipeline& operator=(const GraphicsPipeline&) = delete;
+    // GraphicsPipeline(GraphicsPipeline&&) = delete;
+    // GraphicsPipeline& operator=(GraphicsPipeline&&) = delete;
 };

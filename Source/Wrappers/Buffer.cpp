@@ -27,7 +27,7 @@ void upload_buffer(AllocatedBuffer& allocatedBuffer, size_t bufferSize, const vo
     );
     if (res != VK_SUCCESS) {
         MRCERR(string_VkResult(res));
-        throw std::runtime_error("Could not allocate buffer!");
+        MRCERR("Could not allocate buffer!");
     }
 
     // Copy data into mapped memory

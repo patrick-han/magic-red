@@ -50,7 +50,7 @@ void GfxDevice::create_instance() {
     VkResult res = vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance);
     if (res != VK_SUCCESS) {
         MRCERR(string_VkResult(res));
-        throw std::runtime_error("Failed to create instance!");
+        MRCERR("Failed to create instance!");
     }
     m_mainDeletionQueue.push_function([=]() {
         vkDestroyInstance(m_instance, nullptr);
@@ -78,7 +78,7 @@ void GfxDevice::create_debug_messenger() {
     VkResult res = CreateDebugUtilsMessengerEXT(m_instance, &debugMessengerCreateInfo, nullptr, &m_debugMessenger);
     if (res != VK_SUCCESS) {
         MRCERR(string_VkResult(res));
-        throw std::runtime_error("Failed to create debug messenger!");
+        MRCERR("Failed to create debug messenger!");
     }
     m_mainDeletionQueue.push_function([=]() {
         DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
@@ -88,7 +88,7 @@ void GfxDevice::create_debug_messenger() {
 void GfxDevice::create_surface(SDL_Window * const window) {
     SDL_bool res = SDL_Vulkan_CreateSurface(window, m_instance, nullptr, &m_surface);
     if (res != SDL_TRUE) {
-        throw std::runtime_error("Could not create surface!");
+        MRCERR("Could not create surface!");
     }
     m_mainDeletionQueue.push_function([=]() {
         vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
@@ -99,7 +99,7 @@ void GfxDevice::init_physical_device() {
     uint32_t physicalDeviceCount = 0;
     vkEnumeratePhysicalDevices(m_instance, &physicalDeviceCount, nullptr);
     if (physicalDeviceCount == 0) {
-        throw std::runtime_error("No Vulkan capable devices found");
+        MRCERR("No Vulkan capable devices found");
     }
     std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
     vkEnumeratePhysicalDevices(m_instance, &physicalDeviceCount, physicalDevices.data());
@@ -149,7 +149,7 @@ void GfxDevice::find_queue_family_indices() {
         VkResult res = vkGetPhysicalDeviceSurfaceSupportKHR(m_physicalDevice, static_cast<uint32_t>(queueFamilyIndex), m_surface, &supported);
         if (res != VK_SUCCESS) {
             MRCERR(string_VkResult(res));
-            throw std::runtime_error("Queue family does not support presentation!");
+            MRCERR("Queue family does not support presentation!");
         } else {
             m_presentQueueFamilyIndex = queueFamilyIndex;
         }
@@ -236,7 +236,7 @@ void GfxDevice::create_device() {
 }
 
 
-void GfxDevice::create_swapChain() {
+void GfxDevice::create_swap_chain() {
     // If the graphics and presentation queue family indices are different, allow concurrent access to object from multiple queue families
     struct SM {
         VkSharingMode sharingMode;
@@ -265,7 +265,7 @@ void GfxDevice::create_swapChain() {
         }
     }
     if (!foundCompatible) {
-        throw std::runtime_error("Could not find compatible surface format!");
+        MRCERR("Could not find compatible surface format!");
     }
 
     // Create swapchain
@@ -293,14 +293,14 @@ void GfxDevice::create_swapChain() {
     VkResult res = vkCreateSwapchainKHR(m_device, &swapChainCreateInfo, nullptr, &m_swapChain);
     if (res != VK_SUCCESS) {
         MRCERR(string_VkResult(res));
-        throw std::runtime_error("Could not create swap chain!");
+        MRCERR("Could not create swap chain!");
     }
     m_mainDeletionQueue.push_function([=]() {
         vkDestroySwapchainKHR(m_device, m_swapChain, nullptr);
     });
 }
 
- void GfxDevice::get_swapChain_images() {
+ void GfxDevice::get_swap_chain_images() {
     vkGetSwapchainImagesKHR(m_device, m_swapChain, &m_swapChainImageCount, nullptr); // We only specified a minimum during creation, need to query for the real number
     m_swapChainImages.resize(m_swapChainImageCount); 
     vkGetSwapchainImagesKHR(m_device, m_swapChain, &m_swapChainImageCount, m_swapChainImages.data());
@@ -313,7 +313,7 @@ void GfxDevice::create_swapChain() {
         VkResult res = vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &m_swapChainImageViews[i]);
         if (res != VK_SUCCESS) {
             MRCERR(string_VkResult(res));
-            throw std::runtime_error("Could not create swap chain image view!");
+            MRCERR("Could not create swap chain image view!");
         }
     }
     m_mainDeletionQueue.push_function([=]() {
@@ -346,7 +346,7 @@ void GfxDevice::create_swapChain() {
 //     VkResult res = vkCreateImageView(m_device, &drawImageViewCreateInfo, nullptr, &m_drawImage.imageView);
 //     if(res != VK_SUCCESS) {
 //         MRCERR(string_VkResult(res));
-//         throw std::runtime_error("Could not create draw image view!");
+//         MRCERR("Could not create draw image view!");
 //     }
 
 //     m_mainDeletionQueue.push_function([=]() {
@@ -367,7 +367,7 @@ void GfxDevice::create_swapChain() {
 
     if (res != VK_SUCCESS) {
         MRCERR(string_VkResult(res));
-        throw std::runtime_error("Could not create depth image!");
+        MRCERR("Could not create depth image!");
     }
 
     VkImageViewCreateInfo depthImageViewCreateInfo = imageview_create_info(m_depthImage.image, m_depthImage.imageFormat, {},VK_IMAGE_ASPECT_DEPTH_BIT);
@@ -381,23 +381,20 @@ void GfxDevice::create_swapChain() {
 }
 
 void GfxDevice::create_synchronization_structures() {
-    m_imageAvailableSemaphores_F.resize(MAX_FRAMES_IN_FLIGHT);
-    m_renderFinishedSemaphores_F.resize(MAX_FRAMES_IN_FLIGHT);
-    m_renderFences_F.resize(MAX_FRAMES_IN_FLIGHT);
-
+    
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         VkSemaphoreCreateInfo semaphoreCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, {}, {}};
-        vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_imageAvailableSemaphores_F[i]);
-        vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_renderFinishedSemaphores_F[i]);
+        vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_imageAvailableSemaphores[i]);
+        vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_renderFinishedSemaphores[i]);
         m_mainDeletionQueue.push_function([=]() {
-            vkDestroySemaphore(m_device, m_imageAvailableSemaphores_F[i], nullptr);
-            vkDestroySemaphore(m_device, m_renderFinishedSemaphores_F[i], nullptr);
+            vkDestroySemaphore(m_device, m_imageAvailableSemaphores[i], nullptr);
+            vkDestroySemaphore(m_device, m_renderFinishedSemaphores[i], nullptr);
         });
 
         VkFenceCreateInfo fenceCreateInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
-        vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_renderFences_F[i]);
+        vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_renderFences[i]);
         m_mainDeletionQueue.push_function([=]() {
-            vkDestroyFence(m_device, m_renderFences_F[i], nullptr);
+            vkDestroyFence(m_device, m_renderFences[i], nullptr);
         });
     }
 
@@ -427,13 +424,12 @@ void GfxDevice::create_command_pool() {
 
 void GfxDevice::create_command_buffers() {
     // Main per FiF command buffers
-    m_commandBuffers_F.resize(MAX_FRAMES_IN_FLIGHT);
-    VkCommandBufferAllocateInfo cmdBufferAllocInfo = {};
+        VkCommandBufferAllocateInfo cmdBufferAllocInfo = {};
     cmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     cmdBufferAllocInfo.commandPool = m_commandPool;
     cmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    cmdBufferAllocInfo.commandBufferCount = static_cast<uint32_t>(m_commandBuffers_F.size());
-    vkAllocateCommandBuffers(m_device, &cmdBufferAllocInfo, m_commandBuffers_F.data());
+    cmdBufferAllocInfo.commandBufferCount = static_cast<uint32_t>(m_commandBuffers.size());
+    vkAllocateCommandBuffers(m_device, &cmdBufferAllocInfo, m_commandBuffers.data());
 
     // Immediate command buffer
     VkCommandBufferAllocateInfo immCmdBufferAllocInfo = {};
@@ -458,7 +454,7 @@ void GfxDevice::init_VMA() {
     VkResult res = vmaCreateAllocator(&allocatorInfo, &m_vmaAllocator);
     if (res != VK_SUCCESS) {
         MRCERR(string_VkResult(res));
-        throw std::runtime_error("vmaCreateAllocator unsuccessful!");
+        MRCERR("vmaCreateAllocator unsuccessful!");
     }
     m_mainDeletionQueue.push_function([&]() {
         vmaDestroyAllocator(m_vmaAllocator);
@@ -474,8 +470,8 @@ void GfxDevice::init(SDL_Window * const window) {
     find_queue_family_indices();
     create_device();
     init_VMA();
-    create_swapChain();
-    get_swapChain_images();
+    create_swap_chain();
+    get_swap_chain_images();
     // create_draw_image();
     create_depth_image_and_view();
     create_synchronization_structures();
@@ -525,12 +521,12 @@ VkQueue GfxDevice::get_graphics_queue() const { return m_graphicsQueue; }
 
 VkPhysicalDevice GfxDevice::get_physical_device() const { return m_physicalDevice; }
 
-VkCommandBuffer GfxDevice::get_frame_command_buffer(uint32_t currentFrameIndex) const { return m_commandBuffers_F[currentFrameIndex]; };
+VkCommandBuffer GfxDevice::get_frame_command_buffer(uint32_t currentFrameIndex) const { return m_commandBuffers[currentFrameIndex]; };
 
-VkSemaphore GfxDevice::get_frame_imageAvailableSemaphore(uint32_t currentFrameIndex) const { return m_imageAvailableSemaphores_F[currentFrameIndex]; };
+VkSemaphore GfxDevice::get_frame_imageAvailableSemaphore(uint32_t currentFrameIndex) const { return m_imageAvailableSemaphores[currentFrameIndex]; };
 
-VkSemaphore GfxDevice::get_frame_renderFinishedSemaphore(uint32_t currentFrameIndex) const { return m_renderFinishedSemaphores_F[currentFrameIndex];};
+VkSemaphore GfxDevice::get_frame_renderFinishedSemaphore(uint32_t currentFrameIndex) const { return m_renderFinishedSemaphores[currentFrameIndex];};
 
-VkFence GfxDevice::get_frame_fence(uint32_t currentFrameIndex) const { return m_renderFences_F[currentFrameIndex]; };
+VkFence GfxDevice::get_frame_fence(uint32_t currentFrameIndex) const { return m_renderFences[currentFrameIndex]; };
 
 void GfxDevice::cleanup() { m_mainDeletionQueue.flush(); }

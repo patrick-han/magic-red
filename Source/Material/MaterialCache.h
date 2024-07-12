@@ -6,6 +6,13 @@
 class MaterialCache
 {
 public:
+    MaterialCache() = default;
+    ~MaterialCache() = default;
+    MaterialCache(const MaterialCache&) = delete;
+    MaterialCache& operator=(const MaterialCache&) = delete;
+    MaterialCache(MaterialCache&&) = delete;
+    MaterialCache& operator=(MaterialCache&&) = delete;
+
     [[nodiscard]] MaterialId add_material(const Material& material);
     [[nodiscard]] const Material& get_material(MaterialId id) const;
     [[nodiscard]] const void* get_material_data() const;

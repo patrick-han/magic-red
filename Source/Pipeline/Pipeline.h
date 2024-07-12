@@ -4,12 +4,12 @@
 
 class Pipeline {
 public:
-    Pipeline();
+    Pipeline() = delete;
     Pipeline(const VkDevice logicalDevice);
     virtual ~Pipeline() = 0; // Prevents direct creation of this object "pure virtual destructor"
-    void Destroy();
-    const VkPipeline& getPipeline() const;
-    const VkPipelineLayout& getPipelineLayout() const;
+    void destroy();
+    const VkPipeline& get_pipeline() const;
+    const VkPipelineLayout& get_pipeline_layout() const;
 
 protected:
 

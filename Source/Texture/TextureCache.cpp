@@ -1,10 +1,6 @@
 #include "TextureCache.h"
 #include <Rendering/GfxDevice.h>
 
-
-TextureCache::TextureCache()
-{}
-
 [[nodiscard]] GPUTextureId TextureCache::add_texture(const GfxDevice& gfxDevice, const TextureLoadingData& texLoadingData) {
    const GPUTextureId textureId = static_cast<uint32_t>(m_gpuTextures.size());
    upload_texture(gfxDevice, texLoadingData);
@@ -44,5 +40,5 @@ void TextureCache::upload_texture(const GfxDevice& gfxDevice, const TextureLoadi
    vkCreateImageView(gfxDevice, &imageViewCreateInfo, nullptr, &imageView);
    gpuTexture.allocatedImage.imageView = imageView;
   
-   m_gpuTextures.push_back(std::move(gpuTexture)); // TODO: moveable?
+   m_gpuTextures.push_back(gpuTexture);
 }

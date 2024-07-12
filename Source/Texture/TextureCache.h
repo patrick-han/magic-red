@@ -13,7 +13,13 @@ struct GPUTexture {
 class TextureCache
 {
 public:
-    TextureCache();
+    TextureCache() = default;
+    ~TextureCache() = default;
+    TextureCache(const TextureCache&) = delete;
+    TextureCache& operator=(const TextureCache&) = delete;
+    TextureCache(TextureCache&&) = delete;
+    TextureCache& operator=(TextureCache&&) = delete;
+
     [[nodiscard]] GPUTextureId add_texture(const GfxDevice& gfxDevice, const TextureLoadingData& texLoadingData);
     [[nodiscard]] const GPUTexture& get_texture(GPUTextureId id) const;
     void cleanup(const GfxDevice& gfxDevice);

@@ -71,7 +71,7 @@ void create_gpu_only_image(AllocatedImage& allocatedImage, VkImageCreateInfo ima
     VkResult res = vmaCreateImage(allocator, &imageCreateInfo, &vmaAllocInfo, &allocatedImage.image, &allocatedImage.allocation, nullptr);
     if (res != VK_SUCCESS) {
         MRCERR(string_VkResult(res));
-        throw std::runtime_error("Could not allocate image!");
+        MRCERR("Could not allocate image!");
     }
 }
 

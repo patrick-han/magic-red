@@ -6,12 +6,19 @@
 #include <Descriptor/Descriptor.h>
 #include <set>
 #include <DeletionQueue.h>
-
+#include <Common/Config.h>
 #include <vk_mem_alloc.h>
 
 class GfxDevice
 {
 public:
+    GfxDevice() = default;
+    ~GfxDevice() = default;
+    GfxDevice(const GfxDevice&) = delete;
+    GfxDevice& operator=(const GfxDevice&) = delete;
+    GfxDevice(GfxDevice&&) = delete;
+    GfxDevice& operator=(GfxDevice&&) = delete;
+
     // VulkanMemoryAllocator (VMA)
     VmaAllocator m_vmaAllocator;
 private:
@@ -43,14 +50,14 @@ private:
     uint32_t m_swapChainImageCount = 3; // Should probably request support for this, but it's probably fine
 
     // Synchronization
-    std::vector<VkSemaphore> m_imageAvailableSemaphores_F;
-    std::vector<VkSemaphore> m_renderFinishedSemaphores_F;
-    std::vector<VkFence> m_renderFences_F;
+    std::array<VkSemaphore, MAX_FRAMES_IN_FLIGHT> m_imageAvailableSemaphores;
+    std::array<VkSemaphore, MAX_FRAMES_IN_FLIGHT> m_renderFinishedSemaphores;
+    std::array<VkFence, MAX_FRAMES_IN_FLIGHT> m_renderFences;
     
 
     // Command Pools and Buffers
     VkCommandPool m_commandPool;
-    std::vector<VkCommandBuffer> m_commandBuffers_F;
+    std::array<VkCommandBuffer, MAX_FRAMES_IN_FLIGHT> m_commandBuffers;
 
     // Immediate rendering resources
     VkFence m_immediateFence;
@@ -66,8 +73,8 @@ private:
     void init_physical_device();
     void find_queue_family_indices();
     void create_device();
-    void create_swapChain();
-    void get_swapChain_images();
+    void create_swap_chain();
+    void get_swap_chain_images();
     // void create_draw_image();
     void create_depth_image_and_view();
     void create_synchronization_structures();

@@ -13,7 +13,6 @@
 
 #include <vulkan/vk_enum_string_helper.h> // Doesn't work on linux?
 
-#include <stdexcept>
 #include <cstdlib>
 #include <span>
 #include <array>
@@ -53,10 +52,6 @@ float cameraSpeed = 0.0f;
 bool firstMouse = true;
 float lastX = WINDOW_WIDTH / 2, lastY = WINDOW_HEIGHT / 2; // Initial mouse positions
 
-
-Renderer::Renderer()
-{}
-
 void Renderer::run() {
     initWindow();
     init_graphics();
@@ -94,9 +89,9 @@ void Renderer::init_lights() {
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)  
     {
         AllocatedBuffer pointLightBuffer;
-        m_GPUPointLightsBuffers_F.push_back(pointLightBuffer);
+        m_GPUPointLightsBuffers[i] = pointLightBuffer;
         upload_buffer(
-            m_GPUPointLightsBuffers_F[i],
+            m_GPUPointLightsBuffers[i],
             m_CPUPointLights.size() * sizeof(PointLight),
             m_CPUPointLights.data(),
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR,
@@ -104,7 +99,7 @@ void Renderer::init_lights() {
         );
     }
 
-    for (auto &lightBuffer : m_GPUPointLightsBuffers_F)
+    for (auto &lightBuffer : m_GPUPointLightsBuffers)
     {
         VkBufferDeviceAddressInfoKHR addressInfo{
             .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
@@ -139,7 +134,7 @@ void Renderer::init_bindless_descriptors() {
     // This seems likely a driver restriction rather than HW related?
 #if PLATFORM_MACOS
 //    constexpr uint32_t max_bindless_resources = 128; // Lowest common out of the 2
-    constexpr uint32_t maxBindlessResourceCount = 16536;
+    constexpr uint32_t maxBindlessResourceCount = 25;
     constexpr uint32_t maxSamplerCount = 2;
 #else
     constexpr uint32_t maxBindlessResourceCount = 16536;
@@ -239,13 +234,13 @@ void Renderer::init_assets() {
         {WINDOW_WIDTH, WINDOW_HEIGHT}
     );
 
-    GraphicsPipelineId defaultPipelineId = m_PipelineCache.add_pipeline(m_GfxDevice, defaultPipeline);
+    GraphicsPipelineId defaultPipelineId = m_GraphicsPipelineCache.add_pipeline(m_GfxDevice, defaultPipeline);
 
     // {
     //     // Sponza mesh
     //     CPUModel sponzaModel(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false, m_TextureCache);
     //     GPUMeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, sponzaModel.m_cpuMesh);
-    //     RenderObject sponzaObject(defaultPipelineId, sponzaMeshId, m_PipelineCache, m_MeshCache);
+    //     RenderObject sponzaObject(defaultPipelineId, sponzaMeshId, m_GraphicsPipelineCache, m_MeshCache);
     //     glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, -5.0f, 0.0f));
     //     glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
     //     sponzaObject.set_transform(translate * scale);
@@ -256,7 +251,7 @@ void Renderer::init_assets() {
     //     // Suzanne mesh
     //     CPUModel suzanneModel(ROOT_DIR "/Assets/Meshes/suzanne.glb", true, m_TextureCache);
     //     GPUMeshId suzanneMeshId = m_MeshCache.add_mesh(m_GfxDevice, suzanneModel.m_cpuMesh);
-    //     RenderObject suzanneObject(defaultPipelineId, suzanneMeshId, m_PipelineCache, m_MeshCache);
+    //     RenderObject suzanneObject(defaultPipelineId, suzanneMeshId, m_GraphicsPipelineCache, m_MeshCache);
     //     glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
     //     suzanneObject.set_transform(monkeyTranslate);
     //     m_sceneRenderObjects.push_back(suzanneObject);
@@ -267,7 +262,7 @@ void Renderer::init_assets() {
         UNUSED(m_materialDataBuffer);
         CPUModel helmetModel(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true, m_MaterialCache, m_TextureCache, m_GfxDevice);
         GPUMeshId helmetMeshId = m_MeshCache.add_mesh(m_GfxDevice, helmetModel.m_cpuMesh);
-        RenderObject helmetObject(defaultPipelineId, helmetMeshId, helmetModel.m_materialId, m_PipelineCache, m_MeshCache);
+        RenderObject helmetObject(defaultPipelineId, helmetMeshId, helmetModel.m_materialId, m_GraphicsPipelineCache, m_MeshCache);
         glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
         helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
         helmetObject.set_transform(helmetTransform);
@@ -304,9 +299,9 @@ void Renderer::init_scene_data() {
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)  
     {
         AllocatedBuffer sceneDataBuffer;
-        m_GPUSceneDataBuffers_F.push_back(sceneDataBuffer);
+        m_GPUSceneDataBuffers[i] = sceneDataBuffer;
         upload_buffer(
-            m_GPUSceneDataBuffers_F[i],
+            m_GPUSceneDataBuffers[i],
             sizeof(CPUSceneData),
             &m_CPUSceneData,
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR,
@@ -314,7 +309,7 @@ void Renderer::init_scene_data() {
         );
     }
 
-    for (auto &sceneDataBuffer : m_GPUSceneDataBuffers_F)
+    for (auto &sceneDataBuffer : m_GPUSceneDataBuffers)
     {
         VkBufferDeviceAddressInfoKHR sceneDataBufferAddressInfo{
             .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
@@ -433,7 +428,7 @@ void Renderer::init_imgui() {
 
 void Renderer::draw_objects() {
     VkCommandBuffer cmdBuffer = m_GfxDevice.get_frame_command_buffer(m_currentFrame);
-    VkDeviceAddress sceneDataBufferAddress = m_GPUSceneDataBuffers_F[m_currentFrame].gpuAddress;
+    VkDeviceAddress sceneDataBufferAddress = m_GPUSceneDataBuffers[m_currentFrame].gpuAddress;
 
     for (RenderObject renderObject :  m_sceneRenderObjects) {
        renderObject.bind_and_draw(cmdBuffer, std::span<const VkDescriptorSet>(&m_bindlessDescriptorSet, 1), sceneDataBufferAddress);
@@ -470,7 +465,7 @@ void Renderer::update_lights(uint32_t frameInFlightIndex) {
     
 
     update_buffer(
-        m_GPUPointLightsBuffers_F[frameInFlightIndex], 
+        m_GPUPointLightsBuffers[frameInFlightIndex], 
         m_CPUPointLights.size() * sizeof(PointLight),
         m_CPUPointLights.data(),
         m_GfxDevice.m_vmaAllocator
@@ -484,10 +479,10 @@ void Renderer::update_scene_data(uint32_t frameInFlightIndex) {
     m_CPUSceneData.projection = projection;
     m_CPUSceneData.cameraWorldPosition = camera.get_world_position();
     // m_CPUSceneData.numPointLights = static_cast<uint32_t>(m_CPUPointLights.size());
-    m_CPUSceneData.lightBufferAddress = m_GPUPointLightsBuffers_F[frameInFlightIndex].gpuAddress;
+    m_CPUSceneData.lightBufferAddress = m_GPUPointLightsBuffers[frameInFlightIndex].gpuAddress;
 
     update_buffer(
-        m_GPUSceneDataBuffers_F[frameInFlightIndex], 
+        m_GPUSceneDataBuffers[frameInFlightIndex], 
         sizeof(CPUSceneData),
         &m_CPUSceneData,
         m_GfxDevice.m_vmaAllocator
@@ -549,7 +544,7 @@ void Renderer::drawFrame() {
         res = vkAcquireNextImageKHR(m_GfxDevice, m_GfxDevice.m_swapChain, std::numeric_limits<uint64_t>::max(), imageAvaliableSemaphore, VK_NULL_HANDLE, &imageIndex);
         if (!((res == VK_SUCCESS) || (res == VK_SUBOPTIMAL_KHR))) {
             MRCERR(string_VkResult(res));
-            throw std::runtime_error("Failed to acquire image from Swap Chain!");
+            MRCERR("Failed to acquire image from Swap Chain!");
         }
         VkCommandBuffer cmdBuffer = m_GfxDevice.get_frame_command_buffer(m_currentFrame);
         vkResetCommandBuffer(cmdBuffer, {});
@@ -758,8 +753,8 @@ void Renderer::cleanup() {
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        m_GPUPointLightsBuffers_F[i].cleanup(m_GfxDevice.m_vmaAllocator);
-        m_GPUSceneDataBuffers_F[i].cleanup(m_GfxDevice.m_vmaAllocator);
+        m_GPUPointLightsBuffers[i].cleanup(m_GfxDevice.m_vmaAllocator);
+        m_GPUSceneDataBuffers[i].cleanup(m_GfxDevice.m_vmaAllocator);
     }
 
     // m_bindlessDescriptorAllocator.destroy_pool(m_GfxDevice);
@@ -769,7 +764,7 @@ void Renderer::cleanup() {
     vkDestroySampler(m_GfxDevice, m_nearestSampler, nullptr);
 
     m_TextureCache.cleanup(m_GfxDevice);
-    m_PipelineCache.cleanup(m_GfxDevice);
+    m_GraphicsPipelineCache.cleanup(m_GfxDevice);
     m_MeshCache.cleanup(m_GfxDevice);
     m_GfxDevice.cleanup();
 
