@@ -214,6 +214,7 @@ void GfxDevice::create_device() {
         .descriptorBindingSampledImageUpdateAfterBind = VK_TRUE,
         .descriptorBindingPartiallyBound = VK_TRUE, // Indicates whether the implementation supports statically using a descriptor set binding in which some descriptors are not valid
         .descriptorBindingVariableDescriptorCount = VK_TRUE,
+        .runtimeDescriptorArray = VK_TRUE
     };
 
     VkDeviceCreateInfo deviceCreateInfo = {

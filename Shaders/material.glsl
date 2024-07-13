@@ -5,7 +5,6 @@
 
 // Based on the standard set of textures provided by the Damaged Helmet gltf: https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/DamagedHelmet/glTF, excluding AO because I want to do it in real time
 struct MaterialData {
-    vec4 baseColor;
     uint diffuseTex;
     uint normalTex;
     uint metallicRoughnessTex;

@@ -12,7 +12,7 @@
 }
 
 [[nodiscard]] const void* MaterialCache::get_material_data() const {
-    return &m_materials.at(0);
+    return m_materials.data();
 }
 
 [[nodiscard]] int MaterialCache::get_material_count() const {

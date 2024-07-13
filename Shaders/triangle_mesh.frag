@@ -19,8 +19,9 @@ layout (set = 0, binding = 1) uniform texture2D textures[];
 
 void main() {
     // Sample texture(s)
-    vec3 diffuseTexColor = texture(sampler2D(textures[0], linearSampler), textureCoords).rgb;
-    float specularTexValue = texture(sampler2D(textures[1], linearSampler), textureCoords).b;
+    MaterialData materialData = pushConstants.sceneData.materials.data[pushConstants.materialId];
+    vec3 diffuseTexColor = texture(sampler2D(textures[materialData.diffuseTex], linearSampler), textureCoords).rgb;
+    vec3 metallicRoughnessColor = texture(sampler2D(textures[materialData.metallicRoughnessTex], linearSampler), textureCoords).rgb;
 
     // Ambient
     vec3 lightColor = pushConstants.sceneData.pointLights.data[0].color;
@@ -39,7 +40,7 @@ void main() {
     vec3 viewDir = normalize(pushConstants.sceneData.cameraWorldPosition.xyz - fragWorldPos);
     vec3 reflectDir = reflect(-fragToLightDir, norm);
     float specularDifference = pow(max(dot(viewDir, reflectDir), 0.0), 32);
-    vec3 specular = specularTexValue * specularStrength * specularDifference * lightColor;
+    vec3 specular = specularStrength * specularDifference * lightColor;
 
     vec3 result = (ambient + diffuse + specular);
     
