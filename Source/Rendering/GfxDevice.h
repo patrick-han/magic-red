@@ -8,6 +8,7 @@
 #include <DeletionQueue.h>
 #include <Common/Config.h>
 #include <vk_mem_alloc.h>
+#include <array>
 
 class GfxDevice
 {

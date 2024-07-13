@@ -88,8 +88,6 @@ void Renderer::init_lights() {
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)  
     {
-        AllocatedBuffer pointLightBuffer;
-        m_GPUPointLightsBuffers[i] = pointLightBuffer;
         upload_buffer(
             m_GPUPointLightsBuffers[i],
             m_CPUPointLights.size() * sizeof(PointLight),
@@ -298,8 +296,6 @@ void Renderer::init_scene_data() {
     
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)  
     {
-        AllocatedBuffer sceneDataBuffer;
-        m_GPUSceneDataBuffers[i] = sceneDataBuffer;
         upload_buffer(
             m_GPUSceneDataBuffers[i],
             sizeof(CPUSceneData),
