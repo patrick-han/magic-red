@@ -213,8 +213,7 @@ void GfxDevice::create_device() {
         .pNext = &scalar_block_layout_feature,
         .descriptorBindingSampledImageUpdateAfterBind = VK_TRUE,
         .descriptorBindingPartiallyBound = VK_TRUE, // Indicates whether the implementation supports statically using a descriptor set binding in which some descriptors are not valid
-        .runtimeDescriptorArray = VK_TRUE // Indicates whether the implementation supports the SPIR-V RuntimeDescriptorArray capability. 
-   
+        .descriptorBindingVariableDescriptorCount = VK_TRUE,
     };
 
     VkDeviceCreateInfo deviceCreateInfo = {

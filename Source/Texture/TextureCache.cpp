@@ -11,6 +11,10 @@
     return m_gpuTextures[id];
 }
 
+[[nodiscard]] uint32_t TextureCache::get_texture_count() const {
+    return static_cast<uint32_t>(m_gpuTextures.size());
+}
+
 void TextureCache::cleanup(const GfxDevice& gfxDevice) {
     for (auto &texture : m_gpuTextures)
     {

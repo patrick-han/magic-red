@@ -130,25 +130,20 @@ void Renderer::init_bindless_descriptors() {
     // maxPerStageResources on M2 Pro is 159, it's insanely high on a 4080S tho (4294967295)
     // maxPerStageDescriptorUpdateAfterBindSampledImages on M2 Pro is 128, 1048576 on the 4080S
     // This seems likely a driver restriction rather than HW related?
-#if PLATFORM_MACOS
-//    constexpr uint32_t max_bindless_resources = 128; // Lowest common out of the 2
-    constexpr uint32_t maxBindlessResourceCount = 25;
-    constexpr uint32_t maxSamplerCount = 2;
-#else
     constexpr uint32_t maxBindlessResourceCount = 16536;
     constexpr uint32_t maxSamplerCount = 2;
-#endif
 
     // Create a global descriptor pool, and let it know how many of each descriptor type we want up front
     std::array<VkDescriptorPoolSize, 2> bindlessDescriptorPoolSizes {{
-        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, maxBindlessResourceCount},
-        { VK_DESCRIPTOR_TYPE_SAMPLER, maxSamplerCount} // TODO: We'll just have 1 nearest and 1 linear sampler for now
+        { VK_DESCRIPTOR_TYPE_SAMPLER, maxSamplerCount}, // TODO: We'll just have 1 nearest and 1 linear sampler for now
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, maxBindlessResourceCount}
     }};
     VkDescriptorPoolCreateInfo poolCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .pNext = nullptr,
         .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT, // Allows us to update textures in a bindless array
-        .maxSets = maxBindlessResourceCount * static_cast<uint32_t>(bindlessDescriptorPoolSizes.size()), // ?
+        // .maxSets = maxBindlessResourceCount * static_cast<uint32_t>(bindlessDescriptorPoolSizes.size()), // ?
+        .maxSets = maxBindlessResourceCount + maxSamplerCount, // ? potentially 1 set for each resource
         .poolSizeCount = static_cast<uint32_t>(bindlessDescriptorPoolSizes.size()),
         .pPoolSizes = bindlessDescriptorPoolSizes.data()
     };
@@ -173,13 +168,13 @@ void Renderer::init_bindless_descriptors() {
     // We only need a single layout since they are all the same for each frame in flight
     // m_sceneDataDescriptorSetLayouts.push_back(layoutBuilder.buildLayout(m_GfxDevice, VK_SHADER_STAGE_FRAGMENT_BIT));
     const VkDescriptorBindingFlags bindlessFlags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT 
-                                                    | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT 
-                                                    ;//| VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT; // TODO: Permits use of variable array size for a set (with the caveat that only the last binding in the set can be of variable length) (Do I need this?)
+                                                    | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
     std::vector<VkDescriptorBindingFlags> descriptorBindingFlags;
     for(size_t i = 0; i < bindlessDescriptorSetLayoutBindings.size(); i++)
     {
         descriptorBindingFlags.push_back(bindlessFlags);
     }
+    descriptorBindingFlags.back() |= VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT; // Permits use of variable array size for a set (with the caveat that only the last binding in the set can be of variable length)
     VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extendedBindingInfo { 
         .sType =  VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT,
         .bindingCount = static_cast<uint32_t>(descriptorBindingFlags.size()),
@@ -195,9 +190,15 @@ void Renderer::init_bindless_descriptors() {
     vkCreateDescriptorSetLayout(m_GfxDevice, &bindlessSetLayoutCreateInfo, nullptr, &m_bindlessDescriptorSetLayout);
 
     // Allocate the descriptor set
+    uint32_t maxBinding = maxBindlessResourceCount - 1;
+    VkDescriptorSetVariableDescriptorCountAllocateInfoEXT variableDescriptorCountInfo { 
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT,
+        .descriptorSetCount = 1,
+        .pDescriptorCounts = &maxBinding // Number of descriptors, -1?
+    };
     VkDescriptorSetAllocateInfo allocateInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .pNext = nullptr,
+        .pNext = &variableDescriptorCountInfo,
         .descriptorPool = m_bindlessPool,
         .descriptorSetCount = 1,
         .pSetLayouts = &m_bindlessDescriptorSetLayout
@@ -316,34 +317,43 @@ void Renderer::init_scene_data() {
 }
 
 void Renderer::update_texture_descriptors() {
-    // Update descriptor set
-    VkDescriptorImageInfo texture0Info = {
-        .imageView = m_TextureCache.get_texture(1).allocatedImage.imageView, // TODO
-        .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, // TODO
-    };
+
+    // TODO: should batch things per frame?
+
+    // Done like this instead of constructing temps in a for loop because of pImageInfo
+    std::vector<VkDescriptorImageInfo> textureInfos;
+    std::vector<VkWriteDescriptorSet> textureDescriptorWrites;
+    textureInfos.resize(m_TextureCache.get_texture_count());
+    textureDescriptorWrites.resize(m_TextureCache.get_texture_count());
+
+    for (uint32_t i = 0; i < m_TextureCache.get_texture_count(); i++)
+    {
+        textureInfos[i].imageView = m_TextureCache.get_texture(i).allocatedImage.imageView;
+        textureInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        textureDescriptorWrites[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        textureDescriptorWrites[i].pNext = nullptr;
+        textureDescriptorWrites[i].dstSet = m_bindlessDescriptorSet;
+        textureDescriptorWrites[i].dstBinding = 1;
+        textureDescriptorWrites[i].dstArrayElement = i;
+        textureDescriptorWrites[i].descriptorCount = 1;
+        textureDescriptorWrites[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        textureDescriptorWrites[i].pImageInfo = &textureInfos[i];
+        textureDescriptorWrites[i].pBufferInfo = nullptr;
+        textureDescriptorWrites[i].pTexelBufferView = nullptr;
+    }
+    
+    vkUpdateDescriptorSets(m_GfxDevice, static_cast<uint32_t>(textureDescriptorWrites.size()), textureDescriptorWrites.data(), 0, nullptr);
+
 
     VkDescriptorImageInfo linearSamplerInfo = {
         .sampler = m_linearSampler
     };
-
-    VkWriteDescriptorSet texture0DescriptorWrite = {
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .pNext = nullptr,
-        .dstSet = m_bindlessDescriptorSet,
-        .dstBinding = 0,
-        .dstArrayElement = {},
-        .descriptorCount = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-        .pImageInfo = &texture0Info,
-        .pBufferInfo = nullptr,
-        .pTexelBufferView = nullptr
-    };
-
     VkWriteDescriptorSet linearSamplerDescriptorWrite = {
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .pNext = nullptr,
         .dstSet = m_bindlessDescriptorSet,
-        .dstBinding = 1,
+        .dstBinding = 0,
         .dstArrayElement = {},
         .descriptorCount = 1,
         .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
@@ -352,8 +362,7 @@ void Renderer::update_texture_descriptors() {
         .pTexelBufferView = nullptr
     };
 
-    VkWriteDescriptorSet writes[2] = {texture0DescriptorWrite, linearSamplerDescriptorWrite};
-    vkUpdateDescriptorSets(m_GfxDevice, 2, &writes[0], 0, nullptr);
+    vkUpdateDescriptorSets(m_GfxDevice, 1, &linearSamplerDescriptorWrite, 0, nullptr);
 }
 
 // void build_pipelines() {

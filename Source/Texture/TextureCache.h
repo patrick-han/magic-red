@@ -22,6 +22,7 @@ public:
 
     [[nodiscard]] GPUTextureId add_texture(const GfxDevice& gfxDevice, const TextureLoadingData& texLoadingData);
     [[nodiscard]] const GPUTexture& get_texture(GPUTextureId id) const;
+    [[nodiscard]] uint32_t get_texture_count() const;
     void cleanup(const GfxDevice& gfxDevice);
 
 private:
