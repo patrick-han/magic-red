@@ -182,14 +182,20 @@ void load_node(const tinygltf::Node& node, const tinygltf::Model& model, NodeLoa
                 const tinygltf::Image &diffuseImage = model.images[diffuseTexture.source];
                 const tinygltf::Sampler &diffuseSampler = model.samplers[diffuseTexture.sampler];
                 UNUSED(diffuseSampler);
-                // nodeLoadingData.diffuseTextureData = &diffuseImage.image.at(0);
-                // nodeLoadingData.diffuseTextureSizeX = diffuseImage.width;
-                // nodeLoadingData.diffuseTextureSizeY = diffuseImage.height;
-                // nodeLoadingData.diffuseTextureSizeZ = diffuseImage.component;
                 nodeLoadingData.diffuseTex.data = &diffuseImage.image.at(0);
                 nodeLoadingData.diffuseTex.texSize.x = diffuseImage.width;
                 nodeLoadingData.diffuseTex.texSize.y = diffuseImage.height;
                 nodeLoadingData.diffuseTex.texSize.ch = diffuseImage.component;
+
+                // Normal
+                const tinygltf::Texture &normalTexture = model.textures[primMaterial.normalTexture.index];
+                const tinygltf::Image &normalImage= model.images[normalTexture.source];
+                const tinygltf::Sampler &normalSampler = model.samplers[normalTexture.sampler];
+                UNUSED(normalSampler);
+                nodeLoadingData.normalTex.data = &normalImage.image.at(0);
+                nodeLoadingData.normalTex.texSize.x = normalImage.width;
+                nodeLoadingData.normalTex.texSize.y = normalImage.height;
+                nodeLoadingData.normalTex.texSize.ch = normalImage.component;
 
                 // Metallic-Roughness
                 const tinygltf::Texture &metRoughTexture = model.textures[primMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index];
@@ -200,6 +206,16 @@ void load_node(const tinygltf::Node& node, const tinygltf::Model& model, NodeLoa
                 nodeLoadingData.metRoughTex.texSize.x = metRoughImage.width;
                 nodeLoadingData.metRoughTex.texSize.y = metRoughImage.height;
                 nodeLoadingData.metRoughTex.texSize.ch = metRoughImage.component;
+
+                // Emissive
+                const tinygltf::Texture &emissiveTexture = model.textures[primMaterial.emissiveTexture.index];
+                const tinygltf::Image &emissiveImage= model.images[emissiveTexture.source];
+                const tinygltf::Sampler &emissiveSampler = model.samplers[emissiveTexture.sampler];
+                UNUSED(emissiveSampler);
+                nodeLoadingData.emissiveTex.data = &emissiveImage.image.at(0);
+                nodeLoadingData.emissiveTex.texSize.x = emissiveImage.width;
+                nodeLoadingData.emissiveTex.texSize.y = emissiveImage.height;
+                nodeLoadingData.emissiveTex.texSize.ch = emissiveImage.component;
 
             }
             else
@@ -265,17 +281,25 @@ CPUModel::CPUModel(const char* fileName, bool isBinary, MaterialCache& _material
     );
 
     // Material/Textures
-    Material defaultMaterial;
+    Material modelMaterial;
 
     if (nodeLoadingData.diffuseTex.texSize.x != -1)
     {
-        defaultMaterial.diffuseImageId = m_textureCache.add_texture(m_gfxDevice, nodeLoadingData.diffuseTex);
+        modelMaterial.diffuseImageId = m_textureCache.add_texture(m_gfxDevice, nodeLoadingData.diffuseTex);
+    }
+    if (nodeLoadingData.normalTex.texSize.x != -1)
+    {
+        modelMaterial.normalImageId = m_textureCache.add_texture(m_gfxDevice, nodeLoadingData.normalTex);
     }
     if (nodeLoadingData.metRoughTex.texSize.x != -1)
     {
-        defaultMaterial.metallicRoughnessImageId = m_textureCache.add_texture(m_gfxDevice, nodeLoadingData.metRoughTex);
+        modelMaterial.metallicRoughnessImageId = m_textureCache.add_texture(m_gfxDevice, nodeLoadingData.metRoughTex);
     }
-    m_materialId = m_materialCache.add_material(defaultMaterial);
+    if (nodeLoadingData.emissiveTex.texSize.x != -1)
+    {
+        modelMaterial.emissiveImageId = m_textureCache.add_texture(m_gfxDevice, nodeLoadingData.emissiveTex);
+    }
+    m_materialId = m_materialCache.add_material(modelMaterial);
 }
 
 POP_CLANG_WARNINGS

@@ -16,11 +16,9 @@ struct NodeLoadingData {
     // TODO: Technically a mesh could have multiple materials (each "primitive" could have a different material)
     // but lets keep it simple for now
     TextureLoadingData diffuseTex;
+    TextureLoadingData normalTex;
     TextureLoadingData metRoughTex;
-    // const void *diffuseTextureData;
-    // int diffuseTextureSizeX;
-    // int diffuseTextureSizeY;
-    // int diffuseTextureSizeZ;
+    TextureLoadingData emissiveTex;
 };
 
 struct CPUModel {
