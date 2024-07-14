@@ -7,7 +7,7 @@
 #include <set>
 #include <DeletionQueue.h>
 
-#include <vk_mem_alloc.h>
+#include <IncludeHelpers/VmaIncludes.h>
 
 class GfxDevice
 {
