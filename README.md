@@ -3,7 +3,7 @@ Magic Red is a cross-platform 3D rendering engine built on top of Vulkan.
 
 # Requirements
 This project requires from you:
-- Vulkan SDK
+- The latest Vulkan SDK
 - CMake 3.20 or later
 
 All other dependencies are pulled as submodules and built from source.
@@ -15,7 +15,7 @@ Initial clone:
 git clone --recurse-submodules git@github.com:patrick-han/magic-red.git
 ```
 
-If you forgot to fetch the submodules:
+If you forget to fetch the submodules:
 ```sh
 cd magic-red
 git submodule update --init --recursive
@@ -44,26 +44,34 @@ cd build
 make -j `sysctl -n hw.ncpu` magic-red
 ```
 
+### Linux:
+Will probably work with a few tweaks, there are always some compiler quirks.
+
 # Vulkan extensions used:
-- Dynamic rendering
-- Buffer device address
-- Scalar block layout
+- VK_KHR_dynamic_rendering
+- VK_KHR_buffer_device_address
+- VK_EXT_scalar_block_layout
+- VK_EXT_descriptor_indexing
 
-# Immediate Roadmap:
-- [x] Mesh loading and drawing
-- [ ] Diffuse texture loading and drawing
+# Rendering Roadmap
+- [x] Static mesh loading
+- [x] Simple Phong shading
 - [ ] Blinn-Phong lighting
-- [ ] Gamma-correction
-- [ ] Directional light shadowmaps
-- [ ] Point light shadowmaps
-- [ ] Other texture maps (specular, normal, etc.)
-- [ ] Bloom in compute
-- [ ] SSAO
-- [ ] PBR
-- [ ] Forward+
-
-
-# Non-essential for now:
+- [ ] Bindless textures w/ PBR Materials
+- [ ] Normal mapping
 - [ ] HDR
-- [ ] Hybrid RT
-- [ ] DoF
+- [ ] Shadowmaps
+- [ ] Deferred architecture
+- [ ] PBR lighting model
+- [ ] Bloom
+- [ ] SSAO
+- [ ] RT path for GI, shadows, and reflections
+- [ ] Skinned meshes and animation
+
+# Engine Roadmap
+- [ ] Job system
+- [ ] Simple "ECS"
+- [ ] Asset cooker (including texture compression)
+- [ ] Scene saving/loading
+- [ ] Physics
+- [ ] Developer console
