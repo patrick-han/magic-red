@@ -40,7 +40,7 @@ unsigned char* CPUModel::load_texture_from_filename(aiString& str, int* width, i
     const char* textureFileName = str.C_Str();
     std::string texturePath = m_path.parent_path().append(textureFileName).string();
     const char* texturePath_cstr = texturePath.c_str();
-    unsigned char *data = stbi_load(texturePath_cstr, width, height, numberComponents, 4); // TODO: request 4 channels from all images
+    unsigned char *data = stbi_load(texturePath_cstr, width, height, numberComponents, STBI_rgb_alpha); // TODO: request 4 channels from all images
     return data;
 }
 
@@ -73,8 +73,128 @@ CPUMesh CPUModel::process_mesh(aiMesh *mesh, const aiScene *scene, const glm::ma
         aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
         Material meshMaterial;
 
+        unsigned int materialDiffuseCount = material->GetTextureCount(aiTextureType_BASE_COLOR);
+        unsigned int materialMetallicRoughnessCount = material->GetTextureCount(aiTextureType_METALNESS);
+        unsigned int materialNormalCount = material->GetTextureCount(aiTextureType_NORMALS);
+        unsigned int materialEmissiveCount = material->GetTextureCount(aiTextureType_EMISSIVE);
+
+        std::string missingDiffuseTextureName("missing_diffuse_texture.png");
+        std::string default1TextureName("default_1_texture.png");
+
         if (m_texturesEmbedded) // .glb for example
         {
+            
+            // const bool isCompressed = texture->mHeight == 0 ? true : false;
+            // if (isCompressed)
+            if (materialDiffuseCount > 0)
+            {
+                aiString embeddedTextureFile;
+                material->GetTexture(AI_MATKEY_BASE_COLOR_TEXTURE, &embeddedTextureFile);
+                const aiTexture* texture = scene->GetEmbeddedTexture(embeddedTextureFile.C_Str());
+                int width, height, numberComponents;
+                stbi_uc* data = stbi_load_from_memory(reinterpret_cast<unsigned char*>(texture->pcData), texture->mWidth, &width, &height, &numberComponents, STBI_rgb_alpha);
+                if (!data)
+                {
+                    MRCERR("Failed to load embedded texture from memory!");
+                    exit(1);
+                }
+
+                TextureLoadingData textureLoadingData = {
+                    .data = data,
+                    .texSize = {width, height, 4} // TODO: force all images to have 4 channels...ignoring numberComponents for now
+                };
+                std::string textureName = m_path.filename().string() + std::string("_diffuse_tex");
+                meshMaterial.diffuseTextureId = m_textureCache.add_texture(m_gfxDevice, textureLoadingData, textureName);
+                stbi_image_free(data);
+            }
+            else
+            {
+                meshMaterial.diffuseTextureId = m_textureCache.get_texture_id(missingDiffuseTextureName);
+            }
+            // else
+            // {
+            //     MRCERR("Uncompressed texture, what do?");
+            //     exit(1);
+            // }
+
+            if (materialMetallicRoughnessCount > 0)
+            {
+               aiString embeddedTextureFile;
+               material->GetTexture(AI_MATKEY_METALLIC_TEXTURE, &embeddedTextureFile);
+               const aiTexture* texture = scene->GetEmbeddedTexture(embeddedTextureFile.C_Str());
+               int width, height, numberComponents;
+               stbi_uc* data = stbi_load_from_memory(reinterpret_cast<unsigned char*>(texture->pcData), texture->mWidth, &width, &height, &numberComponents, STBI_rgb_alpha);
+               if (!data)
+               {
+                   MRCERR("Failed to load embedded texture from memory!");
+                   exit(1);
+               }
+
+               TextureLoadingData textureLoadingData = {
+                   .data = data,
+                   .texSize = {width, height, 4} // TODO: force all images to have 4 channels...ignoring numberComponents for now
+               };
+               std::string textureName = m_path.filename().string() + std::string("_metallic_roughness_tex");
+               meshMaterial.metallicRoughnessTextureId = m_textureCache.add_texture(m_gfxDevice, textureLoadingData, textureName);
+               stbi_image_free(data);
+            }
+            else
+            {
+                meshMaterial.metallicRoughnessTextureId = m_textureCache.get_texture_id(default1TextureName);
+            }
+
+            if (materialNormalCount > 0)
+            {
+                aiString embeddedTextureFile;
+                material->GetTexture(aiTextureType_NORMALS, 0, &embeddedTextureFile);
+                const aiTexture* texture = scene->GetEmbeddedTexture(embeddedTextureFile.C_Str());
+                int width, height, numberComponents;
+                stbi_uc* data = stbi_load_from_memory(reinterpret_cast<unsigned char*>(texture->pcData), texture->mWidth, &width, &height, &numberComponents, STBI_rgb_alpha);
+                if (!data)
+                {
+                    MRCERR("Failed to load embedded texture from memory!");
+                    exit(1);
+                }
+
+                TextureLoadingData textureLoadingData = {
+                    .data = data,
+                    .texSize = {width, height, 4} // TODO: force all images to have 4 channels...ignoring numberComponents for now
+                };
+                std::string textureName = m_path.filename().string() + std::string("_normals_tex");
+                meshMaterial.normalTextureId = m_textureCache.add_texture(m_gfxDevice, textureLoadingData, textureName);
+                stbi_image_free(data);
+            }
+            else
+            {
+                meshMaterial.normalTextureId = m_textureCache.get_texture_id(default1TextureName);
+            }
+
+            if (materialEmissiveCount > 0)
+            {
+                aiString embeddedTextureFile;
+                material->GetTexture(aiTextureType_EMISSIVE, 0, &embeddedTextureFile);
+                const aiTexture* texture = scene->GetEmbeddedTexture(embeddedTextureFile.C_Str());
+                int width, height, numberComponents;
+                stbi_uc* data = stbi_load_from_memory(reinterpret_cast<unsigned char*>(texture->pcData), texture->mWidth, &width, &height, &numberComponents, STBI_rgb_alpha);
+                if (!data)
+                {
+                    MRCERR("Failed to load embedded texture from memory!");
+                    exit(1);
+                }
+
+                TextureLoadingData textureLoadingData = {
+                    .data = data,
+                    .texSize = {width, height, 4} // TODO: force all images to have 4 channels...ignoring numberComponents for now
+                };
+                std::string textureName = m_path.filename().string() + std::string("_emissive_tex");
+                meshMaterial.emissiveTextureId = m_textureCache.add_texture(m_gfxDevice, textureLoadingData, textureName);
+                stbi_image_free(data);
+            }
+            else
+            {
+                meshMaterial.emissiveTextureId = m_textureCache.get_texture_id(default1TextureName);
+            }
+
 
         }
         else
@@ -84,16 +204,6 @@ CPUMesh CPUModel::process_mesh(aiMesh *mesh, const aiScene *scene, const glm::ma
             // TODO: Right now this CPUModel class is directly uploading the textures as it parses the assimp data structure, which doesn't
             // necessarily follow the spirit of the class name.
             // Better possibly would be to store the texture data and queue uploading jobs after the fact, along with uploading the mesh data.
-            unsigned int materialDiffuseCount = material->GetTextureCount(aiTextureType_BASE_COLOR);
-            unsigned int materialMetallicRoughnessCount = material->GetTextureCount(aiTextureType_METALNESS);
-            unsigned int materialNormalCount = material->GetTextureCount(aiTextureType_NORMALS);
-            unsigned int materialEmissiveCount = material->GetTextureCount(aiTextureType_EMISSIVE);
-            // MRLOG("Diffuse count: " << materialDiffuseCount);
-            // MRLOG("Metalness count: " << materialMetallicRoughnessCount);
-            // MRLOG("Normal count: " << materialNormalCount);
-            // MRLOG("Emissive count: " << materialEmissiveCount);
-
-            
 
             // From the glTF 2.0 spec: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#metallic-roughness-material
 
@@ -137,8 +247,9 @@ CPUMesh CPUModel::process_mesh(aiMesh *mesh, const aiScene *scene, const glm::ma
                 aiString str;
                 int width, height, numberComponents;
                 material->GetTexture(AI_MATKEY_BASE_COLOR_TEXTURE, &str);
+                const std::string textureName(str.C_Str());
                 
-                if (!m_textureCache.is_texture_loaded_already(str.C_Str()))
+                if (!m_textureCache.is_texture_loaded_already(textureName))
                 {
                     unsigned char* data = load_texture_from_filename(str, &width, &height, &numberComponents);
                     TextureLoadingData textureLoadingData = {
@@ -146,93 +257,94 @@ CPUMesh CPUModel::process_mesh(aiMesh *mesh, const aiScene *scene, const glm::ma
                         //.texSize = {width, height, numberComponents}
                         .texSize = {width, height, 4} // TODO: force all images to have 4 channels...ignoring numberComponents for now
                     };
-                    meshMaterial.diffuseTextureId = m_textureCache.add_texture(m_gfxDevice, textureLoadingData, str.C_Str());
+                    meshMaterial.diffuseTextureId = m_textureCache.add_texture(m_gfxDevice, textureLoadingData, textureName);
                     stbi_image_free(data);
                 }
                 else
                 {
-                    meshMaterial.diffuseTextureId = m_textureCache.get_texture_id(str.C_Str());
+                    meshMaterial.diffuseTextureId = m_textureCache.get_texture_id(textureName);
                 }
             }
             else
             {
-                meshMaterial.diffuseTextureId = m_textureCache.get_texture_id("missing_diffuse_texture.png");
+                meshMaterial.diffuseTextureId = m_textureCache.get_texture_id(missingDiffuseTextureName);
             }
             if (materialMetallicRoughnessCount > 0)
             {
                 aiString str;
                 int width, height, numberComponents;
                 material->GetTexture(AI_MATKEY_METALLIC_TEXTURE, &str);
+                const std::string textureName(str.C_Str());
                 //material->GetTexture(AI_MATKEY_ROUGHNESS_TEXTURE, &str); // These seem to return the same thing for conformant gltf models
 
-                if (!m_textureCache.is_texture_loaded_already(str.C_Str()))
+                if (!m_textureCache.is_texture_loaded_already(textureName))
                 {
                     unsigned char* data = load_texture_from_filename(str, &width, &height, &numberComponents);
                     TextureLoadingData textureLoadingData = {
                         .data = data,
                         .texSize = {width, height, 4}
                     };
-                    meshMaterial.metallicRoughnessTextureId = m_textureCache.add_texture(m_gfxDevice, textureLoadingData, str.C_Str());
+                    meshMaterial.metallicRoughnessTextureId = m_textureCache.add_texture(m_gfxDevice, textureLoadingData, textureName);
                     stbi_image_free(data);
                 }
                 else
                 {
-                    meshMaterial.metallicRoughnessTextureId = m_textureCache.get_texture_id(str.C_Str());
+                    meshMaterial.metallicRoughnessTextureId = m_textureCache.get_texture_id(textureName);
                 }
             }
             else
             {
-                meshMaterial.metallicRoughnessTextureId = m_textureCache.get_texture_id("default_1_texture.png");
+                meshMaterial.metallicRoughnessTextureId = m_textureCache.get_texture_id(default1TextureName);
             }
             if (materialNormalCount > 0)
             {
                 aiString str;
                 int width, height, numberComponents;
                 material->GetTexture(aiTextureType_NORMALS, 0, &str);
-
-                if (!m_textureCache.is_texture_loaded_already(str.C_Str()))
+                const std::string textureName(str.C_Str());
+                if (!m_textureCache.is_texture_loaded_already(textureName))
                 {
                     unsigned char* data = load_texture_from_filename(str, &width, &height, &numberComponents);
                     TextureLoadingData textureLoadingData = {
                         .data = data,
                         .texSize = {width, height, 4}
                     };
-                    meshMaterial.normalTextureId = m_textureCache.add_texture(m_gfxDevice, textureLoadingData, str.C_Str());
+                    meshMaterial.normalTextureId = m_textureCache.add_texture(m_gfxDevice, textureLoadingData, textureName);
                     stbi_image_free(data);
                 }
                 else
                 {
-                    meshMaterial.normalTextureId = m_textureCache.get_texture_id(str.C_Str());
+                    meshMaterial.normalTextureId = m_textureCache.get_texture_id(textureName);
                 }
             }
             else
             {
-                meshMaterial.normalTextureId = m_textureCache.get_texture_id("default_1_texture.png");
+                meshMaterial.normalTextureId = m_textureCache.get_texture_id(default1TextureName);
             }
             if (materialEmissiveCount > 0)
             {
                 aiString str;
                 int width, height, numberComponents;
                 material->GetTexture(aiTextureType_EMISSIVE, 0, &str);
-
-                if (!m_textureCache.is_texture_loaded_already(str.C_Str()))
+                const std::string textureName(str.C_Str());
+                if (!m_textureCache.is_texture_loaded_already(textureName))
                 {
                     unsigned char* data = load_texture_from_filename(str, &width, &height, &numberComponents);
                     TextureLoadingData textureLoadingData = {
                         .data = data,
                         .texSize = {width, height, 4}
                     };
-                    meshMaterial.emissiveTextureId = m_textureCache.add_texture(m_gfxDevice, textureLoadingData, str.C_Str());
+                    meshMaterial.emissiveTextureId = m_textureCache.add_texture(m_gfxDevice, textureLoadingData, textureName);
                     stbi_image_free(data);
                 }
                 else
                 {
-                    meshMaterial.emissiveTextureId = m_textureCache.get_texture_id(str.C_Str());
+                    meshMaterial.emissiveTextureId = m_textureCache.get_texture_id(textureName);
                 }
             }
             else
             {
-                meshMaterial.emissiveTextureId = m_textureCache.get_texture_id("default_1_texture.png");
+                meshMaterial.emissiveTextureId = m_textureCache.get_texture_id(default1TextureName);
             }
         }
         cpuMesh.m_materialId = m_materialCache.add_material(meshMaterial);

@@ -15,17 +15,6 @@ struct aiString;
 
 #include <glm/mat4x4.hpp>
 
-// struct NodeLoadingData {
-//     std::vector<Vertex>& vertices;
-//     std::vector<uint32_t>& indices;
-//     size_t indexPos{};
-//     size_t vertexPos{};
-//     // Each node has a single mesh?
-//     // TODO: Technically a mesh could have multiple materials (each "primitive" could have a different material)
-//     // but lets keep it simple for now
-//     std::vector<CPUMaterial> perPrimitiveMaterialData;
-// };
-
 struct CPUModel {
     CPUModel(const char* _filePath, bool _texturesEmbedded, MaterialCache& _materialCache, TextureCache& _textureCache, const GfxDevice& _gfxDevice);
 

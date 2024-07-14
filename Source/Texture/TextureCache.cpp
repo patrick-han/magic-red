@@ -1,7 +1,7 @@
 #include "TextureCache.h"
 #include <Rendering/GfxDevice.h>
 
-[[nodiscard]] GPUTextureId TextureCache::add_texture(const GfxDevice& gfxDevice, const TextureLoadingData& texLoadingData, const char* textureName) {
+[[nodiscard]] GPUTextureId TextureCache::add_texture(const GfxDevice& gfxDevice, const TextureLoadingData& texLoadingData, const std::string& textureName) {
     const GPUTextureId textureId = static_cast<uint32_t>(m_gpuTextures.size());
     upload_texture(gfxDevice, texLoadingData);
     if (is_texture_loaded_already(textureName))
@@ -9,9 +9,7 @@
         MRCERR("Already loaded this texture without checking is_texture_loaded_already(), did you mean to do this?");
         exit(1);
     }
-    // m_texturesLoadedAlready.insert({std::string(textureName), textureId});
-    std::string textureNameStr = textureName;
-    m_texturesLoadedAlready.emplace(std::move(textureNameStr), textureId);
+    m_texturesLoadedAlready.emplace(std::move(textureName), textureId);
     return textureId;
 }
 
@@ -19,16 +17,16 @@
     return m_gpuTextures[id];
 }
 
-[[nodiscard]] GPUTextureId TextureCache::get_texture_id(const char* textureName) const {
-    return m_texturesLoadedAlready.at(std::string (textureName));
+[[nodiscard]] GPUTextureId TextureCache::get_texture_id(const std::string& textureName) const {
+    return m_texturesLoadedAlready.at(textureName);
 }
 
 [[nodiscard]] uint32_t TextureCache::get_texture_count() const {
     return static_cast<uint32_t>(m_gpuTextures.size());
 }
 
-[[nodiscard]] bool TextureCache::is_texture_loaded_already(const char* textureName) const {
-    return m_texturesLoadedAlready.count(std::string(textureName)) > 0 ? true : false;
+[[nodiscard]] bool TextureCache::is_texture_loaded_already(const std::string& textureName) const {
+    return m_texturesLoadedAlready.count(textureName) > 0 ? true : false;
 }
 
 void TextureCache::cleanup(const GfxDevice& gfxDevice) {
