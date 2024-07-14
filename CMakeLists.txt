@@ -90,3 +90,9 @@ add_custom_target(shaders
     DEPENDS ${SPIRV_BINARY_FILES})
 
 add_dependencies(${PROJECT_NAME} shaders)
+
+# Copy SDL3.dll over to where executable is after the project is built
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../Dependencies/SDL/$<CONFIG>/SDL3.dll"
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>")

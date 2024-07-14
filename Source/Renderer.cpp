@@ -9,7 +9,7 @@
 #include <glm/gtx/transform.hpp>
 
 #define VMA_IMPLEMENTATION
-#include <vk_mem_alloc.h>
+#include <IncludeHelpers/VmaIncludes.h>
 
 #include <vulkan/vk_enum_string_helper.h> // Doesn't work on linux?
 
