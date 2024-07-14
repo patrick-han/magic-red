@@ -3,9 +3,6 @@
 #include <Vertex/VertexDescriptors.h> // Temp
 #include <Common/RootDir.h>
 
-GraphicsPipeline::GraphicsPipeline() {
-}
-
 GraphicsPipeline::GraphicsPipeline(
     const VkDevice logicalDevice, 
     const VkPipelineRenderingCreateInfoKHR* pipelineRenderingCreateInfo,
@@ -107,8 +104,4 @@ GraphicsPipeline::GraphicsPipeline(
     vkCreateGraphicsPipelines(m_logicalDevice, {}, 1, &pipelineCreateInfo, nullptr, &m_pipeline);
     vkDestroyShaderModule(m_logicalDevice, vertexShaderModule, nullptr);
     vkDestroyShaderModule(m_logicalDevice, fragmentShaderModule, nullptr);
-}
-
-GraphicsPipeline::~GraphicsPipeline() {
-
 }

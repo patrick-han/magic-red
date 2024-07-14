@@ -15,4 +15,4 @@
     std::cerr << "[CERR] " << __FILE__ << "(" << __LINE__ << "): " << msg << std::endl
 
 #define MRVAL(msg) \
-    std::cerr << "[VULKAN] " << __FILE__ << "(" << __LINE__ << "): " << msg << std::endl
+    std::cerr << "[VULKAN] " << __FILE__ << "(" << __LINE__ << "): " << msg << "\n" << std::endl

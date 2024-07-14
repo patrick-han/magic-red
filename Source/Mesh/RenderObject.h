@@ -1,7 +1,7 @@
 #pragma once
 #include <vulkan/vulkan.h>
 #include <glm/glm.hpp>
-#include "MeshPushConstants.h"
+#include "DefaultPushConstants.h"
 #include <span>
 #include <Common/IdTypes.h>
 
@@ -11,14 +11,16 @@ class MeshCache;
 class GraphicsPipelineCache;
 
 struct RenderObject {
-    RenderObject(GraphicsPipelineId _pipelineId, MeshId _meshId, const GraphicsPipelineCache& _pipelineCache, const MeshCache& _meshCache);
-    void bind_and_draw(VkCommandBuffer commandBuffer, std::span<VkDescriptorSet const> descriptorSets) const;
+    RenderObject(GraphicsPipelineId _pipelineId, const GPUMeshId _GPUmeshId, const GraphicsPipelineCache& _pipelineCache, const MeshCache& _meshCache);
+    void bind_and_draw(VkCommandBuffer commandBuffer, std::span<VkDescriptorSet const> descriptorSets, VkDeviceAddress sceneDataBufferAddress) const;
     void set_transform(glm::mat4 _transformMatrix);
 
 private:
     glm::mat4 m_transformMatrix;
     GraphicsPipelineId m_pipelineId;
-    MeshId m_meshId;
+    GPUMeshId m_GPUmeshId;
     const GraphicsPipelineCache &m_pipelineCache;
     const MeshCache &m_meshCache;
+    MaterialId m_materialId;
+    
 };

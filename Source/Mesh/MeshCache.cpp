@@ -2,13 +2,13 @@
 #include <Rendering/GfxDevice.h>
 
 
-[[nodiscard]] MeshId MeshCache::add_mesh(const GfxDevice& gfxDevice, const CPUMesh& mesh) {
-    const MeshId meshId = m_meshes.size();
+[[nodiscard]] GPUMeshId MeshCache::add_mesh(const GfxDevice& gfxDevice, const CPUMesh& mesh) {
+    const GPUMeshId meshId = m_meshes.size();
     upload_mesh(mesh, gfxDevice.m_vmaAllocator);
     return meshId;
 }
 
-[[nodiscard]] const GPUMesh& MeshCache::get_mesh(MeshId id) const {
+[[nodiscard]] const GPUMesh& MeshCache::get_mesh(GPUMeshId id) const {
     return m_meshes[id];
 }
 
@@ -29,6 +29,6 @@ void MeshCache::upload_mesh(const CPUMesh& mesh, VmaAllocator allocator) {
     if (mesh.m_indices.size() > 0) {
         upload_buffer(gpuMesh.indexBuffer, mesh.m_indices.size() * sizeof(uint32_t), mesh.m_indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, allocator);
     }
-   
-    m_meshes.push_back(std::move(gpuMesh)); // TODO: moveable?
+    gpuMesh.m_materialId = mesh.m_materialId;
+    m_meshes.push_back(gpuMesh);
 }

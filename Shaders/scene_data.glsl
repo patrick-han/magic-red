@@ -19,7 +19,9 @@ layout (buffer_reference, scalar) readonly buffer PointLightsDataBuffer {
     PointLight data[];
 };
 
-layout (set = 0, binding = 0, scalar) uniform SceneDataBuffer {
+#include "material.glsl"
+
+layout (buffer_reference, scalar) readonly buffer SceneDataBuffer {
     // camera
     mat4 view;
     mat4 projection;
@@ -45,7 +47,7 @@ layout (set = 0, binding = 0, scalar) uniform SceneDataBuffer {
     // int numLights;
     // int sunlightIndex; // if -1, there's no sun
 
-    // MaterialsBuffer materials;
-} sceneDataBuffer;
+    MaterialDataBuffer materials;
+};
 
 #endif // SCENE_DATA_GLSL

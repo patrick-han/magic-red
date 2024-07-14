@@ -2,11 +2,11 @@
 
 /* DescriptorLayoutBuilder */
 
-void DescriptorLayoutBuilder::add_binding(uint32_t bindingIndex, VkDescriptorType descriptorType) {
+void DescriptorLayoutBuilder::add_binding(uint32_t bindingIndex, VkDescriptorType descriptorType, uint32_t descriptorCount) {
     VkDescriptorSetLayoutBinding newBinding = {
         .binding = bindingIndex,
         .descriptorType = descriptorType,
-        .descriptorCount = 1,
+        .descriptorCount = descriptorCount,
         .stageFlags = {},
         .pImmutableSamplers = nullptr
     };
@@ -18,15 +18,23 @@ void DescriptorLayoutBuilder::clear() {
     bindings.clear();
 }
 
-[[nodiscard]] VkDescriptorSetLayout DescriptorLayoutBuilder::buildLayout(VkDevice device, VkShaderStageFlags shaderStages) {
+[[nodiscard]] VkDescriptorSetLayout DescriptorLayoutBuilder::buildLayout(VkDevice device, VkShaderStageFlags shaderStages, std::span<VkDescriptorBindingFlags const> additionalLayoutBindingFlags, VkDescriptorSetLayoutCreateFlags additionalLayoutCreateFlags) {
+
     for (VkDescriptorSetLayoutBinding& binding : bindings) {
         binding.stageFlags |= shaderStages;
     }
 
+    VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extendedInfo{ 
+        .sType =  VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT,
+        .bindingCount = static_cast<uint32_t>(additionalLayoutBindingFlags.size()),
+        .pBindingFlags = additionalLayoutBindingFlags.data()
+    };
+
+
     VkDescriptorSetLayoutCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = {},
+        .pNext = &extendedInfo,
+        .flags = additionalLayoutCreateFlags,
         .bindingCount = static_cast<uint32_t>(bindings.size()),
         .pBindings = bindings.data()
     };
@@ -38,7 +46,8 @@ void DescriptorLayoutBuilder::clear() {
 
 /* DescriptorAllocator */
 
-void DescriptorAllocator::init_pool(VkDevice device, uint32_t maxSets, std::span<DescriptorTypeCount const> descriptorCounts) {
+void DescriptorAllocator::init_pool(VkDevice device, uint32_t maxSets, std::span<DescriptorTypeCount const> descriptorCounts, VkDescriptorPoolCreateFlags poolFlags) {
+
     std::vector<VkDescriptorPoolSize> poolSizes;
     for (DescriptorTypeCount descriptorCount : descriptorCounts) {
         poolSizes.push_back(VkDescriptorPoolSize {
@@ -50,7 +59,7 @@ void DescriptorAllocator::init_pool(VkDevice device, uint32_t maxSets, std::span
     VkDescriptorPoolCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .pNext = nullptr,
-        .flags = {},
+        .flags = poolFlags,
         .maxSets = maxSets, // How many descriptor sets in total can be allocated from this pool
 
         // How many descriptors of a certain type will be 

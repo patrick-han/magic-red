@@ -2,7 +2,7 @@
 
 [[nodiscard]] GraphicsPipelineId GraphicsPipelineCache::add_pipeline([[maybe_unused]] const GfxDevice& gfxDevice, const GraphicsPipeline& pipeline) {
     const GraphicsPipelineId pipelineId = static_cast<uint32_t>(m_pipelines.size());
-    m_pipelines.push_back(std::move(pipeline));
+    m_pipelines.push_back(pipeline);
     return pipelineId;
 }
 
@@ -13,6 +13,6 @@
 void GraphicsPipelineCache::cleanup([[maybe_unused]] const GfxDevice& gfxDevice) {
     for (GraphicsPipeline& pipeline : m_pipelines)
     {
-        pipeline.Destroy();
+        pipeline.destroy();
     }
 }

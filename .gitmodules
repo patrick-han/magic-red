@@ -22,3 +22,6 @@
 [submodule "Dependencies/SDL"]
 	path = Dependencies/SDL
 	url = git@github.com:libsdl-org/SDL.git
+[submodule "Dependencies/assimp"]
+	path = Dependencies/assimp
+	url = https://github.com/assimp/assimp
