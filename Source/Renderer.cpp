@@ -285,7 +285,7 @@ void Renderer::init_assets() {
         {
             GPUMeshId beautifulGameMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
             RenderObject beautifulGameObject(defaultPipelineId, beautifulGameMeshId, m_GraphicsPipelineCache, m_MeshCache);
-            beautifulGameObject.set_transform(glm::scale(mesh.m_transform));
+            beautifulGameObject.set_transform(mesh.m_transform);
             m_sceneRenderObjects.push_back(beautifulGameObject);
         }
     }
