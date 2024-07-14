@@ -225,7 +225,7 @@ void Renderer::init_assets() {
         UNUSED(placeholderTextureId);
         stbi_image_free(data);
     }
-{
+    {
         // Used as a placeholder texture when a material is missing an given texture map
         int width, height, numberComponents;
         unsigned char *data = stbi_load(ROOT_DIR "/Assets/EngineIncluded/missing_diffuse_texture.png", &width, &height, &numberComponents, 4);
@@ -262,17 +262,31 @@ void Renderer::init_assets() {
     );
 
     GraphicsPipelineId defaultPipelineId = m_GraphicsPipelineCache.add_pipeline(m_GfxDevice, defaultPipeline);
+    // {
+    //    // Sponza mesh
+    //    CPUModel sponzaModel(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false, m_MaterialCache, m_TextureCache, m_GfxDevice);
+    //    glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
+    //    glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
+    //    for (CPUMesh& mesh : sponzaModel.m_cpuMeshes)
+    //    {
+    //        GPUMeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
+    //        RenderObject sponzaObject(defaultPipelineId, sponzaMeshId, m_GraphicsPipelineCache, m_MeshCache);
+    //        sponzaObject.set_transform(translate * scale);
+    //        m_sceneRenderObjects.push_back(sponzaObject);
+    //    }
+    // }
+
     {
-        // Sponza mesh
-        CPUModel sponzaModel(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false, m_MaterialCache, m_TextureCache, m_GfxDevice);
-        glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
-        glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
-        for (CPUMesh& mesh : sponzaModel.m_cpuMeshes)
+        // A beautiful game
+        CPUModel beautifulGameModel(ROOT_DIR "/Assets/Meshes/ABeautifulGame/ABeautifulGame.gltf", false, m_MaterialCache, m_TextureCache, m_GfxDevice);
+        // glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
+        // glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(5.0f, 5.0f, 5.0f));
+        for (CPUMesh& mesh : beautifulGameModel.m_cpuMeshes)
         {
-            GPUMeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
-            RenderObject sponzaObject(defaultPipelineId, sponzaMeshId, m_GraphicsPipelineCache, m_MeshCache);
-            sponzaObject.set_transform(translate * scale);
-            m_sceneRenderObjects.push_back(sponzaObject);
+            GPUMeshId beautifulGameMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
+            RenderObject beautifulGameObject(defaultPipelineId, beautifulGameMeshId, m_GraphicsPipelineCache, m_MeshCache);
+            beautifulGameObject.set_transform(glm::scale(mesh.m_transform));
+            m_sceneRenderObjects.push_back(beautifulGameObject);
         }
     }
     
