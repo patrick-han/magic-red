@@ -27,13 +27,13 @@ DISABLE_CLANG_WARNING("-Wshorten-64-to-32")
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <assimp/matrix4x4.h>
 
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
 //void get_node_properties(const tinygltf::Node& node, const tinygltf::Model& model, uint32_t& vertexCount, uint32_t& indexCount) {
 //    if (node.children.size() > 0)
 //    {
@@ -332,9 +332,10 @@ unsigned char* CPUModel::load_texture_from_filename(aiString& str, int* width, i
     return data;
 }
 
-CPUMesh CPUModel::process_mesh(aiMesh *mesh, const aiScene *scene)
+CPUMesh CPUModel::process_mesh(aiMesh *mesh, const aiScene *scene, const glm::mat4x4& transformMatrix)
 {
     CPUMesh cpuMesh;
+    cpuMesh.m_transform = transformMatrix;
     for (size_t i = 0; i < mesh->mNumVertices; i++)
     {
         Vertex vertex;
@@ -443,7 +444,7 @@ CPUMesh CPUModel::process_mesh(aiMesh *mesh, const aiScene *scene)
             }
             else
             {
-                meshMaterial.diffuseTextureId = m_textureCache.get_texture_id("default_1_texture.png");
+                meshMaterial.diffuseTextureId = m_textureCache.get_texture_id("missing_diffuse_texture.png");
             }
             if (materialMetallicRoughnessCount > 0)
             {
@@ -527,31 +528,42 @@ CPUMesh CPUModel::process_mesh(aiMesh *mesh, const aiScene *scene)
     return cpuMesh;
 }
 
-void CPUModel::process_assimp_node(aiNode *node, const aiScene *scene)
+glm::mat4x4 convertAssimpMatrix(const aiMatrix4x4 &aiMat)
 {
+    return {
+        aiMat.a1, aiMat.b1, aiMat.c1, aiMat.d1,
+        aiMat.a2, aiMat.b2, aiMat.c2, aiMat.d2,
+        aiMat.a3, aiMat.b3, aiMat.c3, aiMat.d3,
+        aiMat.a4, aiMat.b4, aiMat.c4, aiMat.d4
+    };
+}
+
+void CPUModel::process_assimp_node(aiNode *node, const aiScene *scene, const glm::mat4x4& accumulateMatrix)
+{
+    glm::mat4x4 transform = accumulateMatrix * convertAssimpMatrix(node->mTransformation);
     // Process this node's meshes
     for (size_t i = 0; i < node->mNumMeshes; i++)
     {
         aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
-        m_cpuMeshes.push_back(process_mesh(mesh, scene));
+        m_cpuMeshes.push_back(process_mesh(mesh, scene, transform));
     }
     // Process this node's child node(s)
     for (size_t i = 0; i < node->mNumChildren; i++)
     {
-        process_assimp_node(node->mChildren[i], scene);
+        process_assimp_node(node->mChildren[i], scene, transform);
     }
 }
 
 CPUModel::CPUModel(const char* _filePath, bool _texturesEmbedded, MaterialCache& _materialCache, TextureCache& _textureCache, const GfxDevice& _gfxDevice) : m_materialCache(_materialCache), m_textureCache(_textureCache), m_gfxDevice(_gfxDevice), m_texturesEmbedded(_texturesEmbedded), m_filePath(_filePath), m_path(std::string(m_filePath)){
 
     Assimp::Importer importer;
-    const aiScene *scene = importer.ReadFile(m_filePath, aiProcess_Triangulate | aiProcess_FlipUVs);
+    const aiScene* scene = importer.ReadFile(m_filePath, aiProcess_Triangulate | aiProcess_FlipUVs);
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
         MRCERR("Problem loading model: " << m_filePath);
     }
-
-    process_assimp_node(scene->mRootNode, scene);
+    glm::mat4x4 rootTransform = convertAssimpMatrix(scene->mRootNode->mTransformation);
+    process_assimp_node(scene->mRootNode, scene, rootTransform);
 
 
     // NodeLoadingData nodeLoadingData = {m_cpuMesh.m_vertices, m_cpuMesh.m_indices, 0, 0, {}};

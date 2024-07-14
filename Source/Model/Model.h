@@ -13,6 +13,8 @@ struct aiScene;
 struct aiNode;
 struct aiString;
 
+#include <glm/mat4x4.hpp>
+
 // struct NodeLoadingData {
 //     std::vector<Vertex>& vertices;
 //     std::vector<uint32_t>& indices;
@@ -38,7 +40,7 @@ private:
     
 
     unsigned char* load_texture_from_filename(aiString& str, int* width, int* height, int* numberComponents);
-    CPUMesh process_mesh(aiMesh *mesh, const aiScene *scene);
-    void process_assimp_node(aiNode *node, const aiScene *scene);
+    CPUMesh process_mesh(aiMesh *mesh, const aiScene *scene, const glm::mat4x4& transformMatrix);
+    void process_assimp_node(aiNode *node, const aiScene *scene, const glm::mat4x4& accumulateMatrix);
     
 };

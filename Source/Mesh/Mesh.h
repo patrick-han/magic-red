@@ -4,11 +4,13 @@
 #include <Common/IdTypes.h>
 #include <vector>
 #include <unordered_map>
+#include <glm/mat4x4.hpp>
 
 struct CPUMesh {
     std::vector<Vertex> m_vertices;
     std::vector<uint32_t> m_indices;
     MaterialId m_materialId{NULL_MATERIAL_ID};
+    glm::mat4x4 m_transform{0.0};
 };
 
 struct GPUMesh {

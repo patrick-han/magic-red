@@ -225,6 +225,18 @@ void Renderer::init_assets() {
         UNUSED(placeholderTextureId);
         stbi_image_free(data);
     }
+{
+        // Used as a placeholder texture when a material is missing an given texture map
+        int width, height, numberComponents;
+        unsigned char *data = stbi_load(ROOT_DIR "/Assets/EngineIncluded/missing_diffuse_texture.png", &width, &height, &numberComponents, 4);
+        TextureLoadingData textureLoadingData = {
+            .data = data,
+            .texSize = {width, height, 4}
+        };
+        GPUTextureId placeholderTextureId = m_TextureCache.add_texture(m_GfxDevice, textureLoadingData, "missing_diffuse_texture.png");
+        UNUSED(placeholderTextureId);
+        stbi_image_free(data);
+    }
 
 
     VkPipelineRenderingCreateInfoKHR pipelineRenderingCI = {
