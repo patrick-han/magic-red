@@ -20,7 +20,7 @@ void transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout currentL
 /* Upload an image to the GPU */
 void create_gpu_only_image(AllocatedImage& allocatedImage, VkImageCreateInfo imageCreateInfo, VmaAllocator allocator);
 
-void upload_image(const void *data, AllocatedImage& allocatedImage, VkImageCreateInfo imageCreateInfo, const GfxDevice& gfxDevice);
+void upload_image(const void *data, int numChannels, AllocatedImage& allocatedImage, VkImageCreateInfo imageCreateInfo, const GfxDevice& gfxDevice);
 
 /* Copy one image to another */
 void copy_image_to_image(VkCommandBuffer commandBuffer, VkImage source, VkImage destination, VkExtent2D srcSize, VkExtent2D dstSize);

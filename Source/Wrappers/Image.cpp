@@ -75,13 +75,13 @@ void create_gpu_only_image(AllocatedImage& allocatedImage, VkImageCreateInfo ima
     }
 }
 
-void upload_image(const void *data, AllocatedImage& allocatedImage, VkImageCreateInfo imageCreateInfo, const GfxDevice& gfxDevice) {
+void upload_image(const void *data, int numChannels, AllocatedImage& allocatedImage, VkImageCreateInfo imageCreateInfo, const GfxDevice& gfxDevice) {
 
     create_gpu_only_image(allocatedImage, imageCreateInfo, gfxDevice.m_vmaAllocator);
 
     // TODO: HARDCODED FOR RGBA8, 4 bytes per pixel
     size_t bytes_per_channel = 1;
-    size_t num_channels = 4;
+    size_t num_channels = numChannels;
     size_t data_size = imageCreateInfo.extent.width * imageCreateInfo.extent.height * num_channels * bytes_per_channel;
     AllocatedBuffer imageStagingBuffer;
     upload_buffer(imageStagingBuffer, data_size, data, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, gfxDevice.m_vmaAllocator);

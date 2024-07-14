@@ -29,6 +29,6 @@ void MeshCache::upload_mesh(const CPUMesh& mesh, VmaAllocator allocator) {
     if (mesh.m_indices.size() > 0) {
         upload_buffer(gpuMesh.indexBuffer, mesh.m_indices.size() * sizeof(uint32_t), mesh.m_indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, allocator);
     }
-   
+    gpuMesh.m_materialId = mesh.m_materialId;
     m_meshes.push_back(gpuMesh);
 }
