@@ -22,11 +22,11 @@ public:
     TextureCache(TextureCache&&) = delete;
     TextureCache& operator=(TextureCache&&) = delete;
 
-    [[nodiscard]] GPUTextureId add_texture(const GfxDevice& gfxDevice, const TextureLoadingData& texLoadingData, const char* textureName);
+    [[nodiscard]] GPUTextureId add_texture(const GfxDevice& gfxDevice, const TextureLoadingData& texLoadingData, const std::string& textureName);
     [[nodiscard]] const GPUTexture& get_texture(GPUTextureId id) const;
-    [[nodiscard]] GPUTextureId get_texture_id(const char* textureName) const;
+    [[nodiscard]] GPUTextureId get_texture_id(const std::string&e) const;
     [[nodiscard]] uint32_t get_texture_count() const;
-    [[nodiscard]] bool is_texture_loaded_already(const char* textureName) const;
+    [[nodiscard]] bool is_texture_loaded_already(const std::string&) const;
     void cleanup(const GfxDevice& gfxDevice);
 
 private:

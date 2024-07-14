@@ -6,6 +6,6 @@ struct TextureSize {
 };
 
 struct TextureLoadingData {
-    const void *data{nullptr};
+    void *data{nullptr};
     TextureSize texSize;
 };
