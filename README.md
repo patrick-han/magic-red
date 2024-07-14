@@ -75,3 +75,4 @@ Will probably work with a few tweaks, there are always some compiler quirks.
 - [ ] Scene saving/loading
 - [ ] Physics
 - [ ] Developer console
+- [ ] Shader hot reloading
