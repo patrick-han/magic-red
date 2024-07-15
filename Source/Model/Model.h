@@ -33,7 +33,7 @@ private:
     inline static const std::string default1TextureName{"default_1_texture.png"};
     
 
-    unsigned char* load_texture_from_filename(aiString& str, int* width, int* height, int* numberComponents);
+    void load_texture_from_filename(const aiMaterial* material, aiTextureType textureType, Material& meshMaterial);
     void load_embedded_texture_data(const aiMaterial* material, const aiScene* scene, aiTextureType textureType, Material& meshMaterial);
     CPUMesh process_mesh(aiMesh *mesh, const aiScene *scene, const glm::mat4x4& transformMatrix);
     void process_assimp_node(aiNode *node, const aiScene *scene, const glm::mat4x4& accumulateMatrix);
