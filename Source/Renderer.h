@@ -64,6 +64,12 @@ private:
 
     // Imgui
     bool m_bShowRenderingMenu = true;
+    bool m_bInteractableUI = false;
+
+    float rx{0.0f};
+    float ry{1.0f};
+    float rz{0.0f};
+    float rm{ 0.0f };
 
     void initWindow();
     void init_graphics();

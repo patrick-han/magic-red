@@ -139,7 +139,10 @@ CPUMesh CPUModel::process_mesh(aiMesh *mesh, const aiScene *scene, const glm::ma
     for (size_t i = 0; i < mesh->mNumVertices; i++)
     {
         Vertex vertex;
-        vertex.position = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);   
+
+        glm::vec4 worldSpaceVertex = transformMatrix * glm::vec4(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z, 1.0f);
+        vertex.position = glm::vec3(worldSpaceVertex.x, worldSpaceVertex.y, worldSpaceVertex.z);
+        // vertex.position = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
         vertex.normal = glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
         if (mesh->HasTextureCoords(0))
         {
@@ -338,21 +341,16 @@ glm::mat4x4 convertAssimpMatrix(const aiMatrix4x4 &aiMat)
 
 void CPUModel::process_assimp_node(aiNode *node, const aiScene *scene, const glm::mat4x4& accumulateMatrix)
 {
-    // glm::mat4x4 transform = accumulateMatrix * convertAssimpMatrix(node->mTransformation);
+    glm::mat4x4 transform = accumulateMatrix * convertAssimpMatrix(node->mTransformation);
 
 
     // Decompose transform into its components
-    glm::vec3 scale;
-    glm::quat orientation;
-    glm::vec3 translation;
-    glm::vec3 skew;
-    glm::vec4 perspective;
-    glm::decompose(convertAssimpMatrix(node->mTransformation), scale, orientation, translation, skew, perspective);
-    glm::mat4 transformRecon = glm::scale(glm::mat4(1.0f), scale);
-    // transformRecon = glm::mat4_cast(orientation) * transformRecon;
-    transformRecon = transformRecon * glm::mat4_cast(orientation);
-    transformRecon = glm::translate(transformRecon, translation);
-    glm::mat4x4 transform = accumulateMatrix * transformRecon;
+    // glm::vec3 scale;
+    // glm::quat orientation;
+    // glm::vec3 translation;
+    // glm::vec3 skew;
+    // glm::vec4 perspective;
+    // glm::decompose(convertAssimpMatrix(node->mTransformation), scale, orientation, translation, skew, perspective);
 
 
     // Process this node's meshes

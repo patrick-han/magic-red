@@ -42,7 +42,6 @@ int frameNumber = 0;
 float deltaTime = 0.0f; // Time between current and last frame
 uint64_t lastFrameTick = 0;
 uint64_t currentFrameTick = 0;
-bool interactableUI = false;
 
 // Camera
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, -2.0f);
@@ -274,47 +273,82 @@ void Renderer::init_assets() {
     );
 
     GraphicsPipelineId defaultPipelineId = m_GraphicsPipelineCache.add_pipeline(m_GfxDevice, defaultPipeline);
-    {
-       // Sponza mesh
-       CPUModel sponzaModel(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false, m_MaterialCache, m_TextureCache, m_GfxDevice);
-       glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
-       glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
-       for (CPUMesh& mesh : sponzaModel.m_cpuMeshes)
-       {
-           GPUMeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
-           RenderObject sponzaObject(defaultPipelineId, sponzaMeshId, m_GraphicsPipelineCache, m_MeshCache);
-           sponzaObject.set_transform(translate * scale);
-           m_sceneRenderObjects.push_back(sponzaObject);
-       }
-    }
+    // {
+    //    // Sponza mesh
+    //    CPUModel sponzaModel(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false, m_MaterialCache, m_TextureCache, m_GfxDevice);
+    //    glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
+    //    glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
+    //    for (CPUMesh& mesh : sponzaModel.m_cpuMeshes)
+    //    {
+    //        GPUMeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
+    //        RenderObject sponzaObject(defaultPipelineId, sponzaMeshId, m_GraphicsPipelineCache, m_MeshCache);
+    //        sponzaObject.set_transform(translate * scale);
+    //        m_sceneRenderObjects.push_back(sponzaObject);
+    //    }
+    // }
+
+    glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 2.0f, 2.0f));
+    glm::mat4 rotate = glm::rotate(translate, rm, glm::vec3(rx, ry, rz));
+    glm::mat4 scale = glm::scale(rotate, glm::vec3(5.0f, 5.0f, 5.0f));
+
 
     {
         // A beautiful game
         CPUModel beautifulGameModel(ROOT_DIR "/Assets/Meshes/ABeautifulGame/ABeautifulGame.gltf", false, m_MaterialCache, m_TextureCache, m_GfxDevice);
-        // glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
-        // glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(5.0f, 5.0f, 5.0f));
         for (CPUMesh& mesh : beautifulGameModel.m_cpuMeshes)
         {
             GPUMeshId beautifulGameMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
             RenderObject beautifulGameObject(defaultPipelineId, beautifulGameMeshId, m_GraphicsPipelineCache, m_MeshCache);
-            beautifulGameObject.set_transform(mesh.m_transform);
+
+            // glm::vec3 scale;
+            // glm::quat rotation;
+            // glm::vec3 translation;
+            // glm::vec3 skew;
+            // glm::vec4 perspective;
+            // glm::decompose(mesh.m_transform, scale, rotation, translation, skew, perspective);
+
+            // Transform t = {
+            //     translation,
+            //     rotation,
+            //     scale * 5.0f
+            // };
+
+            // beautifulGameObject.set_transform(t.TransformMatrix());
+            // beautifulGameObject.set_transform(mesh.m_transform);
+            //beautifulGameObject.set_transform(glm::mat4(1.0f));
+            beautifulGameObject.set_transform(scale);
             m_sceneRenderObjects.push_back(beautifulGameObject);
         }
     }
 
-    // {
-    //     // Orientation test model
-    //     CPUModel orientationTestModel(ROOT_DIR "/Assets/Meshes/OrientationTest.glb", true, m_MaterialCache, m_TextureCache, m_GfxDevice);
-    //     // glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
-    //     // glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(5.0f, 5.0f, 5.0f));
-    //     for (CPUMesh& mesh : orientationTestModel.m_cpuMeshes)
-    //     {
+    //  {
+    //      // Orientation test model
+    //      CPUModel orientationTestModel(ROOT_DIR "/Assets/Meshes/OrientationTest.glb", true, m_MaterialCache, m_TextureCache, m_GfxDevice);
+    //      for (CPUMesh& mesh : orientationTestModel.m_cpuMeshes)
+    //      {
     //         GPUMeshId orientationTestMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
     //         RenderObject orientationTestObject(defaultPipelineId, orientationTestMeshId, m_GraphicsPipelineCache, m_MeshCache);
-    //         orientationTestObject.set_transform(mesh.m_transform);
+
+    //         // glm::vec3 scale;
+    //         // glm::quat rotation;
+    //         // glm::vec3 translation;
+    //         // glm::vec3 skew;
+    //         // glm::vec4 perspective;
+    //         // glm::decompose(mesh.m_transform, scale, rotation, translation, skew, perspective);
+
+    //         // Transform t = {
+    //         //     translation + glm::vec3(0.f, 10.0f, 0.0f),
+    //         //     rotation,
+    //         //     scale * 0.5f
+    //         // };
+
+    //         // orientationTestObject.set_transform(t.TransformMatrix());
+    //         // orientationTestObject.set_transform(mesh.m_transform);
+    //         orientationTestObject.set_transform(glm::mat4(1.0f));
+    //         //orientationTestObject.set_transform(scale);
     //         m_sceneRenderObjects.push_back(orientationTestObject);
-    //     }
-    // }
+    //      }
+    //  }
     
     // {
     //     // Suzanne mesh
@@ -757,9 +791,9 @@ void Renderer::mainLoop() {
             }
             // For single key presses
             if (sdlEvent.type == SDL_EVENT_KEY_DOWN) {
-                if (sdlEvent.key.keysym.sym == SDLK_TAB) {
-                    interactableUI = !interactableUI;
-                    if (!interactableUI) {
+                if (sdlEvent.key.keysym.sym == SDLK_BACKQUOTE) {
+                    m_bInteractableUI = !m_bInteractableUI;
+                    if (m_bInteractableUI) {
                         SDL_SetRelativeMouseMode(SDL_FALSE);
                         camera.freeze_camera();
                     } else {
@@ -800,6 +834,18 @@ void Renderer::mainLoop() {
         ImGui::SliderFloat("Directional Light y", &m_directionalLight.direction.y, -1.0f, 1.0f);
         ImGui::SliderFloat("Directional Light z", &m_directionalLight.direction.z, -1.0f, 1.0f);
         ImGui::SliderFloat("Directional Light power", &m_directionalLight.power,  0.0f, 1.0f);
+
+        ImGui::SliderFloat("rx", &rx,  -1.0f, 1.0f);
+        ImGui::SliderFloat("ry", &ry,  -1.0f, 1.0f);
+        ImGui::SliderFloat("rz", &rz,  -1.0f, 1.0f);
+        ImGui::SliderFloat("rm", &rm,  2.0f * -3.14f, 2.0f *3.14f);
+        for (auto& renderObject : m_sceneRenderObjects)
+        {
+                glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 2.0f, 2.0f));
+                glm::mat4 rotate = glm::rotate(translate, rm, glm::vec3(rx, ry, rz));
+                glm::mat4 scale = glm::scale(rotate, glm::vec3(5.0f, 5.0f, 5.0f));
+                renderObject.set_transform(scale);
+        }
         ImGui::End();
         ImGui::Render();
         drawFrame();
