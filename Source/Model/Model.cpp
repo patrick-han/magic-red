@@ -26,11 +26,10 @@ DISABLE_CLANG_WARNING("-Wshorten-64-to-32")
 #include <assimp/postprocess.h>
 #include <assimp/matrix4x4.h>
 
-
-#define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 
 void CPUModel::load_texture_from_filename(const aiMaterial* material, aiTextureType textureType, Material& meshMaterial)
 {
@@ -140,10 +139,13 @@ CPUMesh CPUModel::process_mesh(aiMesh *mesh, const aiScene *scene, const glm::ma
     for (size_t i = 0; i < mesh->mNumVertices; i++)
     {
         Vertex vertex;
-        vertex.position = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
-        vertex.uv_x = mesh->mTextureCoords[0][i].x;
+        vertex.position = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);   
         vertex.normal = glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
-        vertex.uv_y = mesh->mTextureCoords[0][i].y;
+        if (mesh->HasTextureCoords(0))
+        {
+            vertex.uv_x = mesh->mTextureCoords[0][i].x;
+            vertex.uv_y = mesh->mTextureCoords[0][i].y;
+        }
 
         // TODO:
         // vertex.tangent = glm::vec3(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z);
@@ -166,6 +168,38 @@ CPUMesh CPUModel::process_mesh(aiMesh *mesh, const aiScene *scene, const glm::ma
         unsigned int materialMetallicRoughnessCount = material->GetTextureCount(aiTextureType_METALNESS);
         unsigned int materialNormalCount = material->GetTextureCount(aiTextureType_NORMALS);
         unsigned int materialEmissiveCount = material->GetTextureCount(aiTextureType_EMISSIVE);
+
+        aiColor4D aiColor;
+        if (material->Get(AI_MATKEY_BASE_COLOR, aiColor) == AI_SUCCESS)
+        {
+            for (Vertex& vertex : cpuMesh.m_vertices)
+            {
+                vertex.color = glm::vec4(aiColor.r, aiColor.g, aiColor.b, aiColor.a);
+            }
+        }
+        else
+        {
+            for (Vertex& vertex : cpuMesh.m_vertices)
+            {
+                vertex.color = glm::vec4(1.0f, 0.0f, 1.0f, 1.0f); // Magenta fallback
+            }
+        }
+        
+
+        // ai_real floatFactor;
+        float metallicFactor;
+        material->Get(AI_MATKEY_METALLIC_FACTOR, metallicFactor);
+        //float metallicFactor = *floatFactor;
+        //UNUSED(metallicFactor);
+
+        // material->Get(AI_MATKEY_ROUGHNESS_FACTOR, floatFactor);
+        // float roughnessFactor;
+
+        // material->Get(AI_MATKEY_EMISSIVE);
+        // glm::vec3 emissiveFactor;
+
+
+        //float normalScale;
 
         if (m_texturesEmbedded) // .glb for example
         {
@@ -254,12 +288,6 @@ CPUMesh CPUModel::process_mesh(aiMesh *mesh, const aiScene *scene, const glm::ma
             // ]
             // }
 
-            // glm::vec4 baseColorFactor;
-            // float metallicFactor;
-            // float roughnessFactor;
-            // float normalScale;
-            // glm::vec3 emissiveFactor;
-
             if (materialDiffuseCount > 0)
             {
                 load_texture_from_filename(material, aiTextureType_BASE_COLOR, meshMaterial);
@@ -310,7 +338,23 @@ glm::mat4x4 convertAssimpMatrix(const aiMatrix4x4 &aiMat)
 
 void CPUModel::process_assimp_node(aiNode *node, const aiScene *scene, const glm::mat4x4& accumulateMatrix)
 {
-    glm::mat4x4 transform = accumulateMatrix * convertAssimpMatrix(node->mTransformation);
+    // glm::mat4x4 transform = accumulateMatrix * convertAssimpMatrix(node->mTransformation);
+
+
+    // Decompose transform into its components
+    glm::vec3 scale;
+    glm::quat orientation;
+    glm::vec3 translation;
+    glm::vec3 skew;
+    glm::vec4 perspective;
+    glm::decompose(convertAssimpMatrix(node->mTransformation), scale, orientation, translation, skew, perspective);
+    glm::mat4 transformRecon = glm::scale(glm::mat4(1.0f), scale);
+    // transformRecon = glm::mat4_cast(orientation) * transformRecon;
+    transformRecon = transformRecon * glm::mat4_cast(orientation);
+    transformRecon = glm::translate(transformRecon, translation);
+    glm::mat4x4 transform = accumulateMatrix * transformRecon;
+
+
     // Process this node's meshes
     for (size_t i = 0; i < node->mNumMeshes; i++)
     {

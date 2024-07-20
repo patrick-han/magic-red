@@ -42,10 +42,17 @@
     tangentAttribute.format = VK_FORMAT_R32G32B32A32_SFLOAT;
     tangentAttribute.offset = offsetof(Vertex, tangent);
 
+    VkVertexInputAttributeDescription colorAttribute = {};
+    colorAttribute.binding = 0;
+    colorAttribute.location = 5;
+    colorAttribute.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    colorAttribute.offset = offsetof(Vertex, color);
+
     description.attributes.push_back(positionAttribute);
     description.attributes.push_back(uv_xAttribute);
     description.attributes.push_back(normalAttribute);
     description.attributes.push_back(uv_yAttribute);
     description.attributes.push_back(tangentAttribute);
+    description.attributes.push_back(colorAttribute);
     return description;
 }

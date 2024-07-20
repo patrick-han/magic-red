@@ -3,7 +3,6 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 
-#define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
@@ -302,6 +301,20 @@ void Renderer::init_assets() {
             m_sceneRenderObjects.push_back(beautifulGameObject);
         }
     }
+
+    // {
+    //     // Orientation test model
+    //     CPUModel orientationTestModel(ROOT_DIR "/Assets/Meshes/OrientationTest.glb", true, m_MaterialCache, m_TextureCache, m_GfxDevice);
+    //     // glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
+    //     // glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(5.0f, 5.0f, 5.0f));
+    //     for (CPUMesh& mesh : orientationTestModel.m_cpuMeshes)
+    //     {
+    //         GPUMeshId orientationTestMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
+    //         RenderObject orientationTestObject(defaultPipelineId, orientationTestMeshId, m_GraphicsPipelineCache, m_MeshCache);
+    //         orientationTestObject.set_transform(mesh.m_transform);
+    //         m_sceneRenderObjects.push_back(orientationTestObject);
+    //     }
+    // }
     
     // {
     //     // Suzanne mesh
@@ -313,16 +326,16 @@ void Renderer::init_assets() {
     //     m_sceneRenderObjects.push_back(suzanneObject);
     // }
 
-    {
-        // Helmet mesh
-        CPUModel helmetModel(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true, m_MaterialCache, m_TextureCache, m_GfxDevice);
-        GPUMeshId helmetMeshId = m_MeshCache.add_mesh(m_GfxDevice, helmetModel.m_cpuMeshes[0]);
-        RenderObject helmetObject(defaultPipelineId, helmetMeshId, m_GraphicsPipelineCache, m_MeshCache);
-        glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
-        helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
-        helmetObject.set_transform(helmetTransform);
-        m_sceneRenderObjects.push_back(helmetObject);
-    }
+    // {
+    //     // Helmet mesh
+    //     CPUModel helmetModel(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true, m_MaterialCache, m_TextureCache, m_GfxDevice);
+    //     GPUMeshId helmetMeshId = m_MeshCache.add_mesh(m_GfxDevice, helmetModel.m_cpuMeshes[0]);
+    //     RenderObject helmetObject(defaultPipelineId, helmetMeshId, m_GraphicsPipelineCache, m_MeshCache);
+    //     glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
+    //     helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
+    //     helmetObject.set_transform(helmetTransform);
+    //     m_sceneRenderObjects.push_back(helmetObject);
+    // }
 }
 
 void Renderer::init_material_data() {
