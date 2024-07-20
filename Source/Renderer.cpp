@@ -344,8 +344,8 @@ void Renderer::init_assets() {
 
     //         // orientationTestObject.set_transform(t.TransformMatrix());
     //         // orientationTestObject.set_transform(mesh.m_transform);
-    //         orientationTestObject.set_transform(glm::mat4(1.0f));
-    //         //orientationTestObject.set_transform(scale);
+    //         // orientationTestObject.set_transform(glm::mat4(1.0f));
+    //         orientationTestObject.set_transform(scale);
     //         m_sceneRenderObjects.push_back(orientationTestObject);
     //      }
     //  }
@@ -712,6 +712,16 @@ void Renderer::drawFrame() {
 
         vkCmdSetViewport(cmdBuffer, 0, 1, &DEFAULT_VIEWPORT_FULLSCREEN);
         vkCmdSetScissor(cmdBuffer, 0, 1, &DEFAULT_SCISSOR_FULLSCREEN);
+
+        vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipelineCache.get_pipeline(0).get_pipeline()); // TODO: Hardcoded
+
+        // Bindless descriptor set shared for color pass
+        std::span<const VkDescriptorSet> bindlessDescriptorSet = std::span<const VkDescriptorSet>(&m_bindlessDescriptorSet, 1);
+        vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
+            m_GraphicsPipelineCache.get_pipeline(0).get_pipeline_layout(), 
+            0, static_cast<uint32_t>(bindlessDescriptorSet.size()), bindlessDescriptorSet.data(), 0, nullptr); // TODO: Hardcoded
+
+
         draw_objects();
 
         PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(m_GfxDevice, "vkCmdEndRenderingKHR"));
