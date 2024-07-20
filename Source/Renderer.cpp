@@ -540,7 +540,7 @@ void Renderer::draw_objects() {
     VkDeviceAddress sceneDataBufferAddress = m_GPUSceneDataBuffers[m_currentFrame].gpuAddress;
 
     for (const RenderObject& renderObject :  m_sceneRenderObjects) {
-       renderObject.bind_and_draw(cmdBuffer, std::span<const VkDescriptorSet>(&m_bindlessDescriptorSet, 1), sceneDataBufferAddress);
+       renderObject.bind_and_draw(cmdBuffer, std::span<const VkDescriptorSet>(), sceneDataBufferAddress); // TODO
     }
 }
 
