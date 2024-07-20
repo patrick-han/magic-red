@@ -13,6 +13,7 @@
 #include <Texture/TextureCache.h>
 #include <Material/MaterialCache.h>
 #include <Light/PointLight.h>
+#include <Light/DirectionalLight.h>
 #include <Wrappers/Buffer.h>
 #include <SceneData.h>
 #include <Common/Config.h>
@@ -39,6 +40,8 @@ private:
     // Lights
     std::vector<PointLight> m_CPUPointLights;
     std::array<AllocatedBuffer, MAX_FRAMES_IN_FLIGHT> m_GPUPointLightsBuffers;
+    bool m_pointLightsExist = false;
+    DirectionalLight m_directionalLight{ glm::vec3(0.0f, 0.0f, 0.0f) };
 
     // MaterialData
     AllocatedBuffer m_materialDataBuffer;
@@ -58,6 +61,9 @@ private:
     // Samplers
     VkSampler m_linearSampler;
     VkSampler m_nearestSampler;
+
+    // Imgui
+    bool m_bShowRenderingMenu = true;
 
     void initWindow();
     void init_graphics();

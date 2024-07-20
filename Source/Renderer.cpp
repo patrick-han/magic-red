@@ -86,26 +86,38 @@ void Renderer::init_graphics() {
 }
 
 void Renderer::init_lights() {
-        m_CPUPointLights.push_back(PointLight(glm::vec3(0.0f, 3.5f, -4.0f), 0, glm::vec3(1.0f, 223.0f/255.0f, 188.0f/255.0f), 1.0));
+    // Directional Light
+    m_directionalLight.direction.x = -0.2f;
+    m_directionalLight.direction.y = -1.0f;
+    m_directionalLight.direction.z = -0.3f;
 
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)  
-    {
-        upload_buffer(
-            m_GPUPointLightsBuffers[i],
-            m_CPUPointLights.size() * sizeof(PointLight),
-            m_CPUPointLights.data(),
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR,
-            m_GfxDevice.m_vmaAllocator
-        );
-    }
 
-    for (auto &lightBuffer : m_GPUPointLightsBuffers)
+    // Point lights
+    m_CPUPointLights.emplace_back(glm::vec3(0.0f, 3.5f, -4.0f), TYPE_POINT_LIGHT, glm::vec3(1.0f, 223.0f/255.0f, 188.0f/255.0f), 1.0f);
+    m_CPUPointLights.emplace_back(glm::vec3(0.0f, 3.5f, 1.0f), TYPE_POINT_LIGHT, glm::vec3(45.0f/255.0f, 25.0f/255.0f, 188.0f/255.0f), 1.0f);
+
+    if (m_CPUPointLights.size() > 0)
     {
-        VkBufferDeviceAddressInfoKHR addressInfo{
-            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
-            .buffer = lightBuffer.buffer
-        };
-        lightBuffer.gpuAddress  = vkGetBufferDeviceAddress(m_GfxDevice, &addressInfo);
+        m_pointLightsExist = true;
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
+            upload_buffer(
+                m_GPUPointLightsBuffers[i],
+                m_CPUPointLights.size() * sizeof(PointLight),
+                m_CPUPointLights.data(),
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR,
+                m_GfxDevice.m_vmaAllocator
+            );
+        }
+
+        for (auto& lightBuffer : m_GPUPointLightsBuffers)
+        {
+            VkBufferDeviceAddressInfoKHR addressInfo{
+                .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
+                .buffer = lightBuffer.buffer
+            };
+            lightBuffer.gpuAddress = vkGetBufferDeviceAddress(m_GfxDevice, &addressInfo);
+        }
     }
 }
 
@@ -253,7 +265,7 @@ void Renderer::init_assets() {
         m_GfxDevice,
         &pipelineRenderingCI, 
         std::string("Shaders/triangle_mesh.vert.spv"), 
-        std::string("Shaders/triangle_mesh.frag.spv"), 
+        std::string("Shaders/blinn-phong.frag.spv"), 
         defaultPushConstantRanges,
         // std::span<const VkDescriptorSetLayout>(m_sceneDataDescriptorSetLayouts.data(), 1), // TODO: They're all the same and this only has 1 layout for now
         std::span<const VkDescriptorSetLayout>(&m_bindlessDescriptorSetLayout, 1),
@@ -262,19 +274,19 @@ void Renderer::init_assets() {
     );
 
     GraphicsPipelineId defaultPipelineId = m_GraphicsPipelineCache.add_pipeline(m_GfxDevice, defaultPipeline);
-    // {
-    //    // Sponza mesh
-    //    CPUModel sponzaModel(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false, m_MaterialCache, m_TextureCache, m_GfxDevice);
-    //    glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
-    //    glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
-    //    for (CPUMesh& mesh : sponzaModel.m_cpuMeshes)
-    //    {
-    //        GPUMeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
-    //        RenderObject sponzaObject(defaultPipelineId, sponzaMeshId, m_GraphicsPipelineCache, m_MeshCache);
-    //        sponzaObject.set_transform(translate * scale);
-    //        m_sceneRenderObjects.push_back(sponzaObject);
-    //    }
-    // }
+    {
+       // Sponza mesh
+       CPUModel sponzaModel(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false, m_MaterialCache, m_TextureCache, m_GfxDevice);
+       glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
+       glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.05f, 0.05f, 0.05f));
+       for (CPUMesh& mesh : sponzaModel.m_cpuMeshes)
+       {
+           GPUMeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
+           RenderObject sponzaObject(defaultPipelineId, sponzaMeshId, m_GraphicsPipelineCache, m_MeshCache);
+           sponzaObject.set_transform(translate * scale);
+           m_sceneRenderObjects.push_back(sponzaObject);
+       }
+    }
 
     {
         // A beautiful game
@@ -301,14 +313,14 @@ void Renderer::init_assets() {
     // }
 
     {
-        //// Helmet mesh
-        //CPUModel helmetModel(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true, m_MaterialCache, m_TextureCache, m_GfxDevice);
-        //GPUMeshId helmetMeshId = m_MeshCache.add_mesh(m_GfxDevice, helmetModel.m_cpuMesh);
-        //RenderObject helmetObject(defaultPipelineId, helmetMeshId, helmetModel.m_materialId, m_GraphicsPipelineCache, m_MeshCache);
-        //glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
-        //helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
-        //helmetObject.set_transform(helmetTransform);
-        //m_sceneRenderObjects.push_back(helmetObject);
+        // Helmet mesh
+        CPUModel helmetModel(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true, m_MaterialCache, m_TextureCache, m_GfxDevice);
+        GPUMeshId helmetMeshId = m_MeshCache.add_mesh(m_GfxDevice, helmetModel.m_cpuMeshes[0]);
+        RenderObject helmetObject(defaultPipelineId, helmetMeshId, m_GraphicsPipelineCache, m_MeshCache);
+        glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
+        helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
+        helmetObject.set_transform(helmetTransform);
+        m_sceneRenderObjects.push_back(helmetObject);
     }
 }
 
@@ -328,8 +340,9 @@ void Renderer::init_scene_data() {
     projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
     m_CPUSceneData.projection = projection;
     m_CPUSceneData.cameraWorldPosition = camera.get_world_position();
-    // m_CPUSceneData.numPointLights = static_cast<uint32_t>(m_CPUPointLights.size());
     m_CPUSceneData.lightBufferAddress = 0; // TODO during update_scene_data()? or now
+    m_CPUSceneData.numPointLights = static_cast<int>(m_CPUPointLights.size());
+    m_CPUSceneData.directionalLight = m_directionalLight;
 
     // Material data only set once at the beginning, since for now we are loading all assets in ahead of time
     VkBufferDeviceAddressInfoKHR materialBufferAddressInfo{
@@ -503,21 +516,29 @@ void Renderer::draw_imgui(VkImageView targetImageView) {
 }
 
 void Renderer::update_lights(uint32_t frameInFlightIndex) {
-    int lightCircleRadius = 5;
-    float lightCircleSpeed = 0.02f;
-    m_CPUPointLights[0].worldSpacePosition = glm::vec3(
-        lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber),
-        0.0,
-        lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber)
-    );
-    
+    if (m_pointLightsExist)
+    {
+        int lightCircleRadius = 5;
+        float lightCircleSpeed = 0.02f;
+        m_CPUPointLights[0].worldSpacePosition = glm::vec3(
+            lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber),
+            0.0,
+            lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber)
+        );
+        m_CPUPointLights[1].worldSpacePosition = glm::vec3(
+            lightCircleRadius * glm::sin(lightCircleSpeed * frameNumber),
+            1.0,
+            lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber)
+        );
+        
 
-    update_buffer(
-        m_GPUPointLightsBuffers[frameInFlightIndex], 
-        m_CPUPointLights.size() * sizeof(PointLight),
-        m_CPUPointLights.data(),
-        m_GfxDevice.m_vmaAllocator
-    );
+        update_buffer(
+            m_GPUPointLightsBuffers[frameInFlightIndex], 
+            m_CPUPointLights.size() * sizeof(PointLight),
+            m_CPUPointLights.data(),
+            m_GfxDevice.m_vmaAllocator
+        );
+    }
 }
 
 void Renderer::update_scene_data(uint32_t frameInFlightIndex) {
@@ -526,8 +547,9 @@ void Renderer::update_scene_data(uint32_t frameInFlightIndex) {
     projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
     m_CPUSceneData.projection = projection;
     m_CPUSceneData.cameraWorldPosition = camera.get_world_position();
-    // m_CPUSceneData.numPointLights = static_cast<uint32_t>(m_CPUPointLights.size());
     m_CPUSceneData.lightBufferAddress = m_GPUPointLightsBuffers[frameInFlightIndex].gpuAddress;
+    m_CPUSceneData.numPointLights = static_cast<int>(m_CPUPointLights.size());
+    m_CPUSceneData.directionalLight = m_directionalLight;
 
     update_buffer(
         m_GPUSceneDataBuffers[frameInFlightIndex], 
@@ -746,7 +768,24 @@ void Renderer::mainLoop() {
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
-        ImGui::ShowDemoWindow();
+        // ImGui::ShowDemoWindow();
+        // Create a window called "My First Tool", with a menu bar.
+        ImGui::Begin("Rendering Menu", &m_bShowRenderingMenu, ImGuiWindowFlags_MenuBar);
+        if (ImGui::BeginMenuBar())
+        {
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("Open..", "Ctrl+O")) { /* Do stuff */ }
+                if (ImGui::MenuItem("Save", "Ctrl+S"))   { /* Do stuff */ }
+                if (ImGui::MenuItem("Close", "Ctrl+W"))  { m_bShowRenderingMenu = false; }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
+        }
+        ImGui::SliderFloat("Directional Light x", &m_directionalLight.direction.x, -1.0f, 1.0f);
+        ImGui::SliderFloat("Directional Light y", &m_directionalLight.direction.y, -1.0f, 1.0f);
+        ImGui::SliderFloat("Directional Light z", &m_directionalLight.direction.z, -1.0f, 1.0f);
+        ImGui::End();
         ImGui::Render();
         drawFrame();
 
@@ -799,10 +838,17 @@ void Renderer::cleanup() {
 
     m_materialDataBuffer.cleanup(m_GfxDevice.m_vmaAllocator);
 
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    if (m_pointLightsExist)
     {
-        m_GPUPointLightsBuffers[i].cleanup(m_GfxDevice.m_vmaAllocator);
-        m_GPUSceneDataBuffers[i].cleanup(m_GfxDevice.m_vmaAllocator);
+        for (auto buffer: m_GPUPointLightsBuffers)
+        {
+            buffer.cleanup(m_GfxDevice.m_vmaAllocator);
+        }
+    }
+
+    for (auto buffer: m_GPUSceneDataBuffers)
+    {
+        buffer.cleanup(m_GfxDevice.m_vmaAllocator);
     }
 
     // m_bindlessDescriptorAllocator.destroy_pool(m_GfxDevice);

@@ -15,6 +15,10 @@ struct PointLight {
     float intensity;
 };
 
+struct DirectionalLight {
+    vec4 direction;
+};
+
 layout (buffer_reference, scalar) readonly buffer PointLightsDataBuffer {
     PointLight data[];
 };
@@ -44,7 +48,8 @@ layout (buffer_reference, scalar) readonly buffer SceneDataBuffer {
 
     // uint numPointLights;
     PointLightsDataBuffer pointLights;
-    // int numLights;
+    int numPointLights;
+    DirectionalLight directionalLight;
     // int sunlightIndex; // if -1, there's no sun
 
     MaterialDataBuffer materials;
