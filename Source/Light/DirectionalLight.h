@@ -1,10 +1,11 @@
 #pragma once
 
-#include <glm/vec4.hpp>
 #include <glm/vec3.hpp>
 
 
 struct DirectionalLight {
-    DirectionalLight(glm::vec3 _direction);
-    glm::vec4 direction{0.0f}; // Defined as pointing _away_ from the light
+    DirectionalLight();
+    DirectionalLight(glm::vec3 _direction, float _power);
+    glm::vec3 direction; // Defined as pointing _away_ from the light
+    float power;
 };

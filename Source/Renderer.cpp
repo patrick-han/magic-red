@@ -90,11 +90,12 @@ void Renderer::init_lights() {
     m_directionalLight.direction.x = -0.2f;
     m_directionalLight.direction.y = -1.0f;
     m_directionalLight.direction.z = -0.3f;
+    m_directionalLight.power = 1.0f;
 
 
     // Point lights
-    m_CPUPointLights.emplace_back(glm::vec3(0.0f, 3.5f, -4.0f), TYPE_POINT_LIGHT, glm::vec3(1.0f, 223.0f/255.0f, 188.0f/255.0f), 1.0f);
-    m_CPUPointLights.emplace_back(glm::vec3(0.0f, 3.5f, 1.0f), TYPE_POINT_LIGHT, glm::vec3(45.0f/255.0f, 25.0f/255.0f, 188.0f/255.0f), 1.0f);
+    m_CPUPointLights.emplace_back(glm::vec3(0.0f, 3.5f, -4.0f), 1.0f, glm::vec3(1.0f, 223.0f/255.0f, 188.0f/255.0f), 1.0f, 0.09f, 0.032f);
+    m_CPUPointLights.emplace_back(glm::vec3(0.0f, 3.5f, 1.0f), 1.0f, glm::vec3(45.0f/255.0f, 25.0f/255.0f, 188.0f/255.0f), 1.0f, 0.09f, 0.032f);
 
     if (m_CPUPointLights.size() > 0)
     {
@@ -491,7 +492,7 @@ void Renderer::draw_objects() {
     VkCommandBuffer cmdBuffer = m_GfxDevice.get_frame_command_buffer(m_currentFrame);
     VkDeviceAddress sceneDataBufferAddress = m_GPUSceneDataBuffers[m_currentFrame].gpuAddress;
 
-    for (RenderObject renderObject :  m_sceneRenderObjects) {
+    for (const RenderObject& renderObject :  m_sceneRenderObjects) {
        renderObject.bind_and_draw(cmdBuffer, std::span<const VkDescriptorSet>(&m_bindlessDescriptorSet, 1), sceneDataBufferAddress);
     }
 }
@@ -785,6 +786,7 @@ void Renderer::mainLoop() {
         ImGui::SliderFloat("Directional Light x", &m_directionalLight.direction.x, -1.0f, 1.0f);
         ImGui::SliderFloat("Directional Light y", &m_directionalLight.direction.y, -1.0f, 1.0f);
         ImGui::SliderFloat("Directional Light z", &m_directionalLight.direction.z, -1.0f, 1.0f);
+        ImGui::SliderFloat("Directional Light power", &m_directionalLight.power,  0.0f, 1.0f);
         ImGui::End();
         ImGui::Render();
         drawFrame();

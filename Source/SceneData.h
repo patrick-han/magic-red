@@ -9,7 +9,7 @@ struct CPUSceneData
     glm::vec3 cameraWorldPosition;
     VkDeviceAddress lightBufferAddress;
     int numPointLights;
-    DirectionalLight directionalLight{ glm::vec3(0.0f, 0.0f, 0.0f) };
+    DirectionalLight directionalLight;
     VkDeviceAddress materialBufferAddress;
 };
 

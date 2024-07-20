@@ -41,7 +41,7 @@ private:
     std::vector<PointLight> m_CPUPointLights;
     std::array<AllocatedBuffer, MAX_FRAMES_IN_FLIGHT> m_GPUPointLightsBuffers;
     bool m_pointLightsExist = false;
-    DirectionalLight m_directionalLight{ glm::vec3(0.0f, 0.0f, 0.0f) };
+    DirectionalLight m_directionalLight;
 
     // MaterialData
     AllocatedBuffer m_materialDataBuffer;

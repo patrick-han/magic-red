@@ -18,14 +18,14 @@ layout (set = 0, binding = 1) uniform texture2D textures[];
 
 vec3 calculateDirectionalLightContribution(vec3 diffuseTexColor, vec3 metallicRoughnessColor)
 {
-    vec3 lightColor = vec3(1.0, 1.0, 1.0); // TODO: Hardcoded directional light
+    vec3 lightColor = vec3(pushConstants.sceneData.directionalLight.power); // TODO: Directional light color?
 
     // Ambient
     float ambientStrength = 0.1;
     vec3 ambient = diffuseTexColor * ambientStrength * lightColor;
 
     // Diffuse
-    vec3 fragToLightDir = normalize(-pushConstants.sceneData.directionalLight.direction.xyz);
+    vec3 fragToLightDir = normalize(-pushConstants.sceneData.directionalLight.direction);
     vec3 norm = normalize(fragWorldNormal);
     float difference = max(dot(fragToLightDir, norm), 0.0);
     vec3 diffuse = diffuseTexColor * difference * lightColor;
@@ -63,6 +63,18 @@ vec3 calculatePointLightsContribution(int pointLightIndex, vec3 diffuseTexColor,
     vec3 reflectDir = reflect(-fragToLightDir, norm);
     float specularDifference = pow(max(dot(viewDir, reflectDir), 0.0), 32);
     vec3 specular = specularStrength * specularDifference * lightColor;
+
+    float distance = length(pushConstants.sceneData.pointLights.data[pointLightIndex].worldSpacePosition - fragWorldPos);
+
+    float attenuation = 1.0 / (
+        pushConstants.sceneData.pointLights.data[pointLightIndex].constantAttenuation + 
+        pushConstants.sceneData.pointLights.data[pointLightIndex].linearAttenuation * distance+ 
+        pushConstants.sceneData.pointLights.data[pointLightIndex].quadraticAttenuation * distance * distance
+    );
+
+    ambient  *= attenuation;
+    diffuse  *= attenuation;
+    specular *= attenuation;
 
     vec3 result = (ambient + diffuse + specular);
     return result;
