@@ -69,6 +69,7 @@ void Renderer::initWindow() {
 
 void Renderer::init_graphics() {
     m_GfxDevice.init(m_window);
+    init_render_targets();
     init_lights();
     create_samplers();
     init_bindless_descriptors();
@@ -81,6 +82,21 @@ void Renderer::init_graphics() {
     // build_pipelines();
     // build_render_objects();
     init_imgui();
+}
+
+void Renderer::init_render_targets() {
+    // G Buffer
+    // VkFormat albedoRTFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+    VkFormat albedoRTFormat = VK_FORMAT_B8G8R8A8_UNORM;
+    VkImageCreateInfo albedoRTImage_ci = image_create_info(albedoRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
+        | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT // Input to deferred lighting
+        // | VK_IMAGE_USAGE_SAMPLED_BIT       // TODO: Possibly to use for post processing stuff
+        | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,    // TODO: Copy from to swapchain
+        VK_IMAGE_TYPE_2D
+    );
+
+    m_albedoRTId = m_TextureCache.add_render_target_texture(m_GfxDevice, albedoRTFormat, albedoRTImage_ci);
 }
 
 void Renderer::init_lights() {
@@ -255,7 +271,7 @@ void Renderer::init_assets() {
         .pNext = nullptr,
         .viewMask = 0,
         .colorAttachmentCount = 1,
-        .pColorAttachmentFormats = &m_GfxDevice.m_swapChainFormat,
+        .pColorAttachmentFormats = &m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageFormat,
         .depthAttachmentFormat = m_GfxDevice.m_depthImage.imageFormat,
         .stencilAttachmentFormat = {}
     };
@@ -519,7 +535,7 @@ void Renderer::init_imgui() {
         .MinImageCount = 3,
         .ImageCount = 3,
         .UseDynamicRendering = true,
-        .ColorAttachmentFormat = m_GfxDevice.m_swapChainFormat,
+        .ColorAttachmentFormat = m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageFormat
     };
 
     initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
@@ -671,10 +687,10 @@ void Renderer::drawFrame() {
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         vkBeginCommandBuffer(cmdBuffer, &beginInfo);
 
+        // Transition albedo RT to color attachment
         {
-            // Transition swapchain to color attachment write
             VkImageMemoryBarrier imb = image_memory_barrier(
-                m_GfxDevice.m_swapChainImages[imageIndex], 
+                m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.image, 
                 {}, 
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
@@ -692,7 +708,7 @@ void Renderer::drawFrame() {
         }
 
         VkRenderingAttachmentInfoKHR colorAttachmentInfo = rendering_attachment_info(
-            m_GfxDevice.m_swapChainImageViews[imageIndex],
+            m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageView,
             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             &DEFAULT_CLEAR_VALUE_COLOR
         );
@@ -727,10 +743,91 @@ void Renderer::drawFrame() {
         PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(m_GfxDevice, "vkCmdEndRenderingKHR"));
         vkCmdEndRenderingKHR(cmdBuffer);
 
-
-
         // Draw imgui
-        draw_imgui(m_GfxDevice.m_swapChainImageViews[imageIndex]);
+        draw_imgui(m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageView);
+
+        // Transition draw image to copy src
+        {
+            VkImageMemoryBarrier imb = image_memory_barrier(
+                m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.image, 
+                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                VK_ACCESS_TRANSFER_READ_BIT, 
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+            );
+            vkCmdPipelineBarrier(
+                cmdBuffer,
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                {},
+                0, nullptr,
+                0, nullptr,
+                1, &imb
+            );
+        }
+
+        // Transition swapchain to copy dst
+        {
+            VkImageMemoryBarrier imb = image_memory_barrier(
+                m_GfxDevice.m_swapChainImages[imageIndex],
+                {},
+                VK_ACCESS_TRANSFER_WRITE_BIT,
+                VK_IMAGE_LAYOUT_UNDEFINED,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+            );
+            vkCmdPipelineBarrier(
+                cmdBuffer,
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                {},
+                0, nullptr,
+                0, nullptr,
+                1, &imb
+            );
+
+        }
+
+        VkOffset3D srcOffset = { 
+            .x = 0,
+            .y = 0,
+            .z = 0
+        };
+        VkOffset3D dstOffset = { 
+            .x = 0,
+            .y = 0,
+            .z = 0
+        };
+
+
+        // Copy draw image to swapchain
+        const VkImageCopy imageCopy= {
+            .srcSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .mipLevel = 0, .baseArrayLayer = 0, .layerCount = 1
+            },
+            .srcOffset = srcOffset,
+            .dstSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .mipLevel = 0, .baseArrayLayer = 0, .layerCount = 1
+            },
+            .dstOffset = dstOffset,
+            .extent = {
+                .width = WINDOW_WIDTH,
+                .height = WINDOW_HEIGHT,
+                .depth = 1
+            }
+        };
+
+        vkCmdCopyImage(
+            cmdBuffer,
+            m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.image,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            m_GfxDevice.m_swapChainImages[imageIndex],
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1,
+            &imageCopy
+        );
+        
 
         {
             // Transition swapchain to correct presentation layout
@@ -738,7 +835,7 @@ void Renderer::drawFrame() {
                 m_GfxDevice.m_swapChainImages[imageIndex], 
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 {},
-                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             );
             vkCmdPipelineBarrier(

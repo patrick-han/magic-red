@@ -66,6 +66,9 @@ private:
     bool m_bShowRenderingMenu = true;
     bool m_bInteractableUI = false;
 
+    // RTs TODO:
+    GPUTextureId m_albedoRTId{NULL_GPU_TEXTURE_ID};
+
     float rx{0.0f};
     float ry{1.0f};
     float rz{0.0f};
@@ -74,6 +77,7 @@ private:
     void initWindow();
     void init_graphics();
 
+    void init_render_targets();
     void init_lights();
     void create_samplers();
     void init_bindless_descriptors();

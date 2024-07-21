@@ -29,11 +29,46 @@
     return m_texturesLoadedAlready.count(textureName) > 0 ? true : false;
 }
 
+
+[[nodiscard]] GPUTextureId TextureCache::add_render_target_texture(const GfxDevice& gfxDevice, VkFormat format, VkImageCreateInfo imageCreateInfo) {
+    // const GPUTextureId textureId = static_cast<uint32_t>(m_gpuTextures.size());
+    const GPUTextureId textureId = static_cast<uint32_t>(m_gpuRTTextures.size());
+
+    GPUTexture renderTargetTexture;
+
+    VkExtent3D imageExtent; 
+    imageExtent.width = WINDOW_WIDTH;
+    imageExtent.height = WINDOW_HEIGHT;
+    imageExtent.depth = 1;
+    renderTargetTexture.allocatedImage.imageExtent = imageExtent;
+    renderTargetTexture.allocatedImage.imageFormat = format;
+
+    create_gpu_only_image(renderTargetTexture.allocatedImage, imageCreateInfo, gfxDevice.m_vmaAllocator);
+    VkImageViewCreateInfo imageViewCreateInfo = imageview_create_info(renderTargetTexture.allocatedImage.image, format, {}, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkCreateImageView(gfxDevice, &imageViewCreateInfo, nullptr, &renderTargetTexture.allocatedImage.imageView);
+    
+
+    // m_gpuTextures.push_back(renderTargetTexture);
+    m_gpuRTTextures.push_back(renderTargetTexture);
+    return textureId;
+}
+
+[[nodiscard]] const GPUTexture& TextureCache::get_render_target_texture(GPUTextureId id) const {
+    return m_gpuRTTextures[id];
+}
+
+
 void TextureCache::cleanup(const GfxDevice& gfxDevice) {
     for (auto &texture : m_gpuTextures)
     {
-        vmaDestroyImage(gfxDevice.m_vmaAllocator, texture.allocatedImage.image, texture.allocatedImage.allocation);
         vkDestroyImageView(gfxDevice, texture.allocatedImage.imageView, nullptr);
+        vmaDestroyImage(gfxDevice.m_vmaAllocator, texture.allocatedImage.image, texture.allocatedImage.allocation);
+    }
+
+    for (auto &texture : m_gpuRTTextures)
+    {
+        vkDestroyImageView(gfxDevice, texture.allocatedImage.imageView, nullptr);
+        vmaDestroyImage(gfxDevice.m_vmaAllocator, texture.allocatedImage.image, texture.allocatedImage.allocation);
     }
 }
 
@@ -58,10 +93,7 @@ void TextureCache::upload_texture(const GfxDevice& gfxDevice, const TextureLoadi
     VkImageCreateInfo imageCreateInfo = image_create_info(format, imageExtent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
     upload_image(static_cast<const void *>(texLoadingData.data), texLoadingData.texSize.ch, gpuTexture.allocatedImage, imageCreateInfo, gfxDevice);
     VkImageViewCreateInfo imageViewCreateInfo = imageview_create_info(gpuTexture.allocatedImage.image, format, {}, VK_IMAGE_ASPECT_COLOR_BIT);
-
-    VkImageView imageView;
-    vkCreateImageView(gfxDevice, &imageViewCreateInfo, nullptr, &imageView);
-    gpuTexture.allocatedImage.imageView = imageView;
+    vkCreateImageView(gfxDevice, &imageViewCreateInfo, nullptr, &gpuTexture.allocatedImage.imageView);
 
     m_gpuTextures.push_back(gpuTexture);
 }
