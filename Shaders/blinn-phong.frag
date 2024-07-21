@@ -10,6 +10,7 @@ layout(location = 2) in vec2 textureCoords;
 layout(location = 3) in vec4 fragColor;
 
 layout(location = 0) out vec4 outColor;
+layout(location = 1) out vec3 outNormal;
 
 #include "mesh_push_constants.glsl"
 
@@ -106,4 +107,5 @@ void main() {
     }
 
     outColor = vec4(result, 1.0);
+    outNormal.rgb = normalize(fragWorldNormal);
 }

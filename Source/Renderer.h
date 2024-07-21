@@ -68,6 +68,7 @@ private:
 
     // RTs TODO:
     GPUTextureId m_albedoRTId{NULL_GPU_TEXTURE_ID};
+    GPUTextureId m_worldNormalsRTId{NULL_GPU_TEXTURE_ID};
 
     float rx{0.0f};
     float ry{1.0f};

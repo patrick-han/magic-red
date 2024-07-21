@@ -97,6 +97,17 @@ void Renderer::init_render_targets() {
     );
 
     m_albedoRTId = m_TextureCache.add_render_target_texture(m_GfxDevice, albedoRTFormat, albedoRTImage_ci);
+
+    VkFormat worldNormalsRTFormat = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+    VkImageCreateInfo worldNormalsRTImage_ci = image_create_info(worldNormalsRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
+        | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, // Input to deferred lighting
+        // | VK_IMAGE_USAGE_SAMPLED_BIT       // TODO: Possibly to use for post processing stuff
+        // | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,    // TODO: Copy from to swapchain
+        VK_IMAGE_TYPE_2D
+    );
+
+    m_worldNormalsRTId = m_TextureCache.add_render_target_texture(m_GfxDevice, worldNormalsRTFormat, worldNormalsRTImage_ci);
 }
 
 void Renderer::init_lights() {
@@ -266,12 +277,18 @@ void Renderer::init_assets() {
     }
 
 
+    VkFormat colorAttachmentFormats[2] = {
+        m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageFormat,
+        m_TextureCache.get_render_target_texture(m_worldNormalsRTId).allocatedImage.imageFormat
+    };
     VkPipelineRenderingCreateInfoKHR pipelineRenderingCI = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
         .pNext = nullptr,
         .viewMask = 0,
-        .colorAttachmentCount = 1,
-        .pColorAttachmentFormats = &m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageFormat,
+        // .colorAttachmentCount = 1,
+        // .pColorAttachmentFormats = &m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageFormat,
+        .colorAttachmentCount = 2,
+        .pColorAttachmentFormats = colorAttachmentFormats,
         .depthAttachmentFormat = m_GfxDevice.m_depthImage.imageFormat,
         .stencilAttachmentFormat = {}
     };
@@ -623,44 +640,6 @@ void Renderer::update_scene_data(uint32_t frameInFlightIndex) {
     );
 }
 
-// void Renderer::update_scene_data_descriptors(uint32_t frameInFlightIndex) {
-//     m_CPUSceneData.view = camera.get_view_matrix();
-//     glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT, 0.1f, 200.0f);
-//     projection[1][1] *= -1; // flips the model because Vulkan uses positive Y downwards
-//     m_CPUSceneData.projection = projection;
-//     m_CPUSceneData.cameraWorldPosition = camera.get_world_position();
-//     // m_CPUSceneData.numPointLights = static_cast<uint32_t>(m_CPUPointLights.size());
-//     m_CPUSceneData.lightBufferAddress = m_GPUPointLightsBuffers_F[frameInFlightIndex].gpuAddress;
-    
-//     update_buffer(
-//         m_GPUSceneDataBuffers_F[frameInFlightIndex], 
-//         sizeof(CPUSceneData),
-//         &m_CPUSceneData,
-//         m_GfxDevice.m_vmaAllocator
-//     );
-
-//     // Update descriptor set(s)
-//     VkDescriptorBufferInfo sceneDataBufferInfo = {
-//         .buffer = m_GPUSceneDataBuffers_F[frameInFlightIndex].buffer,
-//         .offset = 0,
-//         .range = sizeof(CPUSceneData)
-//     };
-
-//     VkWriteDescriptorSet sceneDataDescriptorWrite = {
-//         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-//         .pNext = nullptr,
-//         .dstSet = m_sceneDataDescriptorSets_F[frameInFlightIndex],
-//         .dstBinding = 0,
-//         .dstArrayElement = {},
-//         .descriptorCount = 1,
-//         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-//         .pImageInfo = nullptr,
-//         .pBufferInfo = &sceneDataBufferInfo,
-//         .pTexelBufferView = nullptr // ???
-//     };
-//     vkUpdateDescriptorSets(m_GfxDevice, 1, &sceneDataDescriptorWrite, 0, nullptr);
-// }
-
 void Renderer::drawFrame() {
         
         // Wait for previous frame to finish rendering before allowing us to acquire another image
@@ -687,11 +666,11 @@ void Renderer::drawFrame() {
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         vkBeginCommandBuffer(cmdBuffer, &beginInfo);
 
-        // Transition albedo RT to color attachment
+        // Transition albedo and world normals RTs to color attachment
         {
             VkImageMemoryBarrier imb = image_memory_barrier(
                 m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.image, 
-                {}, 
+                VK_ACCESS_NONE, 
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
@@ -705,13 +684,38 @@ void Renderer::drawFrame() {
                 0, nullptr,
                 1, &imb
             );
+
+            VkImageMemoryBarrier imb2 = image_memory_barrier(
+                m_TextureCache.get_render_target_texture(m_worldNormalsRTId).allocatedImage.image, 
+                VK_ACCESS_NONE, 
+                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                VK_IMAGE_LAYOUT_UNDEFINED,
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            );
+            vkCmdPipelineBarrier(
+                cmdBuffer, 
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                {},
+                0, nullptr,
+                0, nullptr,
+                1, &imb2
+            );
         }
 
-        VkRenderingAttachmentInfoKHR colorAttachmentInfo = rendering_attachment_info(
+        VkRenderingAttachmentInfoKHR albedoAttachmentInfo = rendering_attachment_info(
             m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageView,
             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             &DEFAULT_CLEAR_VALUE_COLOR
         );
+
+        VkRenderingAttachmentInfoKHR worldNormalsAttachmentInfo = rendering_attachment_info(
+            m_TextureCache.get_render_target_texture(m_worldNormalsRTId).allocatedImage.imageView,
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            &DEFAULT_CLEAR_VALUE_ZERO
+        );
+
+        VkRenderingAttachmentInfoKHR colorAttachmentInfos[2] = { albedoAttachmentInfo, worldNormalsAttachmentInfo };
 
         VkRenderingAttachmentInfoKHR depthAttachmentInfo  = rendering_attachment_info(
             m_GfxDevice.m_depthImage.imageView,
@@ -720,7 +724,7 @@ void Renderer::drawFrame() {
         );
 
         VkRenderingInfoKHR renderingInfo = rendering_info_fullscreen(
-            1, &colorAttachmentInfo, &depthAttachmentInfo
+            2, colorAttachmentInfos, &depthAttachmentInfo
         );
 
         PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(m_GfxDevice, "vkCmdBeginRenderingKHR"));
@@ -746,7 +750,7 @@ void Renderer::drawFrame() {
         // Draw imgui
         draw_imgui(m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageView);
 
-        // Transition draw image to copy src
+        // Transition albedo image to copy src
         {
             VkImageMemoryBarrier imb = image_memory_barrier(
                 m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.image, 
@@ -770,7 +774,7 @@ void Renderer::drawFrame() {
         {
             VkImageMemoryBarrier imb = image_memory_barrier(
                 m_GfxDevice.m_swapChainImages[imageIndex],
-                {},
+                VK_ACCESS_NONE,
                 VK_ACCESS_TRANSFER_WRITE_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
@@ -799,7 +803,7 @@ void Renderer::drawFrame() {
         };
 
 
-        // Copy draw image to swapchain
+        // Copy albedo image to swapchain
         const VkImageCopy imageCopy= {
             .srcSubresource = {
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,

@@ -64,7 +64,19 @@ GraphicsPipeline::GraphicsPipeline(
     /*alphaBlend*/ VK_BLEND_OP_ADD,
     VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT };
-    VkPipelineColorBlendStateCreateInfo colorBlending = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, nullptr, VkPipelineColorBlendStateCreateFlags(), /*logicOpEnable=*/false, VK_LOGIC_OP_COPY, /*attachmentCount=*/1, /*colourAttachments=*/&colorBlendAttachment, {}};
+
+
+    VkPipelineColorBlendAttachmentState colorBlendAttachments[2] = { colorBlendAttachment, colorBlendAttachment };
+
+    VkPipelineColorBlendStateCreateInfo colorBlending = { 
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, 
+        .flags = VkPipelineColorBlendStateCreateFlags(), 
+        .logicOpEnable = false, 
+        .logicOp = VK_LOGIC_OP_COPY, 
+        .attachmentCount = pipelineRenderingCreateInfo->colorAttachmentCount,
+        .pAttachments = colorBlendAttachments, // TODO: hardcoded
+        .blendConstants = {}
+    };
 
     std::vector<VkDynamicState> dynamicStates = {
         VK_DYNAMIC_STATE_VIEWPORT,
