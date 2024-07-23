@@ -247,9 +247,6 @@ void Renderer::init_bindless_descriptors() {
     vkAllocateDescriptorSets(m_GfxDevice, &allocateInfo, &m_bindlessDescriptorSet);
 }
 
-// temp
-std::vector<VkPushConstantRange> defaultPushConstantRanges = {DefaultPushConstants::range()};
-
 void Renderer::init_assets() {
     {
         // Used as a placeholder texture when a material is missing an given texture map
@@ -285,27 +282,15 @@ void Renderer::init_assets() {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
         .pNext = nullptr,
         .viewMask = 0,
-        // .colorAttachmentCount = 1,
-        // .pColorAttachmentFormats = &m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageFormat,
         .colorAttachmentCount = 2,
         .pColorAttachmentFormats = colorAttachmentFormats,
         .depthAttachmentFormat = m_GfxDevice.m_depthImage.imageFormat,
         .stencilAttachmentFormat = {}
     };
 
-    GraphicsPipeline defaultPipeline(
-        m_GfxDevice,
-        &pipelineRenderingCI, 
-        std::string("Shaders/triangle_mesh.vert.spv"), 
-        std::string("Shaders/blinn-phong.frag.spv"), 
-        defaultPushConstantRanges,
-        // std::span<const VkDescriptorSetLayout>(m_sceneDataDescriptorSetLayouts.data(), 1), // TODO: They're all the same and this only has 1 layout for now
-        std::span<const VkDescriptorSetLayout>(&m_bindlessDescriptorSetLayout, 1),
-        // std::span<const VkDescriptorSetLayout>(),
-        {WINDOW_WIDTH, WINDOW_HEIGHT}
-    );
+    // m_renderStages.push_back(std::make_unique<GBufferStage>(m_GfxDevice, m_GraphicsPipelineCache, &pipelineRenderingCI, std::span<VkDescriptorSetLayout const>(std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout})));
+    m_pGbufferStage = std::make_unique<GBufferStage>(m_GfxDevice, m_GraphicsPipelineCache, &pipelineRenderingCI, std::span<VkDescriptorSetLayout const>(std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout}));
 
-    GraphicsPipelineId defaultPipelineId = m_GraphicsPipelineCache.add_pipeline(m_GfxDevice, defaultPipeline);
     // {
     //    // Sponza mesh
     //    CPUModel sponzaModel(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false, m_MaterialCache, m_TextureCache, m_GfxDevice);
@@ -331,7 +316,7 @@ void Renderer::init_assets() {
         for (CPUMesh& mesh : beautifulGameModel.m_cpuMeshes)
         {
             GPUMeshId beautifulGameMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
-            RenderObject beautifulGameObject(defaultPipelineId, beautifulGameMeshId, m_GraphicsPipelineCache, m_MeshCache);
+            RenderObject beautifulGameObject(beautifulGameMeshId, m_GraphicsPipelineCache, m_MeshCache);
 
             // glm::vec3 scale;
             // glm::quat rotation;
@@ -573,7 +558,14 @@ void Renderer::draw_objects() {
     VkDeviceAddress sceneDataBufferAddress = m_GPUSceneDataBuffers[m_currentFrame].gpuAddress;
 
     for (const RenderObject& renderObject :  m_sceneRenderObjects) {
-       renderObject.bind_and_draw(cmdBuffer, std::span<const VkDescriptorSet>(), sceneDataBufferAddress); // TODO
+
+        DefaultPushConstants pushConstants;
+        pushConstants.model = renderObject.m_transformMatrix;
+        pushConstants.sceneDataBufferAddress = sceneDataBufferAddress;
+        pushConstants.materialId = renderObject.m_materialId;
+        vkCmdPushConstants(cmdBuffer, m_GraphicsPipelineCache.get_pipeline(m_pGbufferStage->m_pipelineId).get_pipeline_layout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
+
+        renderObject.bind_and_draw(cmdBuffer, std::span<const VkDescriptorSet>(), sceneDataBufferAddress);
     }
 }
 
@@ -733,14 +725,13 @@ void Renderer::drawFrame() {
         vkCmdSetViewport(cmdBuffer, 0, 1, &DEFAULT_VIEWPORT_FULLSCREEN);
         vkCmdSetScissor(cmdBuffer, 0, 1, &DEFAULT_SCISSOR_FULLSCREEN);
 
-        vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipelineCache.get_pipeline(0).get_pipeline()); // TODO: Hardcoded
+        vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipelineCache.get_pipeline(m_pGbufferStage->m_pipelineId).get_pipeline_handle()); // TODO: Hardcoded
 
         // Bindless descriptor set shared for color pass
         std::span<const VkDescriptorSet> bindlessDescriptorSet = std::span<const VkDescriptorSet>(&m_bindlessDescriptorSet, 1);
         vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
-            m_GraphicsPipelineCache.get_pipeline(0).get_pipeline_layout(), 
+            m_GraphicsPipelineCache.get_pipeline(m_pGbufferStage->m_pipelineId).get_pipeline_layout(), 
             0, static_cast<uint32_t>(bindlessDescriptorSet.size()), bindlessDescriptorSet.data(), 0, nullptr); // TODO: Hardcoded
-
 
         draw_objects();
 

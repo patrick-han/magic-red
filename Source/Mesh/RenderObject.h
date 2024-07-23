@@ -11,16 +11,18 @@ class MeshCache;
 class GraphicsPipelineCache;
 
 struct RenderObject {
-    RenderObject(GraphicsPipelineId _pipelineId, const GPUMeshId _GPUmeshId, const GraphicsPipelineCache& _pipelineCache, const MeshCache& _meshCache);
+    RenderObject(const GPUMeshId _GPUmeshId, const GraphicsPipelineCache& _pipelineCache, const MeshCache& _meshCache);
     void bind_and_draw(VkCommandBuffer commandBuffer, std::span<VkDescriptorSet const> descriptorSets, VkDeviceAddress sceneDataBufferAddress) const;
     void set_transform(glm::mat4 _transformMatrix);
 
-private:
-    glm::mat4 m_transformMatrix;
-    GraphicsPipelineId m_pipelineId;
-    GPUMeshId m_GPUmeshId;
-    const GraphicsPipelineCache &m_pipelineCache;
-    const MeshCache &m_meshCache;
-    MaterialId m_materialId;
+
     
+private:
+    GPUMeshId m_GPUmeshId;
+    const MeshCache &m_meshCache;
+public:
+    MaterialId m_materialId;
+private:
+    const GraphicsPipelineCache &m_pipelineCache;
+    glm::mat4 m_transformMatrix;
 };

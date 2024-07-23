@@ -9,11 +9,12 @@ struct DefaultPushConstants {
     VkDeviceAddress sceneDataBufferAddress;
     MaterialId materialId;
 
-    static VkPushConstantRange range() {
-        VkPushConstantRange defaultPushConstantRange = {};
-        defaultPushConstantRange.offset = 0;
-        defaultPushConstantRange.size = sizeof(DefaultPushConstants);
-        defaultPushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    static constexpr VkPushConstantRange range() {
+        VkPushConstantRange defaultPushConstantRange = {
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+            .offset = 0,
+            .size = sizeof(DefaultPushConstants)
+        };
         return defaultPushConstantRange;
     }
 };

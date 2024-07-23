@@ -10,7 +10,7 @@ void Pipeline::destroy() {
     vkDestroyPipeline(m_logicalDevice, m_pipeline, nullptr);
 }
 
-const VkPipeline& Pipeline::get_pipeline() const {
+const VkPipeline& Pipeline::get_pipeline_handle() const {
     return m_pipeline;
 }
 

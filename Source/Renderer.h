@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 
 #include <vector>
+#include <memory>
 
 #include <Rendering/GfxDevice.h>
 #include <Mesh/MeshCache.h>
@@ -17,6 +18,9 @@
 #include <Wrappers/Buffer.h>
 #include <SceneData.h>
 #include <Common/Config.h>
+
+// #include <Rendering/StageBase.h>
+#include <Rendering/GBufferStage.h>
 
 class SDL_window;
 
@@ -69,6 +73,9 @@ private:
     // RTs TODO:
     GPUTextureId m_albedoRTId{NULL_GPU_TEXTURE_ID};
     GPUTextureId m_worldNormalsRTId{NULL_GPU_TEXTURE_ID};
+    
+    // std::vector<std::unique_ptr<StageBase>> m_pRenderStages;
+    std::unique_ptr<GBufferStage> m_pGbufferStage;
 
     float rx{0.0f};
     float ry{1.0f};
