@@ -6,18 +6,17 @@
 #include <Pipeline/PipelineCache.h>
 
 RenderObject::RenderObject(const GPUMeshId _GPUmeshId, const GraphicsPipelineCache& _pipelineCache, const MeshCache& _meshCache) : 
-    // m_pipelineId(_pipelineId),
+    m_pipelineCache(_pipelineCache),
     m_GPUmeshId(_GPUmeshId),
     m_meshCache(_meshCache),
-    m_materialId(m_meshCache.get_mesh(m_GPUmeshId).m_materialId),
-    m_pipelineCache(_pipelineCache)
+    m_materialId(m_meshCache.get_mesh(m_GPUmeshId).m_materialId)
 {}
 
 void RenderObject::set_transform(glm::mat4 _transformMatrix) {
     m_transformMatrix = _transformMatrix;
 }
 
-void RenderObject::bind_and_draw(VkCommandBuffer commandBuffer, [[maybe_unused]] std::span<VkDescriptorSet const> descriptorSets, [[maybe_unused]] VkDeviceAddress sceneDataBufferAddress) const {
+void RenderObject::bind_mesh_buffers_and_draw(VkCommandBuffer commandBuffer, [[maybe_unused]] std::span<VkDescriptorSet const> descriptorSets) const {
 
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &(m_meshCache.get_mesh(m_GPUmeshId).vertexBuffer.buffer), &offset);

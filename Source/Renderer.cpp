@@ -289,7 +289,12 @@ void Renderer::init_assets() {
     };
 
     // m_renderStages.push_back(std::make_unique<GBufferStage>(m_GfxDevice, m_GraphicsPipelineCache, &pipelineRenderingCI, std::span<VkDescriptorSetLayout const>(std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout})));
-    m_pGbufferStage = std::make_unique<GBufferStage>(m_GfxDevice, m_GraphicsPipelineCache, &pipelineRenderingCI, std::span<VkDescriptorSetLayout const>(std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout}));
+    m_pGbufferStage = std::make_unique<GBufferStage>(
+        m_GfxDevice, m_GraphicsPipelineCache, &pipelineRenderingCI, 
+        std::span<VkDescriptorSetLayout const>(std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout}), // TODO: This smells
+        // std::array<VkDescriptorSet* const, 1>{&m_bindlessDescriptorSet}, // TODO: This smells
+        &m_bindlessDescriptorSet // TODO: This smells
+    );
 
     // {
     //    // Sponza mesh
@@ -487,14 +492,6 @@ void Renderer::update_texture_descriptors() {
     vkUpdateDescriptorSets(m_GfxDevice, 1, &linearSamplerDescriptorWrite, 0, nullptr);
 }
 
-// void build_pipelines() {
-
-// }
-
-// void build_render_objects() {
-    
-// }
-
 void Renderer::init_imgui() {
     // Create a descriptor pool for IMGUI
     // The size of the pool is very oversized, but it's copied from imgui demo
@@ -551,22 +548,6 @@ void Renderer::init_imgui() {
     // });
 
     // add the destroy the imgui created structures
-}
-
-void Renderer::draw_objects() {
-    VkCommandBuffer cmdBuffer = m_GfxDevice.get_frame_command_buffer(m_currentFrame);
-    VkDeviceAddress sceneDataBufferAddress = m_GPUSceneDataBuffers[m_currentFrame].gpuAddress;
-
-    for (const RenderObject& renderObject :  m_sceneRenderObjects) {
-
-        DefaultPushConstants pushConstants;
-        pushConstants.model = renderObject.m_transformMatrix;
-        pushConstants.sceneDataBufferAddress = sceneDataBufferAddress;
-        pushConstants.materialId = renderObject.m_materialId;
-        vkCmdPushConstants(cmdBuffer, m_GraphicsPipelineCache.get_pipeline(m_pGbufferStage->m_pipelineId).get_pipeline_layout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
-
-        renderObject.bind_and_draw(cmdBuffer, std::span<const VkDescriptorSet>(), sceneDataBufferAddress);
-    }
 }
 
 void Renderer::draw_imgui(VkImageView targetImageView) {
@@ -722,18 +703,7 @@ void Renderer::drawFrame() {
         PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(m_GfxDevice, "vkCmdBeginRenderingKHR"));
         vkCmdBeginRenderingKHR(cmdBuffer, &renderingInfo);
 
-        vkCmdSetViewport(cmdBuffer, 0, 1, &DEFAULT_VIEWPORT_FULLSCREEN);
-        vkCmdSetScissor(cmdBuffer, 0, 1, &DEFAULT_SCISSOR_FULLSCREEN);
-
-        vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipelineCache.get_pipeline(m_pGbufferStage->m_pipelineId).get_pipeline_handle()); // TODO: Hardcoded
-
-        // Bindless descriptor set shared for color pass
-        std::span<const VkDescriptorSet> bindlessDescriptorSet = std::span<const VkDescriptorSet>(&m_bindlessDescriptorSet, 1);
-        vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
-            m_GraphicsPipelineCache.get_pipeline(m_pGbufferStage->m_pipelineId).get_pipeline_layout(), 
-            0, static_cast<uint32_t>(bindlessDescriptorSet.size()), bindlessDescriptorSet.data(), 0, nullptr); // TODO: Hardcoded
-
-        draw_objects();
+        m_pGbufferStage->Draw(cmdBuffer, m_GPUSceneDataBuffers[m_currentFrame].gpuAddress, m_sceneRenderObjects);
 
         PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(m_GfxDevice, "vkCmdEndRenderingKHR"));
         vkCmdEndRenderingKHR(cmdBuffer);

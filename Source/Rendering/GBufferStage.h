@@ -5,8 +5,10 @@
 #include <Common/Config.h>
 #include <Rendering/StageBase.h>
 #include <array>
+
 class GfxDevice;
 class GraphicsPipelineCache;
+struct RenderObject;
 
 class GBufferStage final : public StageBase {
 
@@ -18,19 +20,24 @@ public:
         const GfxDevice& _gfxDevice,
         GraphicsPipelineCache&  _graphicsPipelineCache,
         const VkPipelineRenderingCreateInfoKHR* _pipelineRenderingCreateInfo,
-        std::span<VkDescriptorSetLayout const> _descriptorSetLayouts
+        std::span<VkDescriptorSetLayout const> _descriptorSetLayouts,
+        // std::span<VkDescriptorSet* const> _descriptorSets,
+        VkDescriptorSet* _pDescriptorSet
     );
     ~GBufferStage();
     GBufferStage(const GBufferStage&) = delete;
     GBufferStage& operator=(const GBufferStage&) = delete;
 
+    virtual void Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress, std::span<RenderObject> renderObjects);
+
 private:
-    // const GfxDevice& m_gfxDevice;
-    GraphicsPipelineCache& m_graphicsPiplineCache;
+    GraphicsPipelineCache& m_graphicsPipelineCache;
     const VkPipelineRenderingCreateInfoKHR* m_pipelineRenderingCreateInfo;
     const std::string m_vertexShaderPath = std::string("Shaders/triangle_mesh.vert.spv");
     const std::string m_fragmentShaderPath = std::string("Shaders/blinn-phong.frag.spv");
     std::span<VkDescriptorSetLayout const> m_descriptorSetLayouts;
+    // std::span<VkDescriptorSet* const> m_descriptorSets;
+    VkDescriptorSet* m_pDescriptorSet;
     const VkExtent2D m_extent = {WINDOW_WIDTH, WINDOW_HEIGHT};
 public:
     const GraphicsPipeline m_pipeline;

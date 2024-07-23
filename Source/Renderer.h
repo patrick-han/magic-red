@@ -97,7 +97,6 @@ private:
     
     void init_imgui();
     
-    void draw_objects();
     void draw_imgui(VkImageView targetImageView);
     void update_lights(uint32_t frameInFlightIndex);
     void update_scene_data(uint32_t frameInFlightIndex);
