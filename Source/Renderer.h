@@ -57,10 +57,7 @@ private:
     // Descriptors
     VkDescriptorPool m_bindlessPool;
     VkDescriptorSetLayout m_bindlessDescriptorSetLayout;
-    // DescriptorAllocator m_bindlessDescriptorAllocator;
-    // std::vector<VkDescriptorSetLayout> m_sceneDataDescriptorSetLayouts;
-    // std::vector<VkDescriptorSet> m_sceneDataDescriptorSets_F;
-    VkDescriptorSet m_bindlessDescriptorSet;
+    std::array<VkDescriptorSet, 1> m_bindlessDescriptorSets;
 
     // Samplers
     VkSampler m_linearSampler;

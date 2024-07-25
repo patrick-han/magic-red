@@ -78,9 +78,7 @@ void Renderer::init_graphics() {
     init_scene_data();
 
     update_texture_descriptors();
-    
-    // build_pipelines();
-    // build_render_objects();
+
     init_imgui();
 }
 
@@ -244,7 +242,7 @@ void Renderer::init_bindless_descriptors() {
         .pSetLayouts = &m_bindlessDescriptorSetLayout
     };
     
-    vkAllocateDescriptorSets(m_GfxDevice, &allocateInfo, &m_bindlessDescriptorSet);
+    vkAllocateDescriptorSets(m_GfxDevice, &allocateInfo, &m_bindlessDescriptorSets.at(0));
 }
 
 void Renderer::init_assets() {
@@ -291,10 +289,8 @@ void Renderer::init_assets() {
     // m_renderStages.push_back(std::make_unique<GBufferStage>(m_GfxDevice, m_GraphicsPipelineCache, &pipelineRenderingCI, std::span<VkDescriptorSetLayout const>(std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout})));
     m_pGbufferStage = std::make_unique<GBufferStage>(
         m_GfxDevice, m_GraphicsPipelineCache, &pipelineRenderingCI, 
-        std::span<VkDescriptorSetLayout const>(std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout}), // TODO: This smells
-        // std::array<VkDescriptorSet* const, 1>{&m_bindlessDescriptorSet}, // TODO: This smells
-        &m_bindlessDescriptorSet // TODO: This smells
-    );
+        std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout}, // TODO: This smells
+        m_bindlessDescriptorSets);
 
     // {
     //    // Sponza mesh
@@ -459,7 +455,7 @@ void Renderer::update_texture_descriptors() {
 
         textureDescriptorWrites[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         textureDescriptorWrites[i].pNext = nullptr;
-        textureDescriptorWrites[i].dstSet = m_bindlessDescriptorSet;
+        textureDescriptorWrites[i].dstSet = m_bindlessDescriptorSets.at(0);
         textureDescriptorWrites[i].dstBinding = 1;
         textureDescriptorWrites[i].dstArrayElement = i;
         textureDescriptorWrites[i].descriptorCount = 1;
@@ -478,7 +474,7 @@ void Renderer::update_texture_descriptors() {
     VkWriteDescriptorSet linearSamplerDescriptorWrite = {
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .pNext = nullptr,
-        .dstSet = m_bindlessDescriptorSet,
+        .dstSet = m_bindlessDescriptorSets.at(0),
         .dstBinding = 0,
         .dstArrayElement = {},
         .descriptorCount = 1,

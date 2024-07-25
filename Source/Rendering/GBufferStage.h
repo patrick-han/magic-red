@@ -21,8 +21,7 @@ public:
         GraphicsPipelineCache&  _graphicsPipelineCache,
         const VkPipelineRenderingCreateInfoKHR* _pipelineRenderingCreateInfo,
         std::span<VkDescriptorSetLayout const> _descriptorSetLayouts,
-        // std::span<VkDescriptorSet* const> _descriptorSets,
-        VkDescriptorSet* _pDescriptorSet
+        std::span<VkDescriptorSet const> _descriptorSets
     );
     ~GBufferStage();
     GBufferStage(const GBufferStage&) = delete;
@@ -36,8 +35,7 @@ private:
     const std::string m_vertexShaderPath = std::string("Shaders/triangle_mesh.vert.spv");
     const std::string m_fragmentShaderPath = std::string("Shaders/blinn-phong.frag.spv");
     std::span<VkDescriptorSetLayout const> m_descriptorSetLayouts;
-    // std::span<VkDescriptorSet* const> m_descriptorSets;
-    VkDescriptorSet* m_pDescriptorSet;
+    std::span<VkDescriptorSet const> m_descriptorSets;
     const VkExtent2D m_extent = {WINDOW_WIDTH, WINDOW_HEIGHT};
 public:
     const GraphicsPipeline m_pipeline;

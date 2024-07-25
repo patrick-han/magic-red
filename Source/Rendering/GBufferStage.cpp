@@ -10,14 +10,12 @@ GBufferStage::GBufferStage(
     GraphicsPipelineCache&  _graphicsPipelineCache,
     const VkPipelineRenderingCreateInfoKHR* _pipelineRenderingCreateInfo,
     std::span<VkDescriptorSetLayout const> _descriptorSetLayouts,
-    // std::span<VkDescriptorSet* const> _descriptorSets, 
-    VkDescriptorSet* _pDescriptorSet)
+    std::span<VkDescriptorSet const> _descriptorSets)
     : StageBase(_gfxDevice)
     , m_graphicsPipelineCache(_graphicsPipelineCache)
     , m_pipelineRenderingCreateInfo(_pipelineRenderingCreateInfo)
     , m_descriptorSetLayouts(_descriptorSetLayouts) 
-    // , m_descriptorSets(_descriptorSets)
-    , m_pDescriptorSet(_pDescriptorSet)
+    , m_descriptorSets(_descriptorSets)
     , m_pipeline(m_gfxDevice, m_pipelineRenderingCreateInfo, m_vertexShaderPath, m_fragmentShaderPath, m_pushConstantRanges, m_descriptorSetLayouts, m_extent)
     , m_pipelineId(m_graphicsPipelineCache.add_pipeline(m_gfxDevice, m_pipeline)) {
 
@@ -33,12 +31,9 @@ void GBufferStage::Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBuff
     vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.get_pipeline_handle());
 
     // Bindless descriptor set shared for color pass
-    //vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
-    //    m_pipeline.get_pipeline_layout(), 
-    //    0, static_cast<uint32_t>(m_descriptorSets.size()), *m_descriptorSets.data(), 0, nullptr); // TODO: Hardcoded
-     vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
-         m_pipeline.get_pipeline_layout(), 
-         0, 1, m_pDescriptorSet, 0, nullptr); // TODO: Hardcoded
+    vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
+       m_pipeline.get_pipeline_layout(), 
+       0, static_cast<uint32_t>(m_descriptorSets.size()), &m_descriptorSets[0], 0, nullptr); // TODO: Hardcoded
 
 
     for(const RenderObject& renderObject : renderObjects)
