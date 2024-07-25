@@ -107,5 +107,5 @@ void main() {
     }
 
     outColor = vec4(result, 1.0);
-    outNormal.rgb = normalize(fragWorldNormal);
+    outNormal.rgb = normalize(fragWorldNormal) * 0.5 + 0.5; // Map from [-1, 1] to [0, 1]
 }
