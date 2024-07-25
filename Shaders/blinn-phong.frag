@@ -11,6 +11,7 @@ layout(location = 3) in vec4 fragColor;
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec3 outNormal;
+layout(location = 2) out vec2 outMetallicRoughness;
 
 #include "mesh_push_constants.glsl"
 
@@ -108,4 +109,5 @@ void main() {
 
     outColor = vec4(result, 1.0);
     outNormal.rgb = normalize(fragWorldNormal) * 0.5 + 0.5; // Map from [-1, 1] to [0, 1]
+    outMetallicRoughness.rg = metallicRoughnessColor.gb;
 }

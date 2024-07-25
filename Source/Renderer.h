@@ -70,25 +70,29 @@ private:
     // RTs TODO:
     GPUTextureId m_albedoRTId{NULL_GPU_TEXTURE_ID};
     GPUTextureId m_worldNormalsRTId{NULL_GPU_TEXTURE_ID};
+    GPUTextureId m_metallicRoughnessRTId{NULL_GPU_TEXTURE_ID};
     
     // std::vector<std::unique_ptr<StageBase>> m_pRenderStages;
     std::unique_ptr<GBufferStage> m_pGbufferStage;
 
-    float rx{0.0f};
-    float ry{1.0f};
+    float rx{1.0f};
+    float ry{0.0f};
     float rz{0.0f};
-    float rm{ 0.0f };
+    float rm{ 3.14f * 3.0f / 2.0f };
 
     void initWindow();
     void init_graphics();
 
-    void init_render_targets();
+    
     void init_lights();
     void create_samplers();
     void init_bindless_descriptors();
     void init_assets();
     void init_material_data();
     void init_scene_data();
+
+    void init_render_targets();
+    void init_render_stages();
 
     void update_texture_descriptors();
     

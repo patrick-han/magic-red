@@ -69,7 +69,6 @@ void Renderer::initWindow() {
 
 void Renderer::init_graphics() {
     m_GfxDevice.init(m_window);
-    init_render_targets();
     init_lights();
     create_samplers();
     init_bindless_descriptors();
@@ -77,35 +76,12 @@ void Renderer::init_graphics() {
     init_material_data();
     init_scene_data();
 
+    init_render_targets();
+    init_render_stages();
+
     update_texture_descriptors();
 
     init_imgui();
-}
-
-void Renderer::init_render_targets() {
-    // G Buffer
-    // VkFormat albedoRTFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
-    VkFormat albedoRTFormat = VK_FORMAT_B8G8R8A8_UNORM;
-    VkImageCreateInfo albedoRTImage_ci = image_create_info(albedoRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
-        | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT // Input to deferred lighting
-        // | VK_IMAGE_USAGE_SAMPLED_BIT       // TODO: Possibly to use for post processing stuff
-        | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,    // TODO: Copy from to swapchain
-        VK_IMAGE_TYPE_2D
-    );
-
-    m_albedoRTId = m_TextureCache.add_render_target_texture(m_GfxDevice, albedoRTFormat, albedoRTImage_ci);
-
-    VkFormat worldNormalsRTFormat = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
-    VkImageCreateInfo worldNormalsRTImage_ci = image_create_info(worldNormalsRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
-        | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, // Input to deferred lighting
-        // | VK_IMAGE_USAGE_SAMPLED_BIT       // TODO: Possibly to use for post processing stuff
-        // | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,    // TODO: Copy from to swapchain
-        VK_IMAGE_TYPE_2D
-    );
-
-    m_worldNormalsRTId = m_TextureCache.add_render_target_texture(m_GfxDevice, worldNormalsRTFormat, worldNormalsRTImage_ci);
 }
 
 void Renderer::init_lights() {
@@ -271,27 +247,6 @@ void Renderer::init_assets() {
         stbi_image_free(data);
     }
 
-
-    VkFormat colorAttachmentFormats[2] = {
-        m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageFormat,
-        m_TextureCache.get_render_target_texture(m_worldNormalsRTId).allocatedImage.imageFormat
-    };
-    VkPipelineRenderingCreateInfoKHR pipelineRenderingCI = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
-        .pNext = nullptr,
-        .viewMask = 0,
-        .colorAttachmentCount = 2,
-        .pColorAttachmentFormats = colorAttachmentFormats,
-        .depthAttachmentFormat = m_GfxDevice.m_depthImage.imageFormat,
-        .stencilAttachmentFormat = {}
-    };
-
-    // m_renderStages.push_back(std::make_unique<GBufferStage>(m_GfxDevice, m_GraphicsPipelineCache, &pipelineRenderingCI, std::span<VkDescriptorSetLayout const>(std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout})));
-    m_pGbufferStage = std::make_unique<GBufferStage>(
-        m_GfxDevice, m_GraphicsPipelineCache, &pipelineRenderingCI, 
-        std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout}, // TODO: This smells
-        m_bindlessDescriptorSets);
-
     // {
     //    // Sponza mesh
     //    CPUModel sponzaModel(ROOT_DIR "/Assets/Meshes/sponza-gltf/Sponza.gltf", false, m_MaterialCache, m_TextureCache, m_GfxDevice);
@@ -311,33 +266,33 @@ void Renderer::init_assets() {
     glm::mat4 scale = glm::scale(rotate, glm::vec3(5.0f, 5.0f, 5.0f));
 
 
-    {
-        // A beautiful game
-        CPUModel beautifulGameModel(ROOT_DIR "/Assets/Meshes/ABeautifulGame/ABeautifulGame.gltf", false, m_MaterialCache, m_TextureCache, m_GfxDevice);
-        for (CPUMesh& mesh : beautifulGameModel.m_cpuMeshes)
-        {
-            GPUMeshId beautifulGameMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
+    // {
+    //     // A beautiful game
+    //     CPUModel beautifulGameModel(ROOT_DIR "/Assets/Meshes/ABeautifulGame/ABeautifulGame.gltf", false, m_MaterialCache, m_TextureCache, m_GfxDevice);
+    //     for (CPUMesh& mesh : beautifulGameModel.m_cpuMeshes)
+    //     {
+    //         GPUMeshId beautifulGameMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
 
-            // glm::vec3 scale;
-            // glm::quat rotation;
-            // glm::vec3 translation;
-            // glm::vec3 skew;
-            // glm::vec4 perspective;
-            // glm::decompose(mesh.m_transform, scale, rotation, translation, skew, perspective);
+    //         // glm::vec3 scale;
+    //         // glm::quat rotation;
+    //         // glm::vec3 translation;
+    //         // glm::vec3 skew;
+    //         // glm::vec4 perspective;
+    //         // glm::decompose(mesh.m_transform, scale, rotation, translation, skew, perspective);
 
-            // Transform t = {
-            //     translation,
-            //     rotation,
-            //     scale * 5.0f
-            // };
+    //         // Transform t = {
+    //         //     translation,
+    //         //     rotation,
+    //         //     scale * 5.0f
+    //         // };
 
-            // beautifulGameObject.set_transform(t.TransformMatrix());
-            // beautifulGameObject.set_transform(mesh.m_transform);
-            //beautifulGameObject.set_transform(glm::mat4(1.0f));
-            // m_sceneRenderObjects.push_back(beautifulGameObject);
-            m_sceneRenderObjects.emplace_back(beautifulGameMeshId, m_MeshCache, scale);
-        }
-    }
+    //         // beautifulGameObject.set_transform(t.TransformMatrix());
+    //         // beautifulGameObject.set_transform(mesh.m_transform);
+    //         //beautifulGameObject.set_transform(glm::mat4(1.0f));
+    //         // m_sceneRenderObjects.push_back(beautifulGameObject);
+    //         m_sceneRenderObjects.emplace_back(beautifulGameMeshId, m_MeshCache, scale);
+    //     }
+    // }
 
     //  {
     //      // Orientation test model
@@ -378,16 +333,21 @@ void Renderer::init_assets() {
     //     m_sceneRenderObjects.push_back(suzanneObject);
     // }
 
-    // {
-    //     // Helmet mesh
-    //     CPUModel helmetModel(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true, m_MaterialCache, m_TextureCache, m_GfxDevice);
-    //     GPUMeshId helmetMeshId = m_MeshCache.add_mesh(m_GfxDevice, helmetModel.m_cpuMeshes[0]);
-    //     RenderObject helmetObject(defaultPipelineId, helmetMeshId, m_GraphicsPipelineCache, m_MeshCache);
-    //     glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
-    //     helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
-    //     helmetObject.set_transform(helmetTransform);
-    //     m_sceneRenderObjects.push_back(helmetObject);
-    // }
+    {
+        // Helmet mesh
+        CPUModel helmetModel(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true, m_MaterialCache, m_TextureCache, m_GfxDevice);
+       
+
+        for (CPUMesh& mesh : helmetModel.m_cpuMeshes)
+        {
+            GPUMeshId helmetMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
+
+            glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
+            helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
+
+            m_sceneRenderObjects.emplace_back(helmetMeshId, m_MeshCache, helmetTransform);
+        }
+    }
 }
 
 void Renderer::init_material_data() {
@@ -398,6 +358,60 @@ void Renderer::init_material_data() {
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR,
         m_GfxDevice.m_vmaAllocator
     );
+}
+
+void Renderer::init_render_targets() {
+    // G Buffer
+    // VkFormat albedoRTFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+    VkFormat albedoRTFormat = VK_FORMAT_B8G8R8A8_UNORM; // TODO: SRGB?
+    VkImageCreateInfo albedoRTImage_ci = image_create_info(albedoRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
+        | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT // Input to deferred lighting
+        // | VK_IMAGE_USAGE_SAMPLED_BIT       // TODO: Possibly to use for post processing stuff
+        | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,    // TODO: Copy from to swapchain
+        VK_IMAGE_TYPE_2D
+    );
+    m_albedoRTId = m_TextureCache.add_render_target_texture(m_GfxDevice, albedoRTFormat, albedoRTImage_ci);
+
+    VkFormat worldNormalsRTFormat = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+    VkImageCreateInfo worldNormalsRTImage_ci = image_create_info(worldNormalsRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
+        | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, // Input to deferred lighting
+        VK_IMAGE_TYPE_2D
+    );
+    m_worldNormalsRTId = m_TextureCache.add_render_target_texture(m_GfxDevice, worldNormalsRTFormat, worldNormalsRTImage_ci);
+
+    VkFormat metallicRoughnessRTFormat = VK_FORMAT_R8G8_UNORM;
+    VkImageCreateInfo metallicRoughnessRTImage_ci = image_create_info(metallicRoughnessRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
+        | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, // Input to deferred lighting
+        VK_IMAGE_TYPE_2D
+    );
+    m_metallicRoughnessRTId = m_TextureCache.add_render_target_texture(m_GfxDevice, metallicRoughnessRTFormat, metallicRoughnessRTImage_ci);
+}
+
+
+void Renderer::init_render_stages() {
+    VkFormat colorAttachmentFormats[3] = {
+        m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageFormat,
+        m_TextureCache.get_render_target_texture(m_worldNormalsRTId).allocatedImage.imageFormat,
+        m_TextureCache.get_render_target_texture(m_metallicRoughnessRTId).allocatedImage.imageFormat
+    };
+    VkPipelineRenderingCreateInfoKHR pipelineRenderingCI = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+        .pNext = nullptr,
+        .viewMask = 0,
+        .colorAttachmentCount = 3,
+        .pColorAttachmentFormats = colorAttachmentFormats,
+        .depthAttachmentFormat = m_GfxDevice.m_depthImage.imageFormat,
+        .stencilAttachmentFormat = {}
+    };
+
+    // m_renderStages.push_back(std::make_unique<GBufferStage>(m_GfxDevice, m_GraphicsPipelineCache, &pipelineRenderingCI, std::span<VkDescriptorSetLayout const>(std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout})));
+    m_pGbufferStage = std::make_unique<GBufferStage>(
+        m_GfxDevice, m_GraphicsPipelineCache, &pipelineRenderingCI, 
+        std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout}, // TODO: This smells
+        m_bindlessDescriptorSets);
 }
 
 void Renderer::init_scene_data() {
@@ -669,6 +683,23 @@ void Renderer::drawFrame() {
                 0, nullptr,
                 1, &imb2
             );
+
+            VkImageMemoryBarrier imb3 = image_memory_barrier(
+                m_TextureCache.get_render_target_texture(m_metallicRoughnessRTId).allocatedImage.image, 
+                VK_ACCESS_NONE, 
+                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                VK_IMAGE_LAYOUT_UNDEFINED,
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            );
+            vkCmdPipelineBarrier(
+                cmdBuffer, 
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                {},
+                0, nullptr,
+                0, nullptr,
+                1, &imb3
+            );
         }
 
         VkRenderingAttachmentInfoKHR albedoAttachmentInfo = rendering_attachment_info(
@@ -683,7 +714,15 @@ void Renderer::drawFrame() {
             &DEFAULT_CLEAR_VALUE_ZERO
         );
 
-        VkRenderingAttachmentInfoKHR colorAttachmentInfos[2] = { albedoAttachmentInfo, worldNormalsAttachmentInfo };
+        VkRenderingAttachmentInfoKHR metallicRoughnessAttachmentInfo = rendering_attachment_info(
+            m_TextureCache.get_render_target_texture(m_metallicRoughnessRTId).allocatedImage.imageView,
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            &DEFAULT_CLEAR_VALUE_ZERO
+        );
+
+        constexpr uint32_t colorAttachmentCount = 3;
+
+        VkRenderingAttachmentInfoKHR colorAttachmentInfos[colorAttachmentCount] = { albedoAttachmentInfo, worldNormalsAttachmentInfo, metallicRoughnessAttachmentInfo };
 
         VkRenderingAttachmentInfoKHR depthAttachmentInfo  = rendering_attachment_info(
             m_GfxDevice.m_depthImage.imageView,
@@ -692,7 +731,7 @@ void Renderer::drawFrame() {
         );
 
         VkRenderingInfoKHR renderingInfo = rendering_info_fullscreen(
-            2, colorAttachmentInfos, &depthAttachmentInfo
+            colorAttachmentCount, colorAttachmentInfos, &depthAttachmentInfo
         );
 
         PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(m_GfxDevice, "vkCmdBeginRenderingKHR"));
@@ -747,30 +786,26 @@ void Renderer::drawFrame() {
 
         }
 
-        VkOffset3D srcOffset = { 
-            .x = 0,
-            .y = 0,
-            .z = 0
-        };
-        VkOffset3D dstOffset = { 
-            .x = 0,
-            .y = 0,
-            .z = 0
-        };
-
-
         // Copy albedo image to swapchain
         const VkImageCopy imageCopy= {
             .srcSubresource = {
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                 .mipLevel = 0, .baseArrayLayer = 0, .layerCount = 1
             },
-            .srcOffset = srcOffset,
+            .srcOffset = {
+                .x = 0,
+                .y = 0,
+                .z = 0
+            },
             .dstSubresource = {
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                 .mipLevel = 0, .baseArrayLayer = 0, .layerCount = 1
             },
-            .dstOffset = dstOffset,
+            .dstOffset = {
+                .x = 0,
+                .y = 0,
+                .z = 0
+            },
             .extent = {
                 .width = WINDOW_WIDTH,
                 .height = WINDOW_HEIGHT,

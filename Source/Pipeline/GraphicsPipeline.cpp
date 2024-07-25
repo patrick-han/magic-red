@@ -65,8 +65,11 @@ GraphicsPipeline::GraphicsPipeline(
     VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT };
 
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachments[2] = { colorBlendAttachment, colorBlendAttachment };
+    std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachmentStates(pipelineRenderingCreateInfo->colorAttachmentCount);
+    for (auto& state: colorBlendAttachmentStates)
+    {
+        state = colorBlendAttachment;
+    }
 
     VkPipelineColorBlendStateCreateInfo colorBlending = { 
         .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, 
@@ -74,7 +77,7 @@ GraphicsPipeline::GraphicsPipeline(
         .logicOpEnable = false, 
         .logicOp = VK_LOGIC_OP_COPY, 
         .attachmentCount = pipelineRenderingCreateInfo->colorAttachmentCount,
-        .pAttachments = colorBlendAttachments, // TODO: hardcoded
+        .pAttachments = colorBlendAttachmentStates.data(),
         .blendConstants = {}
     };
 
