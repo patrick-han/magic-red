@@ -321,7 +321,6 @@ void Renderer::init_assets() {
         for (CPUMesh& mesh : beautifulGameModel.m_cpuMeshes)
         {
             GPUMeshId beautifulGameMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
-            RenderObject beautifulGameObject(beautifulGameMeshId, m_GraphicsPipelineCache, m_MeshCache);
 
             // glm::vec3 scale;
             // glm::quat rotation;
@@ -339,8 +338,8 @@ void Renderer::init_assets() {
             // beautifulGameObject.set_transform(t.TransformMatrix());
             // beautifulGameObject.set_transform(mesh.m_transform);
             //beautifulGameObject.set_transform(glm::mat4(1.0f));
-            beautifulGameObject.set_transform(scale);
-            m_sceneRenderObjects.push_back(beautifulGameObject);
+            // m_sceneRenderObjects.push_back(beautifulGameObject);
+            m_sceneRenderObjects.emplace_back(beautifulGameMeshId, m_MeshCache, scale);
         }
     }
 
@@ -916,7 +915,7 @@ void Renderer::mainLoop() {
                 glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 2.0f, 2.0f));
                 glm::mat4 rotate = glm::rotate(translate, rm, glm::vec3(rx, ry, rz));
                 glm::mat4 scale = glm::scale(rotate, glm::vec3(5.0f, 5.0f, 5.0f));
-                renderObject.set_transform(scale);
+                renderObject.m_transformMatrix = scale;
         }
         ImGui::End();
         ImGui::Render();

@@ -5,16 +5,12 @@
 #include <Mesh/MeshCache.h>
 #include <Pipeline/PipelineCache.h>
 
-RenderObject::RenderObject(const GPUMeshId _GPUmeshId, const GraphicsPipelineCache& _pipelineCache, const MeshCache& _meshCache) : 
-    m_pipelineCache(_pipelineCache),
+RenderObject::RenderObject(const GPUMeshId _GPUmeshId, const MeshCache& _meshCache, glm::mat4 _transformMatrix) : 
     m_GPUmeshId(_GPUmeshId),
     m_meshCache(_meshCache),
-    m_materialId(m_meshCache.get_mesh(m_GPUmeshId).m_materialId)
+    m_materialId(m_meshCache.get_mesh(m_GPUmeshId).m_materialId),
+    m_transformMatrix(_transformMatrix)
 {}
-
-void RenderObject::set_transform(glm::mat4 _transformMatrix) {
-    m_transformMatrix = _transformMatrix;
-}
 
 void RenderObject::bind_mesh_buffers_and_draw(VkCommandBuffer commandBuffer, [[maybe_unused]] std::span<VkDescriptorSet const> descriptorSets) const {
 

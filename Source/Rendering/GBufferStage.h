@@ -28,7 +28,7 @@ public:
     GBufferStage(const GBufferStage&) = delete;
     GBufferStage& operator=(const GBufferStage&) = delete;
 
-    virtual void Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress, std::span<RenderObject> renderObjects);
+    virtual void Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress, std::span<RenderObject> renderObjects) override;
 
 private:
     GraphicsPipelineCache& m_graphicsPipelineCache;
