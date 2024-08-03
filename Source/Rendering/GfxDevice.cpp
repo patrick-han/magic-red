@@ -358,7 +358,7 @@ void GfxDevice::create_swap_chain() {
     m_depthImage.imageExtent = VkExtent3D{ WINDOW_WIDTH, WINDOW_HEIGHT, 1 };
     m_depthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
 
-    VkImageCreateInfo depthImageCreateInfo = image_create_info(m_depthImage.imageFormat, m_depthImage.imageExtent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_TYPE_2D);
+    VkImageCreateInfo depthImageCreateInfo = image_create_info(m_depthImage.imageFormat, m_depthImage.imageExtent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_TYPE_2D);
 
     VmaAllocationCreateInfo vmaAllocInfo = {};
     vmaAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;

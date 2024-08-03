@@ -6,5 +6,6 @@
     VkAccessFlags srcAcessMask,
     VkAccessFlags dstAccesMask,
     VkImageLayout oldLayout,
-    VkImageLayout newLayout
+    VkImageLayout newLayout,
+    VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT
     );

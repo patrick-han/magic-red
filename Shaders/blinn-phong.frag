@@ -2,26 +2,24 @@
 
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_samplerless_texture_functions : require
 #include "scene_data.glsl"
 
-layout(location = 0) in vec3 fragWorldPos;
-layout(location = 1) in vec3 fragWorldNormal;
-layout(location = 2) in vec2 textureCoords;
-layout(location = 3) in vec4 fragColor;
-
+layout(location = 0) in vec2 textureCoords;
 layout(location = 0) out vec4 outColor;
-layout(location = 1) out vec3 outNormal;
-layout(location = 2) out vec2 outMetallicRoughness;
 
 #include "mesh_push_constants.glsl"
 
-
-#define DEBUG_VERTEX_COLORS 0
-
+// TODO subpasses w/ VK_KHR_dynamic_rendering_local_read
 layout (set = 0, binding = 0) uniform sampler linearSampler;
 layout (set = 0, binding = 1) uniform texture2D textures[];
 
-vec3 calculateDirectionalLightContribution(vec3 diffuseTexColor, vec3 metallicRoughnessColor)
+layout (set = 1, binding = 0) uniform texture2D albedoBuffer;
+layout (set = 1, binding = 1) uniform texture2D normalsBuffer;
+layout (set = 1, binding = 2) uniform texture2D metallicRoughnessBuffer;
+layout (set = 1, binding = 3) uniform texture2D depthBuffer; // For reconstructing world space positions
+
+vec3 calculateDirectionalLightContribution(vec3 diffuseTexColor, vec2 metallicRoughnessColor, vec3 sampledNormal, vec3 fragWorldPos)
 {
     vec3 lightColor = vec3(pushConstants.sceneData.directionalLight.power); // TODO: Directional light color?
 
@@ -31,7 +29,7 @@ vec3 calculateDirectionalLightContribution(vec3 diffuseTexColor, vec3 metallicRo
 
     // Diffuse
     vec3 fragToLightDir = normalize(-pushConstants.sceneData.directionalLight.direction);
-    vec3 norm = normalize(fragWorldNormal);
+    vec3 norm = normalize(sampledNormal);
     float difference = max(dot(fragToLightDir, norm), 0.0);
     vec3 diffuse = diffuseTexColor * difference * lightColor;
 
@@ -47,7 +45,7 @@ vec3 calculateDirectionalLightContribution(vec3 diffuseTexColor, vec3 metallicRo
     return result;
 }
 
-vec3 calculatePointLightsContribution(int pointLightIndex, vec3 diffuseTexColor, vec3 metallicRoughnessColor)
+vec3 calculatePointLightsContribution(int pointLightIndex, vec3 diffuseTexColor, vec2 metallicRoughnessColor, vec3 sampledNormal, vec3 fragWorldPos)
 {
     vec3 lightColor = pushConstants.sceneData.pointLights.data[pointLightIndex].color;
 
@@ -57,7 +55,7 @@ vec3 calculatePointLightsContribution(int pointLightIndex, vec3 diffuseTexColor,
 
     // Diffuse
     vec3 fragToLightDir = normalize(pushConstants.sceneData.pointLights.data[pointLightIndex].worldSpacePosition - fragWorldPos);
-    vec3 norm = normalize(fragWorldNormal);
+    vec3 norm = normalize(sampledNormal);
     float difference = max(dot(fragToLightDir, norm), 0.0);
     vec3 diffuse = diffuseTexColor * difference * lightColor;
 
@@ -73,7 +71,7 @@ vec3 calculatePointLightsContribution(int pointLightIndex, vec3 diffuseTexColor,
 
     float attenuation = 1.0 / (
         pushConstants.sceneData.pointLights.data[pointLightIndex].constantAttenuation + 
-        pushConstants.sceneData.pointLights.data[pointLightIndex].linearAttenuation * distance+ 
+        pushConstants.sceneData.pointLights.data[pointLightIndex].linearAttenuation * distance + 
         pushConstants.sceneData.pointLights.data[pointLightIndex].quadraticAttenuation * distance * distance
     );
 
@@ -87,27 +85,28 @@ vec3 calculatePointLightsContribution(int pointLightIndex, vec3 diffuseTexColor,
 
 
 void main() {
-    // Sample texture(s)
-    MaterialData materialData = pushConstants.sceneData.materials.data[pushConstants.materialId];
-#if DEBUG_VERTEX_COLORS
-    vec3 diffuseTexColor = fragColor.rgb;
-#else
-    vec3 diffuseTexColor = texture(sampler2D(textures[materialData.diffuseTex], linearSampler), textureCoords).rgb;
-#endif
-    
-    vec3 metallicRoughnessColor = texture(sampler2D(textures[materialData.metallicRoughnessTex], linearSampler), textureCoords).rgb;
+    // Sample GBuffer
+    vec3 sampledColor = texture(sampler2D(albedoBuffer, linearSampler), textureCoords).rgb;
+    vec3 sampledNormal = normalize(texture(sampler2D(normalsBuffer, linearSampler), textureCoords).rgb * 2.0 - 1.0);
+    vec2 sampledMetallicRoughness = texture(sampler2D(metallicRoughnessBuffer, linearSampler), textureCoords).rg;
+    float sampledDepth = texelFetch(depthBuffer, ivec2(gl_FragCoord.xy), 0).r;
+    // x,y are [0, 1] and so is depth-z [0, 1]
+    // sampledDepth = sampledDepth * 2.0 - 1.0; // [-1, 1] // In Vulkan, NDC is [0, 1] in z, unlike OpenGL which expects [-1, 1]
+    vec4 reconstructedDepth = inverse(pushConstants.sceneData.view) * inverse(pushConstants.sceneData.projection) * vec4(textureCoords * 2.0 - 1.0, sampledDepth, 1.0); // TODO: TEMP
+    vec3 fragWorldPos =  reconstructedDepth.xyz / reconstructedDepth.w;
 
+    
 
     vec3 result = vec3(0.0);
 
-    result += calculateDirectionalLightContribution(diffuseTexColor, metallicRoughnessColor);
+    result += calculateDirectionalLightContribution(sampledColor, sampledMetallicRoughness, sampledNormal, fragWorldPos.xyz);
 
     for (int i = 0; i < pushConstants.sceneData.numPointLights; i++)
     {
-        result += calculatePointLightsContribution(i, diffuseTexColor, metallicRoughnessColor);
+        result += calculatePointLightsContribution(i, sampledColor, sampledMetallicRoughness, sampledNormal, fragWorldPos.xyz);
     }
 
     outColor = vec4(result, 1.0);
-    outNormal.rgb = normalize(fragWorldNormal) * 0.5 + 0.5; // Map from [-1, 1] to [0, 1]
-    outMetallicRoughness.rg = metallicRoughnessColor.gb;
+    // outColor = vec4(fragWorldPos.xyz, 1.0);
+    // outColor = vec4(sampledDepth, 0.0,0.0,1.0);
 }

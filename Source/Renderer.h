@@ -21,6 +21,7 @@
 
 // #include <Rendering/StageBase.h>
 #include <Rendering/GBufferStage.h>
+#include <Rendering/BlinnPhongLightingStage.h>
 
 class SDL_window;
 
@@ -59,6 +60,10 @@ private:
     VkDescriptorSetLayout m_bindlessDescriptorSetLayout;
     std::array<VkDescriptorSet, 1> m_bindlessDescriptorSets;
 
+    VkDescriptorPool m_temporaryGBufferPool;
+    VkDescriptorSetLayout m_lightingDescriptorSetLayout;
+    std::vector<VkDescriptorSet> m_otherDescriptorSets;
+
     // Samplers
     VkSampler m_linearSampler;
     VkSampler m_nearestSampler;
@@ -71,9 +76,12 @@ private:
     GPUTextureId m_albedoRTId{NULL_GPU_TEXTURE_ID};
     GPUTextureId m_worldNormalsRTId{NULL_GPU_TEXTURE_ID};
     GPUTextureId m_metallicRoughnessRTId{NULL_GPU_TEXTURE_ID};
+
+    GPUTextureId m_lightingRTId{NULL_GPU_TEXTURE_ID};
     
     // std::vector<std::unique_ptr<StageBase>> m_pRenderStages;
     std::unique_ptr<GBufferStage> m_pGbufferStage;
+    std::unique_ptr<BlinnPhongLightingStage> m_pLightingStage;
 
     float rx{1.0f};
     float ry{0.0f};

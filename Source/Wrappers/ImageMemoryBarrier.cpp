@@ -5,7 +5,8 @@
     VkAccessFlags srcAcessMask,
     VkAccessFlags dstAccesMask,
     VkImageLayout oldLayout,
-    VkImageLayout newLayout
+    VkImageLayout newLayout,
+    VkImageAspectFlags aspectFlags
     ) {
     VkImageMemoryBarrier imb = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -18,7 +19,7 @@
         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .image = image,
         .subresourceRange = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .aspectMask = aspectFlags,
             .baseMipLevel = 0,
             .levelCount = 1,
             .baseArrayLayer = 0,
