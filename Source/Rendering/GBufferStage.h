@@ -25,7 +25,7 @@ public:
     GBufferStage(const GBufferStage&) = delete;
     GBufferStage& operator=(const GBufferStage&) = delete;
 
-    void Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress, std::span<RenderObject> renderObjects) override;
+    void Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress, std::span<RenderObject> renderObjects);
     void Cleanup() override;
 
 private:

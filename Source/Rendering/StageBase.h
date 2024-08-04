@@ -11,8 +11,6 @@ public:
     StageBase() = delete;
     StageBase(const GfxDevice& _gfxDevice);
     virtual ~StageBase() = 0;
-
-    virtual void Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress, std::span<RenderObject> renderObjects) = 0; // TODO: pass in draw command wrapper class
     virtual void Cleanup() = 0;
 
 protected:

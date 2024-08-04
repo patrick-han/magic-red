@@ -941,7 +941,7 @@ void Renderer::drawFrame() {
             );
             vkCmdBeginRenderingKHR(cmdBuffer, &lightingRenderingInfo);
 
-            m_pLightingStage->Draw(cmdBuffer, m_GPUSceneDataBuffers[m_currentFrame].gpuAddress, m_sceneRenderObjects);
+            m_pLightingStage->Draw(cmdBuffer, m_GPUSceneDataBuffers[m_currentFrame].gpuAddress);
 
             vkCmdEndRenderingKHR(cmdBuffer);
         }
@@ -951,25 +951,6 @@ void Renderer::drawFrame() {
         // Draw imgui
         draw_imgui(m_TextureCache.get_render_texture_texture(m_lightingRTId).allocatedImage.imageView);
 
-        //// Transition albedo image to copy src
-        //{
-        //    VkImageMemoryBarrier imb = image_memory_barrier(
-        //        m_TextureCache.get_render_texture_texture(m_albedoRTId).allocatedImage.image, 
-        //        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        //        VK_ACCESS_TRANSFER_READ_BIT, 
-        //        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        //        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-        //    );
-        //    vkCmdPipelineBarrier(
-        //        cmdBuffer,
-        //        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        //        VK_PIPELINE_STAGE_TRANSFER_BIT,
-        //        {},
-        //        0, nullptr,
-        //        0, nullptr,
-        //        1, &imb
-        //    );
-        //}
         // Transition lighting mage to copy src
         {
             VkImageMemoryBarrier imb = image_memory_barrier(

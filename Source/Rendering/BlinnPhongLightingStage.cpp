@@ -1,7 +1,5 @@
 #include "BlinnPhongLightingStage.h"
 #include <Rendering/GfxDevice.h>
-#include <Common/Compiler/Unused.h>
-#include <Mesh/RenderObject.h>
 #include <Common/Defaults.h>
 #include <Texture/TextureCache.h>
 
@@ -154,9 +152,7 @@ BlinnPhongLightingStage::BlinnPhongLightingStage(
 
 BlinnPhongLightingStage::~BlinnPhongLightingStage() {}
 
-void BlinnPhongLightingStage::Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress, std::span<RenderObject> renderObjects) {
-
-    UNUSED(renderObjects);
+void BlinnPhongLightingStage::Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress) {
 
     vkCmdSetViewport(cmdBuffer, 0, 1, &DEFAULT_VIEWPORT_FULLSCREEN);
     vkCmdSetScissor(cmdBuffer, 0, 1, &DEFAULT_SCISSOR_FULLSCREEN);

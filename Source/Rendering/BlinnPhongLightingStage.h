@@ -9,8 +9,6 @@
 
 class GfxDevice;
 class TextureCache;
-struct RenderObject;
-
 
 struct DescriptorSetLayoutBinding {
     VkDescriptorType descriptorType;
@@ -38,7 +36,7 @@ public:
     BlinnPhongLightingStage(const BlinnPhongLightingStage&) = delete;
     BlinnPhongLightingStage& operator=(const BlinnPhongLightingStage&) = delete;
 
-    void Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress, std::span<RenderObject> renderObjects) override;
+    void Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress);
     void Cleanup() override;
 
 private:
