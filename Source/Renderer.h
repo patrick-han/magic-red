@@ -60,7 +60,7 @@ private:
     VkDescriptorSetLayout m_bindlessDescriptorSetLayout;
     std::array<VkDescriptorSet, 1> m_bindlessDescriptorSets;
 
-    VkDescriptorPool m_temporaryGBufferPool;
+    VkDescriptorPool m_globalDescriptorPool;
     VkDescriptorSetLayout m_lightingDescriptorSetLayout;
     std::vector<VkDescriptorSet> m_otherDescriptorSets;
 
@@ -99,7 +99,7 @@ private:
     void init_material_data();
     void init_scene_data();
 
-    void init_render_targets();
+    void init_render_textures();
     void init_render_stages();
 
     void update_texture_descriptors();

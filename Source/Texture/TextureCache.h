@@ -27,8 +27,8 @@ public:
     [[nodiscard]] GPUTextureId get_texture_id(const std::string&e) const;
     [[nodiscard]] uint32_t get_texture_count() const;
     [[nodiscard]] bool is_texture_loaded_already(const std::string&) const;
-    [[nodiscard]] GPUTextureId add_render_target_texture(const GfxDevice& gfxDevice, VkFormat format, VkImageCreateInfo imageCreateInfo);
-    [[nodiscard]] const GPUTexture& get_render_target_texture(GPUTextureId id) const;
+    [[nodiscard]] GPUTextureId add_render_texture_texture(const GfxDevice& gfxDevice, VkFormat format, VkImageCreateInfo imageCreateInfo);
+    [[nodiscard]] const GPUTexture& get_render_texture_texture(GPUTextureId id) const;
     void cleanup(const GfxDevice& gfxDevice);
 
 private:
