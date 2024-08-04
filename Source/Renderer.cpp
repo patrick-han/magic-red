@@ -257,7 +257,7 @@ void Renderer::init_assets() {
        for (CPUMesh& mesh : sponzaModel.m_cpuMeshes)
        {
            GPUMeshId sponzaMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
-           m_sceneRenderObjects.emplace_back(sponzaMeshId, m_MeshCache, translate * scale);
+           m_sceneRenderMeshComponents.emplace_back(sponzaMeshId, m_MeshCache, translate * scale);
        }
     }
 
@@ -289,8 +289,8 @@ void Renderer::init_assets() {
     //         // beautifulGameObject.set_transform(t.TransformMatrix());
     //         // beautifulGameObject.set_transform(mesh.m_transform);
     //         //beautifulGameObject.set_transform(glm::mat4(1.0f));
-    //         // m_sceneRenderObjects.push_back(beautifulGameObject);
-    //         m_sceneRenderObjects.emplace_back(beautifulGameMeshId, m_MeshCache, scale);
+    //         // m_sceneRenderMeshComponents.push_back(beautifulGameObject);
+    //         m_sceneRenderMeshComponents.emplace_back(beautifulGameMeshId, m_MeshCache, scale);
     //     }
     // }
 
@@ -300,7 +300,7 @@ void Renderer::init_assets() {
     //      for (CPUMesh& mesh : orientationTestModel.m_cpuMeshes)
     //      {
     //         GPUMeshId orientationTestMeshId = m_MeshCache.add_mesh(m_GfxDevice, mesh);
-    //         RenderObject orientationTestObject(defaultPipelineId, orientationTestMeshId, m_GraphicsPipelineCache, m_MeshCache);
+    //         RenderMeshComponent orientationTestObject(defaultPipelineId, orientationTestMeshId, m_GraphicsPipelineCache, m_MeshCache);
 
     //         // glm::vec3 scale;
     //         // glm::quat rotation;
@@ -319,7 +319,7 @@ void Renderer::init_assets() {
     //         // orientationTestObject.set_transform(mesh.m_transform);
     //         // orientationTestObject.set_transform(glm::mat4(1.0f));
     //         orientationTestObject.set_transform(scale);
-    //         m_sceneRenderObjects.push_back(orientationTestObject);
+    //         m_sceneRenderMeshComponents.push_back(orientationTestObject);
     //      }
     //  }
     
@@ -327,10 +327,10 @@ void Renderer::init_assets() {
     //     // Suzanne mesh
     //     CPUModel suzanneModel(ROOT_DIR "/Assets/Meshes/suzanne.glb", true, m_TextureCache);
     //     GPUMeshId suzanneMeshId = m_MeshCache.add_mesh(m_GfxDevice, suzanneModel.m_cpuMesh);
-    //     RenderObject suzanneObject(defaultPipelineId, suzanneMeshId, m_GraphicsPipelineCache, m_MeshCache);
+    //     RenderMeshComponent suzanneObject(defaultPipelineId, suzanneMeshId, m_GraphicsPipelineCache, m_MeshCache);
     //     glm::mat4 monkeyTranslate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 0.0f, 0.0f));
     //     suzanneObject.set_transform(monkeyTranslate);
-    //     m_sceneRenderObjects.push_back(suzanneObject);
+    //     m_sceneRenderMeshComponents.push_back(suzanneObject);
     // }
 
     {
@@ -345,7 +345,7 @@ void Renderer::init_assets() {
             glm::mat4 helmetTransform = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 3.0f, 0.0f));
             helmetTransform = glm::rotate(helmetTransform, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
 
-            m_sceneRenderObjects.emplace_back(helmetMeshId, m_MeshCache, helmetTransform);
+            m_sceneRenderMeshComponents.emplace_back(helmetMeshId, m_MeshCache, helmetTransform);
         }
     }
 }
@@ -820,7 +820,7 @@ void Renderer::drawFrame() {
             );
             vkCmdBeginRenderingKHR(cmdBuffer, &renderingInfo);
 
-            m_pGbufferStage->Draw(cmdBuffer, m_GPUSceneDataBuffers[m_currentFrame].gpuAddress, m_sceneRenderObjects);
+            m_pGbufferStage->Draw(cmdBuffer, m_GPUSceneDataBuffers[m_currentFrame].gpuAddress, m_sceneRenderMeshComponents);
 
             vkCmdEndRenderingKHR(cmdBuffer);
         }
@@ -1149,13 +1149,13 @@ void Renderer::mainLoop() {
         ImGui::SliderFloat("ry", &ry,  -1.0f, 1.0f);
         ImGui::SliderFloat("rz", &rz,  -1.0f, 1.0f);
         ImGui::SliderFloat("rm", &rm,  2.0f * -3.14f, 2.0f *3.14f);
-        // for (auto& renderObject : m_sceneRenderObjects)
+        // for (auto& renderMeshComponent : m_sceneRenderMeshComponents)
         // {
-        RenderObject& renderObject = m_sceneRenderObjects.back();
+        RenderMeshComponent& renderMeshComponent = m_sceneRenderMeshComponents.back();
                 glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 2.0f, 2.0f));
                 glm::mat4 rotate = glm::rotate(translate, rm, glm::vec3(rx, ry, rz));
                 glm::mat4 scale = glm::scale(rotate, glm::vec3(1.0f, 1.0f, 1.0f));
-                renderObject.m_transformMatrix = scale;
+                renderMeshComponent.m_transformMatrix = scale;
         // }
         ImGui::End();
         ImGui::Render();

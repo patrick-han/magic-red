@@ -7,7 +7,7 @@
 #include <array>
 
 class GfxDevice;
-struct RenderObject;
+struct RenderMeshComponent;
 
 class GBufferStage final : public StageBase {
 
@@ -25,7 +25,7 @@ public:
     GBufferStage(const GBufferStage&) = delete;
     GBufferStage& operator=(const GBufferStage&) = delete;
 
-    void Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress, std::span<RenderObject> renderObjects);
+    void Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress, std::span<RenderMeshComponent> renderMeshComponents);
     void Cleanup() override;
 
 private:

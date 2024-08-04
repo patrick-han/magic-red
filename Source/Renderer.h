@@ -7,7 +7,7 @@
 
 #include <Rendering/GfxDevice.h>
 #include <Mesh/MeshCache.h>
-#include <Mesh/RenderObject.h>
+#include <Mesh/RenderMeshComponent.h>
 #include <Mesh/DefaultPushConstants.h>
 #include <Pipeline/GraphicsPipeline.h>
 #include <Texture/TextureCache.h>
@@ -37,7 +37,7 @@ private:
     VkDescriptorPool m_imguiPool;
     uint32_t m_currentFrame = 0;
 
-    std::vector<RenderObject> m_sceneRenderObjects;
+    std::vector<RenderMeshComponent> m_sceneRenderMeshComponents;
 
     // Lights
     std::vector<PointLight> m_CPUPointLights;

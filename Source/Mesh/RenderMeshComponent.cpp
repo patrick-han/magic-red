@@ -1,17 +1,17 @@
-#include <Mesh/RenderObject.h>
+#include <Mesh/RenderMeshComponent.h>
 #include <vulkan/vulkan.h>
 #include <Pipeline/GraphicsPipeline.h>
 #include <glm/glm.hpp>
 #include <Mesh/MeshCache.h>
 
-RenderObject::RenderObject(const GPUMeshId _GPUmeshId, const MeshCache& _meshCache, glm::mat4 _transformMatrix) : 
+RenderMeshComponent::RenderMeshComponent(const GPUMeshId _GPUmeshId, const MeshCache& _meshCache, glm::mat4 _transformMatrix) : 
     m_GPUmeshId(_GPUmeshId),
     m_meshCache(_meshCache),
     m_materialId(m_meshCache.get_mesh(m_GPUmeshId).m_materialId),
     m_transformMatrix(_transformMatrix)
 {}
 
-void RenderObject::bind_mesh_buffers_and_draw(VkCommandBuffer commandBuffer, [[maybe_unused]] std::span<VkDescriptorSet const> descriptorSets) const {
+void RenderMeshComponent::bind_mesh_buffers_and_draw(VkCommandBuffer commandBuffer, [[maybe_unused]] std::span<VkDescriptorSet const> descriptorSets) const {
 
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &(m_meshCache.get_mesh(m_GPUmeshId).vertexBuffer.buffer), &offset);

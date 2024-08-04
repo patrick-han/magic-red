@@ -4,7 +4,7 @@
 #include <vulkan/vulkan.h>
 
 class GfxDevice;
-struct RenderObject;
+struct RenderMeshComponent;
 
 class StageBase {
 public:

@@ -7,8 +7,8 @@
 
 class MeshCache;
 
-struct RenderObject {
-    RenderObject(const GPUMeshId _GPUmeshId, const MeshCache& _meshCache, glm::mat4 _transformMatrix);
+struct RenderMeshComponent {
+    RenderMeshComponent(const GPUMeshId _GPUmeshId, const MeshCache& _meshCache, glm::mat4 _transformMatrix);
     void bind_mesh_buffers_and_draw(VkCommandBuffer commandBuffer, std::span<VkDescriptorSet const> descriptorSets) const;
 
 

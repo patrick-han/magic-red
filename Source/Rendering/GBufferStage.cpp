@@ -1,6 +1,6 @@
 #include "GBufferStage.h"
 #include <Rendering/GfxDevice.h>
-#include <Mesh/RenderObject.h>
+#include <Mesh/RenderMeshComponent.h>
 #include <Common/Defaults.h>
 
 GBufferStage::GBufferStage(
@@ -27,7 +27,7 @@ GBufferStage::GBufferStage(
 
 GBufferStage::~GBufferStage() {}
 
-void GBufferStage::Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress, std::span<RenderObject> renderObjects) {
+void GBufferStage::Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress, std::span<RenderMeshComponent> renderMeshComponents) {
 
     vkCmdSetViewport(cmdBuffer, 0, 1, &DEFAULT_VIEWPORT_FULLSCREEN);
     vkCmdSetScissor(cmdBuffer, 0, 1, &DEFAULT_SCISSOR_FULLSCREEN);
@@ -39,15 +39,15 @@ void GBufferStage::Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBuff
        m_pipeline.get_pipeline_layout(), 
        0, 1, &m_bindlessDescriptorSet, 0, nullptr);
 
-    for(const RenderObject& renderObject : renderObjects)
+    for(const RenderMeshComponent& renderMeshComponent : renderMeshComponents)
     {
         DefaultPushConstants pushConstants;
-        pushConstants.model = renderObject.m_transformMatrix;
+        pushConstants.model = renderMeshComponent.m_transformMatrix;
         pushConstants.sceneDataBufferAddress = sceneDataBufferAddress;
-        pushConstants.materialId = renderObject.m_materialId;
+        pushConstants.materialId = renderMeshComponent.m_materialId;
         vkCmdPushConstants(cmdBuffer, m_pipeline.get_pipeline_layout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
 
-        renderObject.bind_mesh_buffers_and_draw(cmdBuffer, std::span<const VkDescriptorSet>());
+        renderMeshComponent.bind_mesh_buffers_and_draw(cmdBuffer, std::span<const VkDescriptorSet>());
     }
 }
 
