@@ -5,10 +5,7 @@
 #include <span>
 #include <Common/IdTypes.h>
 
-class GraphicsPipeline;
-
 class MeshCache;
-class GraphicsPipelineCache;
 
 struct RenderObject {
     RenderObject(const GPUMeshId _GPUmeshId, const MeshCache& _meshCache, glm::mat4 _transformMatrix);

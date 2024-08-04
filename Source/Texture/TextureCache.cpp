@@ -30,30 +30,30 @@
 }
 
 
-[[nodiscard]] GPUTextureId TextureCache::add_render_target_texture(const GfxDevice& gfxDevice, VkFormat format, VkImageCreateInfo imageCreateInfo) {
+[[nodiscard]] GPUTextureId TextureCache::add_render_texture_texture(const GfxDevice& gfxDevice, VkFormat format, VkImageCreateInfo imageCreateInfo) {
     // const GPUTextureId textureId = static_cast<uint32_t>(m_gpuTextures.size());
     const GPUTextureId textureId = static_cast<uint32_t>(m_gpuRTTextures.size());
 
-    GPUTexture renderTargetTexture;
+    GPUTexture renderTexture;
 
     VkExtent3D imageExtent; 
     imageExtent.width = WINDOW_WIDTH;
     imageExtent.height = WINDOW_HEIGHT;
     imageExtent.depth = 1;
-    renderTargetTexture.allocatedImage.imageExtent = imageExtent;
-    renderTargetTexture.allocatedImage.imageFormat = format;
+    renderTexture.allocatedImage.imageExtent = imageExtent;
+    renderTexture.allocatedImage.imageFormat = format;
 
-    create_gpu_only_image(renderTargetTexture.allocatedImage, imageCreateInfo, gfxDevice.m_vmaAllocator);
-    VkImageViewCreateInfo imageViewCreateInfo = imageview_create_info(renderTargetTexture.allocatedImage.image, format, {}, VK_IMAGE_ASPECT_COLOR_BIT);
-    vkCreateImageView(gfxDevice, &imageViewCreateInfo, nullptr, &renderTargetTexture.allocatedImage.imageView);
+    create_gpu_only_image(renderTexture.allocatedImage, imageCreateInfo, gfxDevice.m_vmaAllocator);
+    VkImageViewCreateInfo imageViewCreateInfo = imageview_create_info(renderTexture.allocatedImage.image, format, {}, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkCreateImageView(gfxDevice, &imageViewCreateInfo, nullptr, &renderTexture.allocatedImage.imageView);
     
 
-    // m_gpuTextures.push_back(renderTargetTexture);
-    m_gpuRTTextures.push_back(renderTargetTexture);
+    // m_gpuTextures.push_back(renderTexture);
+    m_gpuRTTextures.push_back(renderTexture);
     return textureId;
 }
 
-[[nodiscard]] const GPUTexture& TextureCache::get_render_target_texture(GPUTextureId id) const {
+[[nodiscard]] const GPUTexture& TextureCache::get_render_texture_texture(GPUTextureId id) const {
     return m_gpuRTTextures[id];
 }
 

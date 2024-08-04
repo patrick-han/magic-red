@@ -3,15 +3,17 @@
 #include <Vertex/VertexDescriptors.h> // Temp
 #include <Common/RootDir.h>
 
-GraphicsPipeline::GraphicsPipeline(
-    const VkDevice logicalDevice, 
+GraphicsPipeline::GraphicsPipeline(const GfxDevice& _gfxDevice) : Pipeline(_gfxDevice) {}
+
+void GraphicsPipeline::BuildPipeline(
     const VkPipelineRenderingCreateInfoKHR* pipelineRenderingCreateInfo,
     const std::string& vertexShaderPath, 
     const std::string& fragmentShaderPath, 
+    VertexInputDescription& vertexDescription,
     std::span<VkPushConstantRange const> pushConstantRanges,
     std::span<VkDescriptorSetLayout const> descriptorSetLayouts,
     VkExtent2D extent
-    ) : Pipeline(logicalDevice) {
+    ) {
 
     // std::string vertexShaderSource = load_shader_source_to_string(std::string(ROOT_DIR) + vertexShaderPath);
     // std::string fragmentShaderSource = load_shader_source_to_string(std::string(ROOT_DIR) + fragmentShaderPath);
@@ -22,8 +24,8 @@ GraphicsPipeline::GraphicsPipeline(
     // compile_shader(m_logicalDevice, vertexShaderModule, vertexShaderSource, shaderc_glsl_vertex_shader, "vertex shader");
     // compile_shader(m_logicalDevice, fragmentShaderModule, fragmentShaderSource, shaderc_glsl_fragment_shader, "fragment shader");
 
-    load_shader_spirv_source_to_module(std::string(ROOT_DIR) + vertexShaderPath, logicalDevice, vertexShaderModule);
-    load_shader_spirv_source_to_module(std::string(ROOT_DIR) + fragmentShaderPath, logicalDevice, fragmentShaderModule);
+    load_shader_spirv_source_to_module(std::string(ROOT_DIR) + vertexShaderPath, m_logicalDevice, vertexShaderModule);
+    load_shader_spirv_source_to_module(std::string(ROOT_DIR) + fragmentShaderPath, m_logicalDevice, fragmentShaderModule);
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, VkPipelineShaderStageCreateFlags(), VK_SHADER_STAGE_VERTEX_BIT, vertexShaderModule, "main", nullptr};
     VkPipelineShaderStageCreateInfo fragShaderStageInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, VkPipelineShaderStageCreateFlags(), VK_SHADER_STAGE_FRAGMENT_BIT, fragmentShaderModule, "main", nullptr};
@@ -31,7 +33,7 @@ GraphicsPipeline::GraphicsPipeline(
     std::vector<VkPipelineShaderStageCreateInfo> pipelineShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
     
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, VkPipelineVertexInputStateCreateFlags(), 0u, nullptr, 0u, nullptr };
-    VertexInputDescription vertexDescription = VertexInputDescription::get_default_vertex_description();
+    // VertexInputDescription vertexDescription = VertexInputDescription::get_default_vertex_description();
     vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexDescription.bindings.size());
     vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
     vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexDescription.attributes.size());

@@ -75,7 +75,9 @@ void Renderer::init_graphics() {
     init_material_data();
     init_scene_data();
 
-    init_render_targets();
+    init_global_descriptor_pool();
+
+    init_render_textures();
     init_render_stages();
 
     update_texture_descriptors();
@@ -217,7 +219,7 @@ void Renderer::init_bindless_descriptors() {
         .pSetLayouts = &m_bindlessDescriptorSetLayout
     };
     
-    vkAllocateDescriptorSets(m_GfxDevice, &allocateInfo, &m_bindlessDescriptorSets.at(0));
+    vkAllocateDescriptorSets(m_GfxDevice, &allocateInfo, &m_bindlessDescriptorSet);
 }
 
 void Renderer::init_assets() {
@@ -358,45 +360,63 @@ void Renderer::init_material_data() {
     );
 }
 
-void Renderer::init_render_targets() {
+void Renderer::init_global_descriptor_pool() {
+    constexpr size_t MAX_RENDER_TEXTURES = 100;
+    std::array<VkDescriptorPoolSize, 1> globalDescriptorPoolSizes {{
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, MAX_RENDER_TEXTURES}
+    }};
+    VkDescriptorPoolCreateInfo poolCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .pNext = nullptr,
+        .maxSets = 1,
+        .poolSizeCount = static_cast<uint32_t>(globalDescriptorPoolSizes.size()),
+        .pPoolSizes = globalDescriptorPoolSizes.data()
+    };
+    vkCreateDescriptorPool(m_GfxDevice, &poolCreateInfo, nullptr, &m_globalDescriptorPool);
+}
+
+void Renderer::init_render_textures() {
     // G Buffer
-    VkFormat albedoRTFormat = VK_FORMAT_B8G8R8A8_UNORM;
-    VkImageCreateInfo albedoRTImage_ci = image_create_info(albedoRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
-        // | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT // Input to deferred lighting // TODO: subpass
-        | VK_IMAGE_USAGE_SAMPLED_BIT // Lighting alternative read in
-        | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,    // TODO: Copy from to swapchain
-        VK_IMAGE_TYPE_2D
-    );
-    m_albedoRTId = m_TextureCache.add_render_target_texture(m_GfxDevice, albedoRTFormat, albedoRTImage_ci);
+    {
+        VkFormat albedoRTFormat = VK_FORMAT_B8G8R8A8_UNORM;
+        VkImageCreateInfo albedoRTImage_ci = image_create_info(albedoRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
+            // | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT // Input to deferred lighting // TODO: subpass
+            | VK_IMAGE_USAGE_SAMPLED_BIT // Lighting alternative read in
+            | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,    // TODO: Copy from to swapchain
+            VK_IMAGE_TYPE_2D
+        );
+        m_albedoRTId = m_TextureCache.add_render_texture_texture(m_GfxDevice, albedoRTFormat, albedoRTImage_ci);
 
-    VkFormat worldNormalsRTFormat = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
-    VkImageCreateInfo worldNormalsRTImage_ci = image_create_info(worldNormalsRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
-        | VK_IMAGE_USAGE_SAMPLED_BIT, // Lighting alternative read in
-        // | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, // Input to deferred lighting // TODO: subpass
-        VK_IMAGE_TYPE_2D
-    );
-    m_worldNormalsRTId = m_TextureCache.add_render_target_texture(m_GfxDevice, worldNormalsRTFormat, worldNormalsRTImage_ci);
+        VkFormat worldNormalsRTFormat = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+        VkImageCreateInfo worldNormalsRTImage_ci = image_create_info(worldNormalsRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
+            | VK_IMAGE_USAGE_SAMPLED_BIT, // Lighting alternative read in
+            // | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, // Input to deferred lighting // TODO: subpass
+            VK_IMAGE_TYPE_2D
+        );
+        m_worldNormalsRTId = m_TextureCache.add_render_texture_texture(m_GfxDevice, worldNormalsRTFormat, worldNormalsRTImage_ci);
 
-    VkFormat metallicRoughnessRTFormat = VK_FORMAT_R8G8_UNORM;
-    VkImageCreateInfo metallicRoughnessRTImage_ci = image_create_info(metallicRoughnessRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
-        | VK_IMAGE_USAGE_SAMPLED_BIT, // Lighting alternative read in
-        // | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, // Input to deferred lighting // TODO: subpass
-        VK_IMAGE_TYPE_2D
-    );
-    m_metallicRoughnessRTId = m_TextureCache.add_render_target_texture(m_GfxDevice, metallicRoughnessRTFormat, metallicRoughnessRTImage_ci);
-
+        VkFormat metallicRoughnessRTFormat = VK_FORMAT_R8G8_UNORM;
+        VkImageCreateInfo metallicRoughnessRTImage_ci = image_create_info(metallicRoughnessRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
+            | VK_IMAGE_USAGE_SAMPLED_BIT, // Lighting alternative read in
+            // | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, // Input to deferred lighting // TODO: subpass
+            VK_IMAGE_TYPE_2D
+        );
+        m_metallicRoughnessRTId = m_TextureCache.add_render_texture_texture(m_GfxDevice, metallicRoughnessRTFormat, metallicRoughnessRTImage_ci);
+    }
 
     // Lighting
-    VkFormat lightingRTFormat = VK_FORMAT_B8G8R8A8_UNORM; // TODO: SRGB?
-    VkImageCreateInfo lightingRTImage_ci = image_create_info(lightingRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from lighting pass
-        | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,    // TODO: Copy from to swapchain
-        VK_IMAGE_TYPE_2D
-    );
-    m_lightingRTId = m_TextureCache.add_render_target_texture(m_GfxDevice, lightingRTFormat, lightingRTImage_ci);
+    {
+        VkFormat lightingRTFormat = VK_FORMAT_B8G8R8A8_UNORM; // TODO: SRGB?
+        VkImageCreateInfo lightingRTImage_ci = image_create_info(lightingRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from lighting pass
+            | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,    // TODO: Copy from to swapchain
+            VK_IMAGE_TYPE_2D
+        );
+        m_lightingRTId = m_TextureCache.add_render_texture_texture(m_GfxDevice, lightingRTFormat, lightingRTImage_ci);
+    }
 }
 
 
@@ -404,9 +424,9 @@ void Renderer::init_render_stages() {
     {
         // GBuffer
         VkFormat colorAttachmentFormats[3] = {
-            m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageFormat,
-            m_TextureCache.get_render_target_texture(m_worldNormalsRTId).allocatedImage.imageFormat,
-            m_TextureCache.get_render_target_texture(m_metallicRoughnessRTId).allocatedImage.imageFormat
+            m_TextureCache.get_render_texture_texture(m_albedoRTId).allocatedImage.imageFormat,
+            m_TextureCache.get_render_texture_texture(m_worldNormalsRTId).allocatedImage.imageFormat,
+            m_TextureCache.get_render_texture_texture(m_metallicRoughnessRTId).allocatedImage.imageFormat
         };
         VkPipelineRenderingCreateInfoKHR pipelineRenderingCI = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
@@ -418,18 +438,18 @@ void Renderer::init_render_stages() {
             .stencilAttachmentFormat = {}
         };
 
-        // m_renderStages.push_back(std::make_unique<GBufferStage>(m_GfxDevice, m_GraphicsPipelineCache, &pipelineRenderingCI, std::span<VkDescriptorSetLayout const>(std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout})));
+        // m_renderStages.push_back(std::make_unique<GBufferStage>(m_GfxDevice, &pipelineRenderingCI, std::span<VkDescriptorSetLayout const>(std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout})));
         m_pGbufferStage = std::make_unique<GBufferStage>(
-            m_GfxDevice, m_GraphicsPipelineCache, &pipelineRenderingCI, 
-            std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout}, // TODO: This smells
-            m_bindlessDescriptorSets);
+            m_GfxDevice, &pipelineRenderingCI, 
+            m_bindlessDescriptorSetLayout,
+            m_bindlessDescriptorSet);
     }
 
 
     {
         // Lighting
         VkFormat lightingColorAttachmentFormats[1] = {
-            m_TextureCache.get_render_target_texture(m_lightingRTId).allocatedImage.imageFormat
+            m_TextureCache.get_render_texture_texture(m_lightingRTId).allocatedImage.imageFormat
         };
         VkPipelineRenderingCreateInfoKHR lightingPipelineRenderingCI = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
@@ -439,139 +459,18 @@ void Renderer::init_render_stages() {
             .pColorAttachmentFormats = lightingColorAttachmentFormats,
             .stencilAttachmentFormat = {}
         };
-        m_otherDescriptorSets.resize(2);
-        m_otherDescriptorSets[0] = m_bindlessDescriptorSets[0]; // TODO: hardcoded
-
-
-        {
-            // Init descriptor set layout for lighting pass
-            std::array<VkDescriptorPoolSize, 4> gbufferDescriptorPoolSizes {{
-                { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1}, // GBuffer
-                { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1},
-                { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1},
-                { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1}
-            }};
-            VkDescriptorPoolCreateInfo poolCreateInfo = {
-                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-                .pNext = nullptr,
-                .maxSets = 1,
-                .poolSizeCount = static_cast<uint32_t>(gbufferDescriptorPoolSizes.size()),
-                .pPoolSizes = gbufferDescriptorPoolSizes.data()
-            };
-            vkCreateDescriptorPool(m_GfxDevice, &poolCreateInfo, nullptr, &m_temporaryGBufferPool);
-
-            // Build a descriptor set layout
-            std::vector<VkDescriptorSetLayoutBinding> gbufferDescriptorSetLayoutBindings;
-            uint32_t bindingIndex = 0;
-            for(VkDescriptorPoolSize poolSize : gbufferDescriptorPoolSizes)
-            {
-                VkDescriptorSetLayoutBinding newBinding = {
-                    .binding = bindingIndex,
-                    .descriptorType = poolSize.type,
-                    .descriptorCount = poolSize.descriptorCount,
-                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-                    .pImmutableSamplers = nullptr
-                };
-                gbufferDescriptorSetLayoutBindings.push_back(newBinding);
-                bindingIndex++;
-            }
-            VkDescriptorSetLayoutCreateInfo gbufferSetLayoutCreateInfo {
-                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-                .bindingCount = static_cast<uint32_t>(gbufferDescriptorSetLayoutBindings.size()),
-                .pBindings = gbufferDescriptorSetLayoutBindings.data()
-            };
-            vkCreateDescriptorSetLayout(m_GfxDevice, &gbufferSetLayoutCreateInfo, nullptr, &m_lightingDescriptorSetLayout);
-
-            // Allocate the descriptor set
-            VkDescriptorSetAllocateInfo allocateInfo = {
-                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-                .descriptorPool = m_temporaryGBufferPool,
-                .descriptorSetCount = 1,
-                .pSetLayouts = &m_lightingDescriptorSetLayout
-            };
-            
-            vkAllocateDescriptorSets(m_GfxDevice, &allocateInfo, &m_otherDescriptorSets.at(1));
-        }
-
-
-        // Done like this instead of constructing temps in a for loop because of pImageInfo
-        std::vector<VkWriteDescriptorSet> gbufferDescriptorWrites;
-
-        {
-                VkDescriptorImageInfo albedoImageInfo = {
-                    .imageView = m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageView,
-                    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                };
-                VkWriteDescriptorSet albedoWriteDescriptor = {
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstSet = m_otherDescriptorSets[1],
-                    .dstBinding = 0,
-                    .dstArrayElement = 0,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                    .pImageInfo = &albedoImageInfo
-                };
-                gbufferDescriptorWrites.push_back(albedoWriteDescriptor);
-        }
-        {
-                VkDescriptorImageInfo normalsImageInfo = {
-                    .imageView = m_TextureCache.get_render_target_texture(m_worldNormalsRTId).allocatedImage.imageView,
-                    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                };
-                VkWriteDescriptorSet normalsWriteDescriptor = {
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstSet = m_otherDescriptorSets[1],
-                    .dstBinding = 1,
-                    .dstArrayElement = 0,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                    .pImageInfo = &normalsImageInfo
-                };
-                gbufferDescriptorWrites.push_back(normalsWriteDescriptor);
-        }
-        {
-                VkDescriptorImageInfo metallicRoughnessImageInfo = {
-                    .imageView = m_TextureCache.get_render_target_texture(m_metallicRoughnessRTId).allocatedImage.imageView,
-                    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                };
-                VkWriteDescriptorSet metallicRoughnessWriteDescriptor = {
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstSet = m_otherDescriptorSets[1],
-                    .dstBinding = 2,
-                    .dstArrayElement = 0,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                    .pImageInfo = &metallicRoughnessImageInfo
-                };
-                gbufferDescriptorWrites.push_back(metallicRoughnessWriteDescriptor);
-        }
-        {
-                VkDescriptorImageInfo depthImageInfo = {
-                    .imageView = m_GfxDevice.m_depthImage.imageView,
-                    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                };
-                VkWriteDescriptorSet depthWriteDescriptor = {
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstSet = m_otherDescriptorSets[1],
-                    .dstBinding = 3,
-                    .dstArrayElement = 0,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                    .pImageInfo = &depthImageInfo
-                };
-                gbufferDescriptorWrites.push_back(depthWriteDescriptor);
-        }
-
-        
-        vkUpdateDescriptorSets(m_GfxDevice, static_cast<uint32_t>(gbufferDescriptorWrites.size()), gbufferDescriptorWrites.data(), 0, nullptr);
-
-
-
 
         m_pLightingStage = std::make_unique<BlinnPhongLightingStage>(
-            m_GfxDevice, m_GraphicsPipelineCache, &lightingPipelineRenderingCI, 
-            std::array<VkDescriptorSetLayout, 2>{m_bindlessDescriptorSetLayout, m_lightingDescriptorSetLayout}, // TODO: This smells
-            m_otherDescriptorSets);
+            m_GfxDevice
+            , &lightingPipelineRenderingCI
+            , m_TextureCache
+            , m_globalDescriptorPool
+            , m_bindlessDescriptorSetLayout
+            , m_bindlessDescriptorSet
+            , m_albedoRTId
+            , m_worldNormalsRTId
+            , m_metallicRoughnessRTId
+        );
     }
 }
 
@@ -630,7 +529,7 @@ void Renderer::update_texture_descriptors() {
 
         textureDescriptorWrites[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         textureDescriptorWrites[i].pNext = nullptr;
-        textureDescriptorWrites[i].dstSet = m_bindlessDescriptorSets.at(0);
+        textureDescriptorWrites[i].dstSet = m_bindlessDescriptorSet;
         textureDescriptorWrites[i].dstBinding = 1;
         textureDescriptorWrites[i].dstArrayElement = i;
         textureDescriptorWrites[i].descriptorCount = 1;
@@ -649,7 +548,7 @@ void Renderer::update_texture_descriptors() {
     VkWriteDescriptorSet linearSamplerDescriptorWrite = {
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .pNext = nullptr,
-        .dstSet = m_bindlessDescriptorSets.at(0),
+        .dstSet = m_bindlessDescriptorSet,
         .dstBinding = 0,
         .dstArrayElement = {},
         .descriptorCount = 1,
@@ -704,7 +603,7 @@ void Renderer::init_imgui() {
         .MinImageCount = 3,
         .ImageCount = 3,
         .UseDynamicRendering = true,
-        .ColorAttachmentFormat = m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageFormat
+        .ColorAttachmentFormat = m_TextureCache.get_render_texture_texture(m_albedoRTId).allocatedImage.imageFormat
     };
 
     initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
@@ -833,7 +732,7 @@ void Renderer::drawFrame() {
         // Transition albedo and world normals RTs to color attachment
         {
             VkImageMemoryBarrier imb = image_memory_barrier(
-                m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.image, 
+                m_TextureCache.get_render_texture_texture(m_albedoRTId).allocatedImage.image, 
                 VK_ACCESS_NONE, 
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
@@ -850,7 +749,7 @@ void Renderer::drawFrame() {
             );
 
             VkImageMemoryBarrier imb2 = image_memory_barrier(
-                m_TextureCache.get_render_target_texture(m_worldNormalsRTId).allocatedImage.image, 
+                m_TextureCache.get_render_texture_texture(m_worldNormalsRTId).allocatedImage.image, 
                 VK_ACCESS_NONE, 
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
@@ -867,7 +766,7 @@ void Renderer::drawFrame() {
             );
 
             VkImageMemoryBarrier imb3 = image_memory_barrier(
-                m_TextureCache.get_render_target_texture(m_metallicRoughnessRTId).allocatedImage.image, 
+                m_TextureCache.get_render_texture_texture(m_metallicRoughnessRTId).allocatedImage.image, 
                 VK_ACCESS_NONE, 
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
@@ -889,19 +788,19 @@ void Renderer::drawFrame() {
 
         {
             VkRenderingAttachmentInfoKHR albedoAttachmentInfo = rendering_attachment_info(
-                m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.imageView,
+                m_TextureCache.get_render_texture_texture(m_albedoRTId).allocatedImage.imageView,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                 &DEFAULT_CLEAR_VALUE_COLOR
             );
 
             VkRenderingAttachmentInfoKHR worldNormalsAttachmentInfo = rendering_attachment_info(
-                m_TextureCache.get_render_target_texture(m_worldNormalsRTId).allocatedImage.imageView,
+                m_TextureCache.get_render_texture_texture(m_worldNormalsRTId).allocatedImage.imageView,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                 &DEFAULT_CLEAR_VALUE_ZERO
             );
 
             VkRenderingAttachmentInfoKHR metallicRoughnessAttachmentInfo = rendering_attachment_info(
-                m_TextureCache.get_render_target_texture(m_metallicRoughnessRTId).allocatedImage.imageView,
+                m_TextureCache.get_render_texture_texture(m_metallicRoughnessRTId).allocatedImage.imageView,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                 &DEFAULT_CLEAR_VALUE_ZERO
             );
@@ -934,7 +833,7 @@ void Renderer::drawFrame() {
         // Transition gbuffer + depth image to sampled images
         {
             VkImageMemoryBarrier imb = image_memory_barrier(
-                m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.image, 
+                m_TextureCache.get_render_texture_texture(m_albedoRTId).allocatedImage.image, 
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_ACCESS_SHADER_READ_BIT,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -951,7 +850,7 @@ void Renderer::drawFrame() {
             );
 
             VkImageMemoryBarrier imb2 = image_memory_barrier(
-                m_TextureCache.get_render_target_texture(m_worldNormalsRTId).allocatedImage.image, 
+                m_TextureCache.get_render_texture_texture(m_worldNormalsRTId).allocatedImage.image, 
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_ACCESS_SHADER_READ_BIT,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -968,7 +867,7 @@ void Renderer::drawFrame() {
             );
 
             VkImageMemoryBarrier imb3 = image_memory_barrier(
-                m_TextureCache.get_render_target_texture(m_metallicRoughnessRTId).allocatedImage.image, 
+                m_TextureCache.get_render_texture_texture(m_metallicRoughnessRTId).allocatedImage.image, 
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_ACCESS_SHADER_READ_BIT,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -1009,7 +908,7 @@ void Renderer::drawFrame() {
         // Transition lighting outut image to color attachment
         {
             VkImageMemoryBarrier imb = image_memory_barrier(
-                m_TextureCache.get_render_target_texture(m_lightingRTId).allocatedImage.image, 
+                m_TextureCache.get_render_texture_texture(m_lightingRTId).allocatedImage.image, 
                 VK_ACCESS_NONE, 
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
@@ -1031,7 +930,7 @@ void Renderer::drawFrame() {
         // Lighting Pass
         {
             VkRenderingAttachmentInfoKHR lightingAttachmentInfo = rendering_attachment_info(
-                m_TextureCache.get_render_target_texture(m_lightingRTId).allocatedImage.imageView,
+                m_TextureCache.get_render_texture_texture(m_lightingRTId).allocatedImage.imageView,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                 &DEFAULT_CLEAR_VALUE_COLOR
             );
@@ -1042,7 +941,7 @@ void Renderer::drawFrame() {
             );
             vkCmdBeginRenderingKHR(cmdBuffer, &lightingRenderingInfo);
 
-            m_pLightingStage->Draw(cmdBuffer, m_GPUSceneDataBuffers[m_currentFrame].gpuAddress, m_sceneRenderObjects);
+            m_pLightingStage->Draw(cmdBuffer, m_GPUSceneDataBuffers[m_currentFrame].gpuAddress);
 
             vkCmdEndRenderingKHR(cmdBuffer);
         }
@@ -1050,31 +949,12 @@ void Renderer::drawFrame() {
 
 
         // Draw imgui
-        draw_imgui(m_TextureCache.get_render_target_texture(m_lightingRTId).allocatedImage.imageView);
+        draw_imgui(m_TextureCache.get_render_texture_texture(m_lightingRTId).allocatedImage.imageView);
 
-        //// Transition albedo image to copy src
-        //{
-        //    VkImageMemoryBarrier imb = image_memory_barrier(
-        //        m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.image, 
-        //        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        //        VK_ACCESS_TRANSFER_READ_BIT, 
-        //        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        //        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-        //    );
-        //    vkCmdPipelineBarrier(
-        //        cmdBuffer,
-        //        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        //        VK_PIPELINE_STAGE_TRANSFER_BIT,
-        //        {},
-        //        0, nullptr,
-        //        0, nullptr,
-        //        1, &imb
-        //    );
-        //}
         // Transition lighting mage to copy src
         {
             VkImageMemoryBarrier imb = image_memory_barrier(
-                m_TextureCache.get_render_target_texture(m_lightingRTId).allocatedImage.image,
+                m_TextureCache.get_render_texture_texture(m_lightingRTId).allocatedImage.image,
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_ACCESS_TRANSFER_READ_BIT,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -1142,8 +1022,8 @@ void Renderer::drawFrame() {
 
         vkCmdCopyImage(
             cmdBuffer,
-            //m_TextureCache.get_render_target_texture(m_albedoRTId).allocatedImage.image,
-            m_TextureCache.get_render_target_texture(m_lightingRTId).allocatedImage.image,
+            //m_TextureCache.get_render_texture_texture(m_albedoRTId).allocatedImage.image,
+            m_TextureCache.get_render_texture_texture(m_lightingRTId).allocatedImage.image,
             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
             m_GfxDevice.m_swapChainImages[imageIndex],
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -1343,18 +1223,15 @@ void Renderer::cleanup() {
         buffer.cleanup(m_GfxDevice.m_vmaAllocator);
     }
 
-    
-
-    // TODO: TEMP
-    vkDestroyDescriptorSetLayout(m_GfxDevice, m_lightingDescriptorSetLayout, nullptr);
-    vkDestroyDescriptorPool(m_GfxDevice, m_temporaryGBufferPool, nullptr);
+    m_pLightingStage->Cleanup();
+    m_pGbufferStage->Cleanup();
+    vkDestroyDescriptorPool(m_GfxDevice, m_globalDescriptorPool, nullptr);
     
 
     vkDestroySampler(m_GfxDevice, m_linearSampler, nullptr);
     vkDestroySampler(m_GfxDevice, m_nearestSampler, nullptr);
 
     m_TextureCache.cleanup(m_GfxDevice);
-    m_GraphicsPipelineCache.cleanup(m_GfxDevice);
     m_MeshCache.cleanup(m_GfxDevice);
     m_GfxDevice.cleanup();
 
