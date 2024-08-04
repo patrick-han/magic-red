@@ -17,7 +17,7 @@ BlinnPhongLightingStage::BlinnPhongLightingStage(
     , m_descriptorSets(_descriptorSets)
     , m_pipeline(m_gfxDevice) 
     {
-      VertexInputDescription vertexDescription = VertexInputDescription::get_default_vertex_description();
+      VertexInputDescription vertexDescription;
       m_pipeline.BuildPipeline(
             _pipelineRenderingCreateInfo
             , m_vertexShaderPath, m_fragmentShaderPath
