@@ -13,12 +13,20 @@ BlinnPhongLightingStage::BlinnPhongLightingStage(
     std::span<VkDescriptorSet const> _descriptorSets)
     : StageBase(_gfxDevice)
     , m_graphicsPipelineCache(_graphicsPipelineCache)
-    , m_pipelineRenderingCreateInfo(_pipelineRenderingCreateInfo)
     , m_descriptorSetLayouts(_descriptorSetLayouts) 
     , m_descriptorSets(_descriptorSets)
-    , m_pipeline(m_gfxDevice, m_pipelineRenderingCreateInfo, m_vertexShaderPath, m_fragmentShaderPath, m_pushConstantRanges, m_descriptorSetLayouts, m_extent)
-    , m_pipelineId(m_graphicsPipelineCache.add_pipeline(m_gfxDevice, m_pipeline)) {
-
+    , m_pipeline(m_gfxDevice) 
+    {
+      VertexInputDescription vertexDescription = VertexInputDescription::get_default_vertex_description();
+      m_pipeline.BuildPipeline(
+            _pipelineRenderingCreateInfo
+            , m_vertexShaderPath, m_fragmentShaderPath
+            , vertexDescription
+            , m_pushConstantRanges
+            , m_descriptorSetLayouts
+            , m_extent
+            );
+        m_pipelineId = m_graphicsPipelineCache.add_pipeline(_gfxDevice, m_pipeline);
     }
 
 BlinnPhongLightingStage::~BlinnPhongLightingStage() {}

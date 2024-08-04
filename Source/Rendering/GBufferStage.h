@@ -31,13 +31,12 @@ public:
 
 private:
     GraphicsPipelineCache& m_graphicsPipelineCache;
-    const VkPipelineRenderingCreateInfoKHR* m_pipelineRenderingCreateInfo;
     const std::string m_vertexShaderPath = std::string("Shaders/triangle_mesh.vert.spv");
     const std::string m_fragmentShaderPath = std::string("Shaders/gbuffer.frag.spv");
     std::span<VkDescriptorSetLayout const> m_descriptorSetLayouts;
     std::span<VkDescriptorSet const> m_descriptorSets;
     const VkExtent2D m_extent = {WINDOW_WIDTH, WINDOW_HEIGHT};
 public:
-    const GraphicsPipeline m_pipeline;
-    const GraphicsPipelineId m_pipelineId;
+    GraphicsPipeline m_pipeline;
+    GraphicsPipelineId m_pipelineId;
 };

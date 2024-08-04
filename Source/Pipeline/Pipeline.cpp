@@ -1,6 +1,7 @@
 #include <Pipeline/Pipeline.h>
+#include <Rendering/GfxDevice.h>
 
-Pipeline::Pipeline(const VkDevice device) : m_logicalDevice(device) {}
+Pipeline::Pipeline(const GfxDevice& device) : m_logicalDevice(device) {}
 
 Pipeline::~Pipeline() {} // Must be provided since destructors are called in reverse order back to the base class
 
