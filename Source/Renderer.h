@@ -10,7 +10,6 @@
 #include <Mesh/RenderObject.h>
 #include <Mesh/DefaultPushConstants.h>
 #include <Pipeline/GraphicsPipeline.h>
-#include <Pipeline/PipelineCache.h>
 #include <Texture/TextureCache.h>
 #include <Material/MaterialCache.h>
 #include <Light/PointLight.h>
@@ -19,7 +18,6 @@
 #include <SceneData.h>
 #include <Common/Config.h>
 
-// #include <Rendering/StageBase.h>
 #include <Rendering/GBufferStage.h>
 #include <Rendering/BlinnPhongLightingStage.h>
 
@@ -33,7 +31,6 @@ private:
     SDL_Window *m_window;
     GfxDevice m_GfxDevice;
     MeshCache m_MeshCache;
-    GraphicsPipelineCache m_GraphicsPipelineCache;
     MaterialCache m_MaterialCache;
     TextureCache m_TextureCache;
 
@@ -58,11 +55,9 @@ private:
     // Descriptors
     VkDescriptorPool m_bindlessPool;
     VkDescriptorSetLayout m_bindlessDescriptorSetLayout;
-    std::array<VkDescriptorSet, 1> m_bindlessDescriptorSets;
+    VkDescriptorSet m_bindlessDescriptorSet;
 
     VkDescriptorPool m_globalDescriptorPool;
-    VkDescriptorSetLayout m_lightingDescriptorSetLayout;
-    std::vector<VkDescriptorSet> m_otherDescriptorSets;
 
     // Samplers
     VkSampler m_linearSampler;
@@ -98,6 +93,8 @@ private:
     void init_assets();
     void init_material_data();
     void init_scene_data();
+
+    void init_global_descriptor_pool();
 
     void init_render_textures();
     void init_render_stages();

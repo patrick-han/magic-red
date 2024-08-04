@@ -1,32 +1,28 @@
 #include "GBufferStage.h"
 #include <Rendering/GfxDevice.h>
-#include <Pipeline/PipelineCache.h>
 #include <Mesh/RenderObject.h>
 #include <Common/Defaults.h>
 
 GBufferStage::GBufferStage(
     const GfxDevice& _gfxDevice,
-    GraphicsPipelineCache&  _graphicsPipelineCache,
     const VkPipelineRenderingCreateInfoKHR* _pipelineRenderingCreateInfo,
-    std::span<VkDescriptorSetLayout const> _descriptorSetLayouts,
-    std::span<VkDescriptorSet const> _descriptorSets)
+    VkDescriptorSetLayout _bindlessDescriptorSetLayout,
+    VkDescriptorSet _bindlessDescriptorSet)
     : StageBase(_gfxDevice)
-    , m_graphicsPipelineCache(_graphicsPipelineCache)
-    , m_descriptorSetLayouts(_descriptorSetLayouts) 
-    , m_descriptorSets(_descriptorSets)
+    , m_bindlessDescriptorSet(_bindlessDescriptorSet)
     , m_pipeline(m_gfxDevice)
     {
 
         VertexInputDescription vertexDescription = VertexInputDescription::get_default_vertex_description();
+        std::array<VkDescriptorSetLayout, 1> descriptorSetLayouts = {{_bindlessDescriptorSetLayout}};
         m_pipeline.BuildPipeline(
             _pipelineRenderingCreateInfo
             , m_vertexShaderPath, m_fragmentShaderPath
             , vertexDescription
             , m_pushConstantRanges
-            , m_descriptorSetLayouts
+            , descriptorSetLayouts
             , m_extent
             );
-        m_pipelineId = m_graphicsPipelineCache.add_pipeline(_gfxDevice, m_pipeline);
     }
 
 GBufferStage::~GBufferStage() {}
@@ -41,8 +37,7 @@ void GBufferStage::Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBuff
     // Bindless descriptor set shared for color pass
     vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
        m_pipeline.get_pipeline_layout(), 
-       0, static_cast<uint32_t>(m_descriptorSets.size()), &m_descriptorSets[0], 0, nullptr); // TODO: Hardcoded
-
+       0, 1, &m_bindlessDescriptorSet, 0, nullptr);
 
     for(const RenderObject& renderObject : renderObjects)
     {
@@ -54,4 +49,9 @@ void GBufferStage::Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBuff
 
         renderObject.bind_mesh_buffers_and_draw(cmdBuffer, std::span<const VkDescriptorSet>());
     }
+}
+
+void GBufferStage::Cleanup() {
+    vkDestroyPipelineLayout(m_gfxDevice, m_pipeline.get_pipeline_layout(), nullptr);
+    vkDestroyPipeline(m_gfxDevice, m_pipeline.get_pipeline_handle(), nullptr);
 }

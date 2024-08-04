@@ -5,10 +5,17 @@
 #include <Common/Config.h>
 #include <Rendering/StageBase.h>
 #include <array>
+#include <Common/IdTypes.h>
 
 class GfxDevice;
-class GraphicsPipelineCache;
+class TextureCache;
 struct RenderObject;
+
+
+struct DescriptorSetLayoutBinding {
+    VkDescriptorType descriptorType;
+    int descriptorCount;
+};
 
 class BlinnPhongLightingStage final : public StageBase {
 
@@ -18,24 +25,33 @@ public:
     // BlinnPhongLightingStage() = delete;
     BlinnPhongLightingStage(
         const GfxDevice& _gfxDevice,
-        GraphicsPipelineCache&  _graphicsPipelineCache,
         const VkPipelineRenderingCreateInfoKHR* _pipelineRenderingCreateInfo,
-        std::span<VkDescriptorSetLayout const> _descriptorSetLayouts,
-        std::span<VkDescriptorSet const> _descriptorSets
+        const TextureCache& _textureCache,
+        const VkDescriptorPool _globalDescriptorPool,
+        const VkDescriptorSetLayout _bindlessDescriptorSetLayout,
+        const VkDescriptorSet _bindlessDescriptorSet,
+        GPUTextureId _albedoRTId,
+        GPUTextureId _worldNormalsRTId,
+        GPUTextureId _metallicRoughnessRTId
     );
     ~BlinnPhongLightingStage();
     BlinnPhongLightingStage(const BlinnPhongLightingStage&) = delete;
     BlinnPhongLightingStage& operator=(const BlinnPhongLightingStage&) = delete;
 
-    virtual void Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress, std::span<RenderObject> renderObjects) override;
+    void Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sceneDataBufferAddress, std::span<RenderObject> renderObjects) override;
+    void Cleanup() override;
 
 private:
-    GraphicsPipelineCache& m_graphicsPipelineCache;
     const std::string m_vertexShaderPath = std::string("Shaders/fullscreen_quad.vert.spv");
     const std::string m_fragmentShaderPath = std::string("Shaders/blinn-phong.frag.spv");
-    std::span<VkDescriptorSetLayout const> m_descriptorSetLayouts;
-    std::span<VkDescriptorSet const> m_descriptorSets;
     const VkExtent2D m_extent = {WINDOW_WIDTH, WINDOW_HEIGHT};
+
+    const TextureCache& m_textureCache;
+    const VkDescriptorPool& m_globalDescriptorPool;
+    const VkDescriptorSetLayout m_bindlessDescriptorSetLayout;
+    const VkDescriptorSet m_bindlessDescriptorSet;
+    VkDescriptorSetLayout m_lightingDescriptorSetLayout;
+    VkDescriptorSet m_lightingDescriptorSet;
 public:
     GraphicsPipeline m_pipeline;
     GraphicsPipelineId m_pipelineId;

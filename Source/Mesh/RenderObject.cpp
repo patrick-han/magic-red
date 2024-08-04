@@ -3,7 +3,6 @@
 #include <Pipeline/GraphicsPipeline.h>
 #include <glm/glm.hpp>
 #include <Mesh/MeshCache.h>
-#include <Pipeline/PipelineCache.h>
 
 RenderObject::RenderObject(const GPUMeshId _GPUmeshId, const MeshCache& _meshCache, glm::mat4 _transformMatrix) : 
     m_GPUmeshId(_GPUmeshId),
