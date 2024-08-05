@@ -15,7 +15,7 @@
 #include <Light/PointLight.h>
 #include <Light/DirectionalLight.h>
 #include <Wrappers/Buffer.h>
-#include <SceneData.h>
+#include <Rendering/SceneData.h>
 #include <Common/Config.h>
 
 #include <Rendering/GBufferStage.h>
