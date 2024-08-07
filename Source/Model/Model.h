@@ -13,8 +13,7 @@ struct aiScene;
 struct aiNode;
 struct aiMaterial;
 struct aiString;
-enum aiTextureType : int;
-
+#include <assimp/material.h>
 #include <glm/mat4x4.hpp>
 
 struct CPUModel {
@@ -23,7 +22,7 @@ struct CPUModel {
     std::vector<CPUMesh> m_cpuMeshes;
 private:
     MaterialCache& m_materialCache;
-    TextureCache& m_textureCache; 
+    TextureCache& m_textureCache;
     const GfxDevice& m_gfxDevice;
     bool m_texturesEmbedded;
     const char* m_filePath;
@@ -31,11 +30,11 @@ private:
 
     inline static const std::string missingDiffuseTextureName{"missing_diffuse_texture.png"};
     inline static const std::string default1TextureName{"default_1_texture.png"};
-    
+
 
     void load_texture_from_filename(const aiMaterial* material, aiTextureType textureType, Material& meshMaterial);
     void load_embedded_texture_data(const aiMaterial* material, const aiScene* scene, aiTextureType textureType, Material& meshMaterial);
     CPUMesh process_mesh(aiMesh *mesh, const aiScene *scene, const glm::mat4x4& transformMatrix);
     void process_assimp_node(aiNode *node, const aiScene *scene, const glm::mat4x4& accumulateMatrix);
-    
+
 };

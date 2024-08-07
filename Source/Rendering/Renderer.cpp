@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include "Common/Config.h"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
@@ -182,7 +183,7 @@ void Renderer::init_bindless_descriptors() {
     // Flags required for bindless stuff
     // We only need a single layout since they are all the same for each frame in flight
     // m_sceneDataDescriptorSetLayouts.push_back(layoutBuilder.buildLayout(m_GfxDevice, VK_SHADER_STAGE_FRAGMENT_BIT));
-    const VkDescriptorBindingFlags bindlessFlags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT 
+    const VkDescriptorBindingFlags bindlessFlags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT
                                                     | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
     std::vector<VkDescriptorBindingFlags> descriptorBindingFlags;
     for(size_t i = 0; i < bindlessDescriptorSetLayoutBindings.size(); i++)
@@ -190,7 +191,7 @@ void Renderer::init_bindless_descriptors() {
         descriptorBindingFlags.push_back(bindlessFlags);
     }
     descriptorBindingFlags.back() |= VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT; // Permits use of variable array size for a set (with the caveat that only the last binding in the set can be of variable length)
-    VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extendedBindingInfo { 
+    VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extendedBindingInfo {
         .sType =  VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT,
         .bindingCount = static_cast<uint32_t>(descriptorBindingFlags.size()),
         .pBindingFlags = descriptorBindingFlags.data()
@@ -206,7 +207,7 @@ void Renderer::init_bindless_descriptors() {
 
     // Allocate the descriptor set
     uint32_t maxBinding = maxBindlessResourceCount - 1;
-    VkDescriptorSetVariableDescriptorCountAllocateInfoEXT variableDescriptorCountInfo { 
+    VkDescriptorSetVariableDescriptorCountAllocateInfoEXT variableDescriptorCountInfo {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT,
         .descriptorSetCount = 1,
         .pDescriptorCounts = &maxBinding // Number of descriptors, -1?
@@ -218,7 +219,7 @@ void Renderer::init_bindless_descriptors() {
         .descriptorSetCount = 1,
         .pSetLayouts = &m_bindlessDescriptorSetLayout
     };
-    
+
     vkAllocateDescriptorSets(m_GfxDevice, &allocateInfo, &m_bindlessDescriptorSet);
 }
 
@@ -264,6 +265,7 @@ void Renderer::init_assets() {
     glm::mat4 translate = glm::translate(glm::mat4{ 1.0f }, glm::vec3(0.0f, 2.0f, 2.0f));
     glm::mat4 rotate = glm::rotate(translate, rm, glm::vec3(rx, ry, rz));
     glm::mat4 scale = glm::scale(rotate, glm::vec3(5.0f, 5.0f, 5.0f));
+    UNUSED(scale);
 
 
     // {
@@ -322,7 +324,7 @@ void Renderer::init_assets() {
     //         m_sceneRenderMeshComponents.push_back(orientationTestObject);
     //      }
     //  }
-    
+
     // {
     //     // Suzanne mesh
     //     CPUModel suzanneModel(ROOT_DIR "/Assets/Meshes/suzanne.glb", true, m_TextureCache);
@@ -336,7 +338,7 @@ void Renderer::init_assets() {
     {
         // Helmet mesh
         CPUModel helmetModel(ROOT_DIR "/Assets/Meshes/DamagedHelmet.glb", true, m_MaterialCache, m_TextureCache, m_GfxDevice);
-       
+
 
         for (CPUMesh& mesh : helmetModel.m_cpuMeshes)
         {
@@ -376,10 +378,14 @@ void Renderer::init_global_descriptor_pool() {
 }
 
 void Renderer::init_render_textures() {
+    VkExtent3D fullFrameBufferExtent = {.width = WINDOW_WIDTH, .height = WINDOW_HEIGHT, .depth = 1};
+
     // G Buffer
     {
+
+
         VkFormat albedoRTFormat = VK_FORMAT_B8G8R8A8_UNORM;
-        VkImageCreateInfo albedoRTImage_ci = image_create_info(albedoRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
+        VkImageCreateInfo albedoRTImage_ci = image_create_info(albedoRTFormat, fullFrameBufferExtent,
             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
             // | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT // Input to deferred lighting // TODO: subpass
             | VK_IMAGE_USAGE_SAMPLED_BIT // Lighting alternative read in
@@ -389,7 +395,7 @@ void Renderer::init_render_textures() {
         m_albedoRTId = m_TextureCache.add_render_texture_texture(m_GfxDevice, albedoRTFormat, albedoRTImage_ci);
 
         VkFormat worldNormalsRTFormat = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
-        VkImageCreateInfo worldNormalsRTImage_ci = image_create_info(worldNormalsRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
+        VkImageCreateInfo worldNormalsRTImage_ci = image_create_info(worldNormalsRTFormat, fullFrameBufferExtent,
             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
             | VK_IMAGE_USAGE_SAMPLED_BIT, // Lighting alternative read in
             // | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, // Input to deferred lighting // TODO: subpass
@@ -398,7 +404,7 @@ void Renderer::init_render_textures() {
         m_worldNormalsRTId = m_TextureCache.add_render_texture_texture(m_GfxDevice, worldNormalsRTFormat, worldNormalsRTImage_ci);
 
         VkFormat metallicRoughnessRTFormat = VK_FORMAT_R8G8_UNORM;
-        VkImageCreateInfo metallicRoughnessRTImage_ci = image_create_info(metallicRoughnessRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
+        VkImageCreateInfo metallicRoughnessRTImage_ci = image_create_info(metallicRoughnessRTFormat, fullFrameBufferExtent,
             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from gbuffer
             | VK_IMAGE_USAGE_SAMPLED_BIT, // Lighting alternative read in
             // | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, // Input to deferred lighting // TODO: subpass
@@ -410,7 +416,7 @@ void Renderer::init_render_textures() {
     // Lighting
     {
         VkFormat lightingRTFormat = VK_FORMAT_B8G8R8A8_UNORM; // TODO: SRGB?
-        VkImageCreateInfo lightingRTImage_ci = image_create_info(lightingRTFormat, VkExtent3D(WINDOW_WIDTH, WINDOW_HEIGHT, 1), 
+        VkImageCreateInfo lightingRTImage_ci = image_create_info(lightingRTFormat, fullFrameBufferExtent,
             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT   // Output from lighting pass
             | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,    // TODO: Copy from to swapchain
             VK_IMAGE_TYPE_2D
@@ -440,7 +446,7 @@ void Renderer::init_render_stages() {
 
         // m_renderStages.push_back(std::make_unique<GBufferStage>(m_GfxDevice, &pipelineRenderingCI, std::span<VkDescriptorSetLayout const>(std::array<VkDescriptorSetLayout, 1>{m_bindlessDescriptorSetLayout})));
         m_pGbufferStage = std::make_unique<GBufferStage>(
-            m_GfxDevice, &pipelineRenderingCI, 
+            m_GfxDevice, &pipelineRenderingCI,
             m_bindlessDescriptorSetLayout,
             m_bindlessDescriptorSet);
     }
@@ -490,8 +496,8 @@ void Renderer::init_scene_data() {
         .buffer = m_materialDataBuffer.buffer
     };
     m_CPUSceneData.materialBufferAddress = vkGetBufferDeviceAddress(m_GfxDevice, &materialBufferAddressInfo);
-    
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)  
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         upload_buffer(
             m_GPUSceneDataBuffers[i],
@@ -538,7 +544,7 @@ void Renderer::update_texture_descriptors() {
         textureDescriptorWrites[i].pBufferInfo = nullptr;
         textureDescriptorWrites[i].pTexelBufferView = nullptr;
     }
-    
+
     vkUpdateDescriptorSets(m_GfxDevice, static_cast<uint32_t>(textureDescriptorWrites.size()), textureDescriptorWrites.data(), 0, nullptr);
 
 
@@ -564,7 +570,7 @@ void Renderer::update_texture_descriptors() {
 void Renderer::init_imgui() {
     // Create a descriptor pool for IMGUI
     // The size of the pool is very oversized, but it's copied from imgui demo
-    VkDescriptorPoolSize poolSizes[] = { 
+    VkDescriptorPoolSize poolSizes[] = {
         { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
         { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
@@ -612,8 +618,8 @@ void Renderer::init_imgui() {
 
     // Execute a gpu command to upload imgui font textures
     // Update: No longer requires passing a command buffer (builds own pool + buffer internally), also no longer require destroy DestroyFontUploadObjects()
-    // immediate_submit([=]() { 
-        ImGui_ImplVulkan_CreateFontsTexture(); 
+    // immediate_submit([=]() {
+        ImGui_ImplVulkan_CreateFontsTexture();
     // });
 
     // add the destroy the imgui created structures
@@ -653,10 +659,10 @@ void Renderer::update_lights(uint32_t frameInFlightIndex) {
             1.0,
             lightCircleRadius * glm::cos(lightCircleSpeed * frameNumber)
         );
-        
+
 
         update_buffer(
-            m_GPUPointLightsBuffers[frameInFlightIndex], 
+            m_GPUPointLightsBuffers[frameInFlightIndex],
             m_CPUPointLights.size() * sizeof(PointLight),
             m_CPUPointLights.data(),
             m_GfxDevice.m_vmaAllocator
@@ -675,7 +681,7 @@ void Renderer::update_scene_data(uint32_t frameInFlightIndex) {
     m_CPUSceneData.directionalLight = m_directionalLight;
 
     update_buffer(
-        m_GPUSceneDataBuffers[frameInFlightIndex], 
+        m_GPUSceneDataBuffers[frameInFlightIndex],
         sizeof(CPUSceneData),
         &m_CPUSceneData,
         m_GfxDevice.m_vmaAllocator
@@ -683,7 +689,7 @@ void Renderer::update_scene_data(uint32_t frameInFlightIndex) {
 }
 
 void Renderer::drawFrame() {
-        
+
         // Wait for previous frame to finish rendering before allowing us to acquire another image
         VkFence renderFence = m_GfxDevice.get_frame_fence(m_currentFrame);
         VkResult res = vkWaitForFences(m_GfxDevice, 1, &renderFence, true, (std::numeric_limits<uint64_t>::max)());
@@ -711,7 +717,7 @@ void Renderer::drawFrame() {
 
         {
             VkImageMemoryBarrier imb = image_memory_barrier(
-                m_GfxDevice.m_depthImage.image, 
+                m_GfxDevice.m_depthImage.image,
                 VK_ACCESS_NONE,
                 VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
@@ -719,7 +725,7 @@ void Renderer::drawFrame() {
                 VK_IMAGE_ASPECT_DEPTH_BIT
             );
             vkCmdPipelineBarrier(
-                cmdBuffer, 
+                cmdBuffer,
                 VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                 VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
                 {},
@@ -732,14 +738,14 @@ void Renderer::drawFrame() {
         // Transition albedo and world normals RTs to color attachment
         {
             VkImageMemoryBarrier imb = image_memory_barrier(
-                m_TextureCache.get_render_texture_texture(m_albedoRTId).allocatedImage.image, 
-                VK_ACCESS_NONE, 
+                m_TextureCache.get_render_texture_texture(m_albedoRTId).allocatedImage.image,
+                VK_ACCESS_NONE,
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             );
             vkCmdPipelineBarrier(
-                cmdBuffer, 
+                cmdBuffer,
                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 {},
@@ -749,14 +755,14 @@ void Renderer::drawFrame() {
             );
 
             VkImageMemoryBarrier imb2 = image_memory_barrier(
-                m_TextureCache.get_render_texture_texture(m_worldNormalsRTId).allocatedImage.image, 
-                VK_ACCESS_NONE, 
+                m_TextureCache.get_render_texture_texture(m_worldNormalsRTId).allocatedImage.image,
+                VK_ACCESS_NONE,
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             );
             vkCmdPipelineBarrier(
-                cmdBuffer, 
+                cmdBuffer,
                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 {},
@@ -766,14 +772,14 @@ void Renderer::drawFrame() {
             );
 
             VkImageMemoryBarrier imb3 = image_memory_barrier(
-                m_TextureCache.get_render_texture_texture(m_metallicRoughnessRTId).allocatedImage.image, 
-                VK_ACCESS_NONE, 
+                m_TextureCache.get_render_texture_texture(m_metallicRoughnessRTId).allocatedImage.image,
+                VK_ACCESS_NONE,
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             );
             vkCmdPipelineBarrier(
-                cmdBuffer, 
+                cmdBuffer,
                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 {},
@@ -833,14 +839,14 @@ void Renderer::drawFrame() {
         // Transition gbuffer + depth image to sampled images
         {
             VkImageMemoryBarrier imb = image_memory_barrier(
-                m_TextureCache.get_render_texture_texture(m_albedoRTId).allocatedImage.image, 
+                m_TextureCache.get_render_texture_texture(m_albedoRTId).allocatedImage.image,
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_ACCESS_SHADER_READ_BIT,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
             );
             vkCmdPipelineBarrier(
-                cmdBuffer, 
+                cmdBuffer,
                 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                 {},
@@ -850,14 +856,14 @@ void Renderer::drawFrame() {
             );
 
             VkImageMemoryBarrier imb2 = image_memory_barrier(
-                m_TextureCache.get_render_texture_texture(m_worldNormalsRTId).allocatedImage.image, 
+                m_TextureCache.get_render_texture_texture(m_worldNormalsRTId).allocatedImage.image,
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_ACCESS_SHADER_READ_BIT,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
             );
             vkCmdPipelineBarrier(
-                cmdBuffer, 
+                cmdBuffer,
                 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                 {},
@@ -867,14 +873,14 @@ void Renderer::drawFrame() {
             );
 
             VkImageMemoryBarrier imb3 = image_memory_barrier(
-                m_TextureCache.get_render_texture_texture(m_metallicRoughnessRTId).allocatedImage.image, 
+                m_TextureCache.get_render_texture_texture(m_metallicRoughnessRTId).allocatedImage.image,
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_ACCESS_SHADER_READ_BIT,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
             );
             vkCmdPipelineBarrier(
-                cmdBuffer, 
+                cmdBuffer,
                 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                 {},
@@ -884,7 +890,7 @@ void Renderer::drawFrame() {
             );
 
             VkImageMemoryBarrier imb4 = image_memory_barrier(
-                m_GfxDevice.m_depthImage.image, 
+                m_GfxDevice.m_depthImage.image,
                 VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                 // VK_IMAGE_LAYOUT_UNDEFINED,
                 VK_ACCESS_SHADER_READ_BIT,
@@ -894,7 +900,7 @@ void Renderer::drawFrame() {
                 VK_IMAGE_ASPECT_DEPTH_BIT
             );
             vkCmdPipelineBarrier(
-                cmdBuffer, 
+                cmdBuffer,
                 VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
                 VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                 {},
@@ -908,14 +914,14 @@ void Renderer::drawFrame() {
         // Transition lighting outut image to color attachment
         {
             VkImageMemoryBarrier imb = image_memory_barrier(
-                m_TextureCache.get_render_texture_texture(m_lightingRTId).allocatedImage.image, 
-                VK_ACCESS_NONE, 
+                m_TextureCache.get_render_texture_texture(m_lightingRTId).allocatedImage.image,
+                VK_ACCESS_NONE,
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             );
             vkCmdPipelineBarrier(
-                cmdBuffer, 
+                cmdBuffer,
                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 {},
@@ -1030,19 +1036,19 @@ void Renderer::drawFrame() {
             1,
             &imageCopy
         );
-        
+
 
         {
             // Transition swapchain to correct presentation layout
             VkImageMemoryBarrier imb = image_memory_barrier(
-                m_GfxDevice.m_swapChainImages[imageIndex], 
+                m_GfxDevice.m_swapChainImages[imageIndex],
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 {},
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             );
             vkCmdPipelineBarrier(
-                cmdBuffer, 
+                cmdBuffer,
                 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 {},
@@ -1083,7 +1089,7 @@ void Renderer::drawFrame() {
 
         m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
         frameNumber++;
-        
+
 }
 
 void Renderer::mainLoop() {
@@ -1094,7 +1100,7 @@ void Renderer::mainLoop() {
     while (!bQuit) {
         // Handle events on queue
         while (SDL_PollEvent(&sdlEvent) != 0) {
-            ImGui_ImplSDL3_ProcessEvent(&sdlEvent);      
+            ImGui_ImplSDL3_ProcessEvent(&sdlEvent);
             if (sdlEvent.type == SDL_EVENT_QUIT) { // Built in Alt+F4 or hitting the 'x' button
                 SDL_SetRelativeMouseMode(SDL_FALSE); // Needed or else mouse freeze persists until clicking after closing app
                 bQuit = true;
@@ -1112,7 +1118,7 @@ void Renderer::mainLoop() {
                     }
                 }
             }
-            
+
             // Mouse motion
             if (sdlEvent.type == SDL_EVENT_MOUSE_MOTION) {
                 float xoffset = sdlEvent.motion.xrel;
@@ -1226,7 +1232,7 @@ void Renderer::cleanup() {
     m_pLightingStage->Cleanup();
     m_pGbufferStage->Cleanup();
     vkDestroyDescriptorPool(m_GfxDevice, m_globalDescriptorPool, nullptr);
-    
+
 
     vkDestroySampler(m_GfxDevice, m_linearSampler, nullptr);
     vkDestroySampler(m_GfxDevice, m_nearestSampler, nullptr);

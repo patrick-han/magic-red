@@ -4,11 +4,11 @@
 #include <glm/glm.hpp>
 #include <Mesh/MeshCache.h>
 
-RenderMeshComponent::RenderMeshComponent(const GPUMeshId _GPUmeshId, const MeshCache& _meshCache, glm::mat4 _transformMatrix) : 
-    m_GPUmeshId(_GPUmeshId),
-    m_meshCache(_meshCache),
-    m_materialId(m_meshCache.get_mesh(m_GPUmeshId).m_materialId),
-    m_transformMatrix(_transformMatrix)
+RenderMeshComponent::RenderMeshComponent(const GPUMeshId _GPUmeshId, const MeshCache& _meshCache, glm::mat4 _transformMatrix) :
+    m_GPUmeshId(_GPUmeshId)
+    , m_meshCache(_meshCache)
+    , m_transformMatrix(_transformMatrix)
+    , m_materialId(m_meshCache.get_mesh(m_GPUmeshId).m_materialId)
 {}
 
 void RenderMeshComponent::bind_mesh_buffers_and_draw(VkCommandBuffer commandBuffer, [[maybe_unused]] std::span<VkDescriptorSet const> descriptorSets) const {

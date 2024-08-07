@@ -45,8 +45,7 @@ private:
     const VkExtent2D m_extent = {WINDOW_WIDTH, WINDOW_HEIGHT};
 
     const TextureCache& m_textureCache;
-    const VkDescriptorPool& m_globalDescriptorPool;
-    const VkDescriptorSetLayout m_bindlessDescriptorSetLayout;
+    const VkDescriptorPool m_globalDescriptorPool;
     const VkDescriptorSet m_bindlessDescriptorSet;
     VkDescriptorSetLayout m_lightingDescriptorSetLayout;
     VkDescriptorSet m_lightingDescriptorSet;

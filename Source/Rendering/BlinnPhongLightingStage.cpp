@@ -26,9 +26,8 @@ BlinnPhongLightingStage::BlinnPhongLightingStage(
     : StageBase(_gfxDevice)
     , m_textureCache(_textureCache)
     , m_globalDescriptorPool(_globalDescriptorPool)
-    , m_bindlessDescriptorSetLayout(_bindlessDescriptorSetLayout)
     , m_bindlessDescriptorSet(_bindlessDescriptorSet)
-    , m_pipeline(m_gfxDevice) 
+    , m_pipeline(m_gfxDevice)
     {
         {
             // Build a descriptor set layout
@@ -60,7 +59,7 @@ BlinnPhongLightingStage::BlinnPhongLightingStage(
                 .descriptorSetCount = 1,
                 .pSetLayouts = &m_lightingDescriptorSetLayout
             };
-            
+
             vkAllocateDescriptorSets(m_gfxDevice, &allocateInfo, &m_lightingDescriptorSet);
         }
 
@@ -138,7 +137,7 @@ BlinnPhongLightingStage::BlinnPhongLightingStage(
 
 
         std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts = {{_bindlessDescriptorSetLayout, m_lightingDescriptorSetLayout}};
-        
+
         VertexInputDescription vertexDescription;
         m_pipeline.BuildPipeline(
             _pipelineRenderingCreateInfo
@@ -161,8 +160,8 @@ void BlinnPhongLightingStage::Draw(VkCommandBuffer cmdBuffer, VkDeviceAddress sc
 
     // Bindless descriptor set shared for color pass
     std::array<VkDescriptorSet, 2> descriptorSets = {{m_bindlessDescriptorSet, m_lightingDescriptorSet}}; // TODO:: smelly?
-    vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
-      m_pipeline.get_pipeline_layout(), 
+    vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+      m_pipeline.get_pipeline_layout(),
       0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
 
 
