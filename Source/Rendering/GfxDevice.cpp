@@ -124,7 +124,19 @@ void GfxDevice::init_physical_device() {
     vkGetPhysicalDeviceProperties(m_physicalDevice, &chosenPhysDeviceProps);
     MRLOG("Chosen deviceName: " << chosenPhysDeviceProps.deviceName);
 #else
-    m_physicalDevice = physicalDevices[0]; // TODO: By Default, just select the first physical device, could be bad if there are both integrated and discrete GPUs in the system
+    for (VkPhysicalDevice d : physicalDevices) {
+        VkPhysicalDeviceProperties physDeviceProps;
+        vkGetPhysicalDeviceProperties(d, &physDeviceProps);
+        if (physDeviceProps.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+        {
+            MRLOG("Physical device selected: " << physDeviceProps.deviceName);
+            m_physicalDevice = d;
+        }
+        else
+        {
+            m_physicalDevice = physicalDevices[0]; // By default, just select the first physical device if no discrete GPU exists
+        }   
+    }
 #endif
 }
 
